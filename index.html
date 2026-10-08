@@ -242,6 +242,18 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .fade { animation: fade .28s ease-out; }
 @keyframes fade { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.stage-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.stage-list li { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; }
+.stage-list .stage-no { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 0; text-align: center; }
+.stage-list b { display: block; font-size: 15px; }
+.stage-list div span { font-size: 14px; color: var(--muted); }
+.path { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.path li { border: 1.5px dashed var(--line); border-radius: 10px; padding: 10px 8px; display: grid; gap: 2px; text-align: center; color: var(--muted); }
+.path li span { font-size: 11px; letter-spacing: .04em; }
+.path li b { font-size: 15px; }
+.path li small { font-size: 11px; }
+.path li.on { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.path li.on span { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -308,14 +320,26 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   };
   const LEVEL = ["ok", "watch", "care"], LEVEL_NAME = { ok: "괜찮은 편", watch: "살펴볼 필요", care: "도움이 필요" };
   const lvIdx = a => a < 1 ? 0 : a < 1.75 ? 1 : 2;
-  const SAT_AREAS = [
-    { name: "서비스 과정", items: ["신청부터 첫 만남까지의 안내가 친절하고 이해하기 쉬웠다.", "만남의 일정과 장소가 나에게 편했다.", "만남의 횟수와 시간이 적당했다."] },
-    { name: "담당 활동가", items: ["활동가는 내 이야기를 귀 기울여 들어주었다.", "활동가는 나를 존중하고 내 이야기의 비밀을 지켜주었다.", "활동가는 내게 필요한 정보와 도움을 알맞게 연결해 주었다."] },
-    { name: "서비스 효과", items: ["생활 리듬(잠, 식사, 씻기 등)을 되찾는 데 도움이 되었다.", "마음이 전보다 편안하고 안정되었다.", "사람을 만나거나 밖에 나가는 일이 전보다 수월해졌다.", "앞으로 해보고 싶은 일이나 계획이 생겼다."] },
-    { name: "전반적 만족", items: ["이 서비스에 전반적으로 만족한다.", "필요할 때 이 서비스를 다시 이용하고 싶다.", "비슷한 어려움을 겪는 사람에게 이 서비스를 추천하고 싶다."] }
+  // 단계적 회복 서비스
+  const STAGES = [
+    { key: "s1", step: "1단계", name: "일상회복", prog: "1:1 일상회복 동행", desc: "활동가가 직접 찾아가 생활 리듬과 외출을 함께 되찾아요.",
+      best: [["oneone", "1:1 일상회복 동행"]],
+      items: ["활동가는 내 이야기를 귀 기울여 들어주고 나를 존중해 주었다.", "생활 리듬(잠, 식사, 씻기 등)을 되찾는 데 도움이 되었다.", "밖에 나가거나 사람을 만나는 일이 전보다 수월해졌다."] },
+    { key: "s2", step: "2단계", name: "관계형성", prog: "자조모임 · 캠프", desc: "비슷한 경험을 가진 청년들과 모임과 캠프로 함께하며 관계를 맺어요.",
+      best: [["selfhelp", "자조모임"], ["camp", "캠프"]],
+      items: ["모임과 캠프의 분위기가 편안하고 안전하게 느껴졌다.", "비슷한 경험을 가진 사람들과 연결되어 있다는 느낌을 받았다.", "사람들과 관계를 맺는 데 자신감이 생겼다."] },
+    { key: "s3", step: "3단계", name: "자립", prog: "일경험", desc: "일을 직접 경험하며 자립의 계기를 만들어요.",
+      best: [["work", "일경험"]],
+      items: ["일경험의 내용과 방식이 나에게 잘 맞았다.", "일하는 생활 리듬과 책임감을 경험할 수 있었다.", "앞으로의 일이나 자립에 대한 구체적인 계획이 생겼다."] }
   ];
-  const SAT = [];
-  SAT_AREAS.forEach(a => a.items.forEach(t => SAT.push(t)));
+  const SAT_COMMON = ["한 단계에서 다음 단계로 넘어갈 때 안내와 연결이 충분했다.", "내 이야기의 비밀이 지켜지고 안전하게 느껴졌다.",
+    "안전한더유스의 단계적 회복 서비스에 전반적으로 만족한다.", "필요할 때 이 서비스에 다시 참여하고 싶다.", "비슷한 어려움을 겪는 사람에게 이 서비스를 추천하고 싶다."];
+  // 참여한 단계에 따라 나오는 만족도 문항 (id는 저장 쪽과 같아요: s1-0 … c-4)
+  const satItems = () => STAGES.filter(st => S.satMeta.stages.includes(st.key)).flatMap(st => st.items.map((t, i) => ({ id: st.key + "-" + i, t })))
+    .concat(SAT_COMMON.map((t, i) => ({ id: "c-" + i, t })));
+  const stagesHtml = () => `<section class="panel"><h3>단계적 회복 서비스</h3>
+      <p class="muted" style="font-size:14px">내 속도에 맞춰 한 단계씩 함께 걸어가요.</p>
+      <ol class="stage-list">${STAGES.map(st => `<li><span class="stage-no">${st.step}</span><div><b>${st.name} · ${st.prog}</b><span>${st.desc}</span></div></li>`).join("")}</ol></section>`;
 
   // ── 상태 ──
   const token = new URLSearchParams(location.search).get("t");
@@ -324,14 +348,14 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const S = {
     screen: MODE === "pre" ? "form" : "loading",
     pos: 0, secIntro: true, ans: {}, helper: "", t0: 0, lock: false,
-    apply: {}, errors: {}, sat: {}, satOpen: {}, satErr: false,
+    apply: {}, errors: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, satErr: "",
     name: "", result: null, revisit: false, sendErr: ""
   };
   const app = document.getElementById("app");
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } },
-    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, helper: S.helper, t0: S.t0, apply: S.apply, sat: S.sat, satOpen: S.satOpen })); } catch (e) {} },
+    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, helper: S.helper, t0: S.t0, apply: S.apply, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
     clear() { try { localStorage.removeItem(KEY); } catch (e) {} }
   };
 
@@ -353,7 +377,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   }
   function timeline(at) {
     const steps = [["신청서와 마음 살펴보기", "기본 정보와 지금의 마음 · 12분 정도"], ["관리자 검토", "확인 후 활동을 안내해 드려요"],
-      ["1:1 일상회복 동행", "활동가와 함께하는 시간"], ["만족도와 다시 살펴보기", "활동을 마칠 때 · 10분 정도"]];
+      ["단계적 회복 서비스", "일상회복 → 관계형성 → 자립"], ["만족도와 다시 살펴보기", "참여를 마칠 때 · 10분 정도"]];
     return `<ol class="timeline">${steps.map(([b, s], i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"><div><b>${b}</b><span>${s}</span></div></li>`).join("")}</ol>`;
   }
 
@@ -388,6 +412,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <h1>일상회복에서 존엄한 자립을 위한 선택</h1>
       <p class="muted">기본 정보를 적고, 이어서 지금의 마음을 살펴봐요. 중간에 멈춰도 이 기기에서 다시 열면 이어서 할 수 있어요.</p>
     </section>
+    ${stagesHtml()}
     ${timeline(0)}
     <form class="form" id="apply-form" novalidate>
       <div class="field"><label for="name">이름 <span class="hint">실명으로 적어주세요</span></label>
@@ -406,7 +431,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
         ${etc("house", "누구와 함께 사는지 적어주세요")}${er("houseEtc", "누구와 함께 사는지 적어주세요.")}</fieldset>
       <fieldset class="field"><legend>지금 일을 하고 있나요?</legend><div class="choices">${radio("work", [["no", "하고 있지 않아요"], ["part", "가끔 하고 있어요"], ["yes", "하고 있어요"]])}</div></fieldset>
       <fieldset class="field"><legend>원하는 지원 <span class="hint">(여러 개 골라도 돼요)</span></legend>
-        <div class="choices">${check("want", [["talk", "마음 이야기 나누기"], ["rhythm", "생활 리듬 되찾기"], ["out", "외출·활동 함께하기"], ["job", "진로·일자리"], ["rel", "관계 회복"]])}</div></fieldset>
+        <div class="choices">${check("want", [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]])}</div></fieldset>
       <fieldset class="field"><legend>이 사업을 어떻게 알게 되었나요?</legend>
         <div class="choices">${radio("route", [["family", "가족·지인"], ["org", "관계기관"], ["sns", "인터넷·SNS"], ["poster", "홍보물"], ["etc", "그 밖에"]])}</div>
         ${etc("route", "어떻게 알게 되었는지 적어주세요")}${er("routeEtc", "어떻게 알게 되었는지 적어주세요.")}</fieldset>
@@ -493,26 +518,37 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     <section class="hero fade">${windowArt()}
       <h1>${who() ? who() + "님, " : ""}그동안 정말 수고했어요</h1>
       <p class="muted">먼저 함께한 시간이 어땠는지 들려주세요. 이어서 처음에 답했던 마음 질문을 한 번 더 드리고, 다 마치면 그동안의 변화를 보여드릴게요.</p>
-      <ul class="facts"><li>만족도 13문항, 마음 살펴보기 ${FLAT.length}문항이에요. 10분 정도 걸려요.</li><li>중간에 멈춰도 이 링크로 다시 들어오면 이어서 할 수 있어요.</li></ul>
+      <ul class="facts"><li>만족도는 참여한 단계에 따라 8~14문항, 마음 살펴보기는 ${FLAT.length}문항이에요. 10분 정도 걸려요.</li><li>중간에 멈춰도 이 링크로 다시 들어오면 이어서 할 수 있어요.</li></ul>
       <button class="btn btn-primary btn-block" data-act="to-sat">시작하기</button>
     </section>${footer()}`;
   }
   function satScreen() {
+    const M = S.satMeta, chosen = STAGES.filter(st => M.stages.includes(st.key));
     let n = 0;
+    const likert = it => { const i = ++n;
+      return `<fieldset class="likert"><legend class="likert-q">${i}. ${it.t}</legend>
+        <div class="likert-opts">${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="${it.id}" id="${it.id}-${v}" value="${v}" ${S.sat[it.id] == v ? "checked" : ""}>${v}</label>`).join("")}</div>
+        <div class="likert-ends"><span>전혀 그렇지 않다</span><span>매우 그렇다</span></div></fieldset>`; };
+    const err = k => S.satErr === k ? `<span class="err">${{ stage: "함께한 단계를 하나 이상 골라주세요.", best: "가장 만족한 프로그램을 하나 골라주세요.", items: "아직 답하지 않은 문항이 있어요." }[k]}</span>` : "";
     return `${brand()}
     <section class="result-head fade"><span class="eyebrow">1 / 2 · 만족도</span>
       <h1>함께한 시간은 어땠나요?</h1><p class="muted">솔직한 의견이 다음 청년을 돕는 데 쓰여요. 활동가에게 개별 응답은 보이지 않아요.</p></section>
     <form class="form" id="sat-form" novalidate>
-      ${SAT_AREAS.map(a => `<section class="form"><h3>${a.name}</h3>${a.items.map(t => { const i = n++;
-        return `<fieldset class="likert"><legend class="likert-q">${i + 1}. ${t}</legend>
-        <div class="likert-opts">${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="s${i}" id="s${i}-${v}" value="${v}" ${S.sat["s" + i] == v ? "checked" : ""}>${v}</label>`).join("")}</div>
-        <div class="likert-ends"><span>전혀 그렇지 않다</span><span>매우 그렇다</span></div></fieldset>`; }).join("")}</section>`).join("")}
+      <section class="form"><h3>함께한 단계</h3>
+        <fieldset class="field"><legend>참여한 단계를 모두 골라주세요</legend>
+          <div class="choices">${STAGES.map(st => `<label><input type="checkbox" name="satStage" id="satStage-${st.key}" value="${st.key}" ${M.stages.includes(st.key) ? "checked" : ""}>${st.step} · ${st.prog}</label>`).join("")}</div></fieldset>${err("stage")}</section>
+      ${chosen.length ? `<section class="form"><h3>가장 만족한 프로그램</h3>
+        <fieldset class="field"><legend>하나만 골라주세요</legend>
+          <div class="choices">${chosen.flatMap(st => st.best).map(([v, l]) => `<label><input type="radio" name="satBest" id="satBest-${v}" value="${v}" ${M.best === v ? "checked" : ""}>${l}</label>`).join("")}</div></fieldset>${err("best")}
+        <div class="field"><label for="bestWhy">그 프로그램이 좋았던 이유는 무엇인가요? <span class="hint">(선택)</span></label><textarea id="bestWhy" name="bestWhy">${esc(S.satOpen.bestWhy || "")}</textarea></div></section>
+      ${chosen.map(st => `<section class="form"><h3>${st.step} · ${st.prog}</h3>${st.items.map((t, i) => likert({ id: st.key + "-" + i, t })).join("")}</section>`).join("")}
+      <section class="form"><h3>안전한더유스 서비스 전체</h3>${SAT_COMMON.map((t, i) => likert({ id: "c-" + i, t })).join("")}</section>
       <section class="form"><h3>자유롭게 들려주세요</h3>
         <div class="field"><label for="good">가장 도움이 되었던 것은 무엇인가요? <span class="hint">(선택)</span></label><textarea id="good" name="good">${esc(S.satOpen.good || "")}</textarea></div>
         <div class="field"><label for="better">아쉬웠거나 바뀌었으면 하는 점이 있나요? <span class="hint">(선택)</span></label><textarea id="better" name="better">${esc(S.satOpen.better || "")}</textarea></div>
         <div class="field"><label for="next">앞으로 더 받고 싶은 지원이 있나요? <span class="hint">(선택)</span></label><textarea id="next" name="next">${esc(S.satOpen.next || "")}</textarea></div></section>
-      ${S.satErr ? `<span class="err">1~${SAT.length}번 문항에 모두 답해주세요.</span>` : ""}
-      <button type="submit" class="btn btn-dawn btn-block">다음 · 마음 다시 살펴보기</button>
+      ${err("items")}
+      <button type="submit" class="btn btn-dawn btn-block">다음 · 마음 다시 살펴보기</button>` : `<p class="muted">참여한 단계를 고르면 그 단계에 대한 질문이 이어서 나와요.</p>`}
     </form>`;
   }
   function dumbRow(name, pre, post, max, invert) {
@@ -582,6 +618,9 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <h1>${name ? name + "님의 " : "나의 "}변화</h1>
       <p class="muted">숫자는 성적이 아니에요. 처음의 나와 지금의 나를 나란히 비춰보는 거울이에요.
         ${better.length ? `처음과 비교해 <b>${better.join(", ")}</b>에서 변화가 보여요. 그 변화는 ${name ? name + "님이" : "내가"} 직접 만들어 낸 거예요.` : "숫자로는 큰 변화가 보이지 않아도, 끝까지 함께한 시간 자체가 이미 큰 걸음이에요."}</p></section>
+    ${(R.stages || []).length ? `<section class="panel"><h3>함께 걸어온 길</h3>
+      <ol class="path">${STAGES.map(st => `<li class="${R.stages.includes(st.key) ? "on" : ""}"><span>${st.step}</span><b>${st.name}</b><small>${st.prog}</small></li>`).join("")}</ol>
+      <p class="muted" style="font-size:14px">${R.stages.length === 3 ? "일상회복에서 자립까지 세 단계를 모두 함께 걸어왔어요. 정말 긴 걸음이었어요." : R.stages.length === 2 ? "두 단계를 함께 걸어왔어요. 한 단계씩 넘어설 때마다 새로운 문을 연 거예요." : "첫 걸음을 함께 걸어왔어요. 다음 단계가 궁금해지면 언제든 이야기해 주세요."}${R.best ? ` 가장 만족한 프로그램은 <b>${esc(R.best)}</b>였어요.` : ""}</p></section>` : ""}
     <section class="guide" style="background:var(--dawn-soft)">
       <span class="eyebrow" style="color:var(--dawn)">${top ? "가장 크게 달라진 것" : "변화보다 소중한 것"}</span>
       <h3>${top ? top.name : "멈추지 않고 끝까지 온 것"}</h3>
@@ -656,7 +695,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       if (MODE === "pre") { store.clear(); S.screen = "done"; }
       else {
         S.result = { pre: { 관계: 2, 정서: 2, 일상: 2, 무망감: 2.3, 대인기피: 2, 비난: 1.3, 회피: 2.3, 수동공격: 1, 효능감: 18 }, post: keyed(S.ans),
-          helperPre: "", helperPost: S.helper, good: S.satOpen.good || "", doneAt: "" };
+          helperPre: "", helperPost: S.helper, good: S.satOpen.good || "", stages: S.satMeta.stages, best: (STAGES.flatMap(st => st.best).find(b => b[0] === S.satMeta.best) || ["", ""])[1], doneAt: "" };
         store.clear(); S.screen = "change";
       }
       render(); top(); return;
@@ -664,7 +703,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     try {
       const r = MODE === "pre"
         ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: S.helper, secs })
-        : await api({ action: "post", token, answers: S.ans, helper: S.helper, sat: S.sat, satOpen: S.satOpen, secs });
+        : await api({ action: "post", token, answers: S.ans, helper: S.helper, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
       if (!r.ok) {
         if (r.error === "not_open") { store.clear(); S.screen = "notyet"; render(); return; }
         throw new Error(r.error);
@@ -707,7 +746,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     if (act === "retry") { submit(); return; }
     if (act === "reload") { location.reload(); return; }
     if (act === "resume") { const d = store.get(); Object.assign(S, d || {}); if (!S.t0) S.t0 = Date.now(); render(); top(); return; }
-    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, sat: {}, satOpen: {}, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
+    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
     if (act === "to-sat") { go("sat"); return; }
     if (act === "demo-post") { location.search = "?t=demo"; return; }
   });
@@ -729,7 +768,17 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       if (["contact", "house", "route"].includes(t.name)) { const w = f.querySelector("#" + t.name + "-etc-wrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
       if (["sido", "sigungu", "year"].includes(t.name)) { const el = eligibility(); f.querySelector("#elig").innerHTML = el ? eligHtml(el) : ""; }
     } else if (f.id === "sat-form") {
-      if (t.type === "radio") S.sat[t.name] = Number(t.value); else S.satOpen[t.name] = t.value;
+      const M = S.satMeta;
+      if (t.name === "satStage") {
+        M.stages = [...f.querySelectorAll('input[name="satStage"]:checked')].map(x => x.value);
+        const allowed = STAGES.filter(st => M.stages.includes(st.key)).flatMap(st => st.best.map(b => b[0]));
+        if (!allowed.includes(M.best)) M.best = "";
+        if (S.satErr === "stage") S.satErr = "";
+        store.set(); render(); return;
+      }
+      if (t.name === "satBest") M.best = t.value;
+      else if (t.type === "radio") S.sat[t.name] = Number(t.value);
+      else S.satOpen[t.name] = t.value;
     }
     store.set();
   });
@@ -738,8 +787,10 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   app.addEventListener("submit", ev => {
     ev.preventDefault();
     if (ev.target.id === "sat-form") {
-      if (SAT.some((_, i) => !S.sat["s" + i])) { S.satErr = true; render(); const e = app.querySelector(".err"); if (e) e.scrollIntoView({ block: "center" }); return; }
-      S.satErr = false; startSurvey(); return;
+      const M = S.satMeta;
+      S.satErr = !M.stages.length ? "stage" : !M.best ? "best" : satItems().some(it => !S.sat[it.id]) ? "items" : "";
+      if (S.satErr) { render(); const e = app.querySelector(".err"); if (e) e.scrollIntoView({ block: "center" }); return; }
+      startSurvey(); return;
     }
     const a = S.apply, e = {}, y = parseInt(a.year, 10), blank = k => !a[k] || !String(a[k]).trim();
     if (blank("name")) e.name = 1;
@@ -776,7 +827,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
         S.name = r.name || "";
         if (r.done) { S.result = r.result; S.revisit = true; }
         S.screen = r.done ? (r.result && r.result.pre ? "change" : "finished") : !r.open ? "notyet" : d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome";
-        if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, ans: d.ans || {}, helper: d.helper || "", t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
+        if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, satMeta: d.satMeta || { stages: [], best: "" }, ans: d.ans || {}, helper: d.helper || "", t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
         if (S.screen === "resume") S.screen = "resume";
       }
     } catch (e) { S.screen = "loadError"; }
