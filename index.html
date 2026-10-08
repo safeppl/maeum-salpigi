@@ -11,46 +11,65 @@
 <style>
 /* Layout: participant side is a calm phone-width column (one question per screen); staff side widens into a working dashboard. */
 :root {
-  --bg: #EDF1EC;
-  --surface: #FAFBF8;
-  --ink: #1E2A2B;
-  --muted: #5A6968;
-  --line: #D2DAD3;
+  --bg: #F5F1E6;
+  --bg-glow: #FBEBD4;
+  --surface: #FFFDF8;
+  --ink: #241D16;
+  --muted: #6B6052;
+  --line: #E4DAC8;
   --accent: #2C6765;
   --accent-ink: #FFFFFF;
   --accent-soft: #DCE8E5;
-  --dawn: #D68B47;
-  --dawn-soft: #F6E3CF;
+  --dawn: #D6793F;
+  --dawn-soft: #F6DFC0;
   --ok: #3E7B57;
   --watch: #A97A1F;
   --care: #B0523E;
+  --shadow-card: 0 1px 2px rgba(60, 40, 20, .05), 0 14px 28px -18px rgba(60, 40, 20, .28);
+  --shadow-cta: 0 10px 22px -10px color-mix(in srgb, var(--dawn) 55%, transparent);
+  --shadow-cta-accent: 0 10px 22px -10px color-mix(in srgb, var(--accent) 50%, transparent);
   --font-display: "Gowun Batang", "Nanum Myeongjo", "AppleMyungjo", serif;
   --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --r: 14px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121918; --surface: #1A2423; --ink: #E5ECE8; --muted: #9AABA7; --line: #2D3B3A;
-    --accent: #7FBBB5; --accent-ink: #0E1716; --accent-soft: #223534; --dawn: #E5A465; --dawn-soft: #3A2D21;
-    --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78; color-scheme: dark;
+    --bg: #19140F; --bg-glow: #3A2A1A; --surface: #241C15; --ink: #F3E9DA; --muted: #BBA78F; --line: #3C3023;
+    --accent: #8FCEC6; --accent-ink: #11201D; --accent-soft: #28332E; --dawn: #F0A868; --dawn-soft: #3D2A18;
+    --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78;
+    --shadow-card: 0 1px 0 rgba(255, 220, 180, .05), 0 16px 32px -16px rgba(0, 0, 0, .55);
+    --shadow-cta: 0 10px 24px -10px color-mix(in srgb, var(--dawn) 45%, transparent);
+    --shadow-cta-accent: 0 10px 24px -10px color-mix(in srgb, var(--accent) 40%, transparent);
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121918; --surface: #1A2423; --ink: #E5ECE8; --muted: #9AABA7; --line: #2D3B3A;
-  --accent: #7FBBB5; --accent-ink: #0E1716; --accent-soft: #223534; --dawn: #E5A465; --dawn-soft: #3A2D21;
-  --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78; color-scheme: dark;
+  --bg: #19140F; --bg-glow: #3A2A1A; --surface: #241C15; --ink: #F3E9DA; --muted: #BBA78F; --line: #3C3023;
+  --accent: #8FCEC6; --accent-ink: #11201D; --accent-soft: #28332E; --dawn: #F0A868; --dawn-soft: #3D2A18;
+  --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78;
+  --shadow-card: 0 1px 0 rgba(255, 220, 180, .05), 0 16px 32px -16px rgba(0, 0, 0, .55);
+  --shadow-cta: 0 10px 24px -10px color-mix(in srgb, var(--dawn) 45%, transparent);
+  --shadow-cta-accent: 0 10px 24px -10px color-mix(in srgb, var(--accent) 40%, transparent);
+  color-scheme: dark;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { min-height: 100%; } body { margin: 0; } :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); } img { max-width: 100%; } [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; padding-inline: 16px; padding-block: 0 40px; word-break: keep-all; overflow-wrap: anywhere; }
+body { background: radial-gradient(900px 480px at 50% -8%, var(--bg-glow), transparent 62%) var(--bg); background-attachment: fixed; color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; padding-inline: 16px; padding-block: 0 40px; word-break: keep-all; overflow-wrap: anywhere; }
 .app { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 .app.wide { max-width: 1040px; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
+input, textarea { caret-color: var(--accent); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 700; line-height: 1.35; text-wrap: balance; margin: 0; }
 p { margin: 0; }
 .muted { color: var(--muted); }
+::selection { background: var(--accent-soft); color: var(--ink); }
+* { scrollbar-color: var(--line) transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 /* prototype chrome */
 .proto { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--bg); padding-block: 12px 8px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
@@ -82,7 +101,7 @@ p { margin: 0; }
 .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .facts li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 15px; }
 .facts li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dawn); margin: 9px 0 0 6px; }
-.code-badge { display: inline-flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 16px; align-self: flex-start; }
+.code-badge { display: inline-flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px 16px; align-self: flex-start; box-shadow: var(--shadow-card); }
 .code-badge small { font-size: 12px; color: var(--muted); }
 .code-badge b { font-size: 22px; letter-spacing: .06em; font-variant-numeric: tabular-nums; color: var(--accent); }
 .timeline { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -95,13 +114,16 @@ p { margin: 0; }
 .timeline b { display: block; font-size: 15px; }
 .timeline span { font-size: 14px; color: var(--muted); }
 
-.btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 0; border-radius: 12px; padding: 14px 20px; font-weight: 600; font-size: 16px; text-decoration: none; }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 0; border-radius: 12px; padding: 14px 20px; font-weight: 600; font-size: 16px; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease, filter .15s ease; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-cta-accent); }
 .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-.btn-dawn { background: var(--dawn); color: #1E1508; }
+.btn-dawn { background: var(--dawn); color: #1E1508; box-shadow: var(--shadow-cta); }
 .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
 .btn-block { width: 100%; }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn-primary:not(:disabled):hover, .btn-dawn:not(:disabled):hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn-primary:not(:disabled):active, .btn-dawn:not(:disabled):active { transform: translateY(0); filter: brightness(.98); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 .link-btn { background: none; border: 0; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; padding: 6px 0; align-self: center; }
 
 /* progress */
@@ -124,23 +146,23 @@ p { margin: 0; }
 .opt[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .opt[aria-checked="true"] .dot { border-color: var(--accent); }
 .opt[aria-checked="true"] .dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.follow { display: grid; gap: 12px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 16px; }
+.follow { display: grid; gap: 12px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-card); }
 .follow b { font-size: 16px; }
 .nav-row { display: flex; justify-content: space-between; align-items: center; }
 .src { font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
 
 /* contacts */
 .contacts { display: grid; gap: 8px; }
-.contact-line { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; align-items: center; background: var(--surface); border-radius: 10px; padding: 10px 14px; text-decoration: none; color: var(--ink); }
+.contact-line { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; align-items: center; background: var(--surface); border-radius: 10px; padding: 10px 14px; text-decoration: none; color: var(--ink); box-shadow: var(--shadow-card); }
 .contact-line span { font-size: 14px; font-weight: 600; }
 .contact-line b { font-size: 18px; font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
-.guide { background: var(--accent-soft); border-radius: var(--r); padding: 18px; display: grid; gap: 12px; }
+.guide { background: var(--accent-soft); border-radius: var(--r); padding: 18px; display: grid; gap: 12px; box-shadow: var(--shadow-card); }
 .guide h3 { font-size: 19px; }
 
 /* results */
 .result-head { display: grid; gap: 10px; padding-top: 4px; }
 .result-head h1 { font-size: 26px; }
-.panel { background: var(--surface); border-radius: var(--r); padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border-radius: var(--r); padding: 18px; display: grid; gap: 16px; min-width: 0; box-shadow: var(--shadow-card); }
 .panel h3 { font-size: 18px; }
 .panel h4 { font-size: 15px; margin: 4px 0 0; }
 .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -211,7 +233,7 @@ fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width:
 
 /* staff dashboard */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.kpi { background: var(--surface); border-radius: 12px; padding: 14px 16px; display: grid; gap: 2px; }
+.kpi { background: var(--surface); border-radius: 12px; padding: 14px 16px; display: grid; gap: 2px; box-shadow: var(--shadow-card); }
 .kpi small { font-size: 13px; color: var(--muted); }
 .kpi b { font-size: 26px; font-variant-numeric: tabular-nums; font-family: var(--font-display); }
 .kpi.alert b { color: var(--care); }
@@ -292,12 +314,11 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const SECTIONS = [
     { id: "rel", title: "관계", lead: "요즘 사람들과의 관계에서 느끼는 점을 골라주세요.", intro: "가족, 친구, 이웃처럼 주변 사람들과의 관계를 살펴봐요.",
       // follow: '그렇다' 이상이면 이어서 적는 칸 (req: 꼭 적어야 다음으로 넘어가요)
-      items: [{ t: "힘들 때 도움을 청할 수 있는 사람이 있다.", rev: true, follow: { q: "그 사람은 누구인가요?", hint: "이름 대신 나와의 관계로 적어도 괜찮아요 (예: 엄마, 고등학교 친구)", req: true } },
-        { t: "가까운 사람과 만나거나 연락하는 일이 거의 없다." }, { t: "요즘 외롭다고 느낀다." },
-        { t: "가족과 함께 있는 시간이 불편하거나 힘들다." }, { t: "새로운 사람과 어울리는 것이 어렵게 느껴진다." }, { t: "하루 대부분을 내 방 안에서 보낸다." },
+      items: [{ t: "요즘 외롭다고 느낀다." }, { t: "가까운 사람과 만나거나 연락하는 일이 거의 없다." },
+        { t: "힘들 때 도움을 청할 수 있는 사람이 있다.", rev: true, follow: { q: "그 사람은 누구인가요?", hint: "이름 대신 나와의 관계로 적어도 괜찮아요 (예: 엄마, 고등학교 친구)", req: true } },
         { t: "경제적 어려움이 생길 때 도움이 되는 사람이 있다.", rev: true, follow: { q: "그 사람은 누구인가요?", hint: "예: 어머니, 형제, 친구, 기초수급자 지원" } },
-        { t: "현재 가정에서 어려움이 있다.", follow: { q: "어떤 어려움인지, 그 이유를 적어주세요.", hint: "예: 부모의 간섭, 부모와의 갈등, 가족 해체 등" } },
-        { t: "현재 외부인과의 관계에서 어려움이 있다.", follow: { q: "어떤 어려움인지, 그 이유를 적어주세요.", hint: "예: 학교나 직장에서의 따돌림, 폭언, 부적응 등" } },
+        { t: "가족과 함께 있는 시간이 불편하거나 힘들다.", follow: { q: "어떤 점이 불편하거나 힘든지 적어주세요.", hint: "예: 부모의 간섭, 부모와의 갈등, 가족 해체 등" } },
+        { t: "새로운 사람과 어울리는 것이 어렵게 느껴진다.", follow: { q: "어떤 점이 가장 어렵게 느껴지나요?", hint: "예: 낯가림, 어색함, 거절에 대한 두려움 등" } },
         { t: "집에서 내 방 말고도 머무르는 곳이 있다.", rev: true, follow: { q: "어디에 주로 머무르나요?", hint: "예: 거실, 주방, 식탁, 베란다" } }] },
     { id: "emo", title: "정서", lead: "최근 2주 동안 내 마음은 어땠나요?", intro: "최근 2주 동안 느낀 마음을 떠올려 주세요. 정답은 없어요.",
       items: ["아무것도 하기 싫고 무기력하다.", "불안하고 초조하다.", "우울하고 기분이 가라앉는다.", "충분히 쉬어도 피곤하다.", "갑자기 숨이 막히거나 가슴이 뛰는 공황 같은 느낌이 든다.", "화를 참기 어렵다.",
@@ -466,7 +487,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     const etc = (n, ph) => `<div id="${n}-etc-wrap" ${a[n] === "etc" ? "" : "hidden"}><input type="text" id="${n}Etc" name="${n}Etc" placeholder="${ph}" value="${esc(a[n + "Etc"] || "")}"></div>`;
     const er = (k, m) => e[k] ? `<span class="err">${m}</span>` : "";
     return `${brand()}
-    <section class="result-head fade">
+    <section class="hero fade">${windowArt()}
       <span class="eyebrow">단계적 회복을 위한 청년 지원 사업</span>
       <h1>일상회복에서 존엄한 자립을 위한 선택</h1>
       <p class="muted">기본 정보를 적고, 이어서 지금의 마음을 살펴봐요. 중간에 멈춰도 이 기기에서 다시 열면 이어서 할 수 있어요.</p>
@@ -757,15 +778,15 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       if (MODE === "pre") { store.clear(); S.screen = "done"; }
       else {
         S.result = { pre: { 관계: 2, 정서: 2, 일상: 2, 무망감: 2.3, 대인기피: 2, 비난: 1.3, 회피: 2.3, 수동공격: 1, 효능감: 18 }, post: keyed(S.ans),
-          helperPre: "", helperPost: followText("rel-0"), good: S.satOpen.good || "", stages: S.satMeta.stages, best: (STAGES.flatMap(st => st.best).find(b => b[0] === S.satMeta.best) || ["", ""])[1], doneAt: "" };
+          helperPre: "", helperPost: followText("rel-2"), good: S.satOpen.good || "", stages: S.satMeta.stages, best: (STAGES.flatMap(st => st.best).find(b => b[0] === S.satMeta.best) || ["", ""])[1], doneAt: "" };
         store.clear(); S.screen = "change";
       }
       render(); top(); return;
     }
     try {
       const r = MODE === "pre"
-        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: followText("rel-0"), follow: S.follow, extra: S.extra, secs })
-        : await api({ action: "post", token, answers: S.ans, helper: followText("rel-0"), follow: S.follow, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
+        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: followText("rel-2"), follow: S.follow, extra: S.extra, secs })
+        : await api({ action: "post", token, answers: S.ans, helper: followText("rel-2"), follow: S.follow, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
       if (!r.ok) {
         if (r.error === "not_open") { store.clear(); S.screen = "notyet"; render(); return; }
         throw new Error(r.error);
