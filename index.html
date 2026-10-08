@@ -11,22 +11,23 @@
 <style>
 /* Layout: participant side is a calm phone-width column (one question per screen); staff side widens into a working dashboard. */
 :root {
-  --bg: #F5F1E6;
-  --bg-glow: #FBEBD4;
+  --bg: #FDF6EA;
+  --bg-glow: #FFD9A8;
   --surface: #FFFDF8;
-  --ink: #241D16;
-  --muted: #6B6052;
-  --line: #E4DAC8;
-  --accent: #2C6765;
+  --ink: #241508;
+  --muted: #6B5540;
+  --line: #EAD9BE;
+  --accent: #15847A;
   --accent-ink: #FFFFFF;
-  --accent-soft: #DCE8E5;
-  --dawn: #D6793F;
-  --dawn-soft: #F6DFC0;
+  --accent-soft: #D9EFEA;
+  --dawn: #FF6A3D;
+  --dawn-soft: #FFE3BE;
+  --dawn-grad: linear-gradient(135deg, #FFC168, #FF6A3D);
   --ok: #3E7B57;
   --watch: #A97A1F;
   --care: #B0523E;
   --shadow-card: 0 1px 2px rgba(60, 40, 20, .05), 0 14px 28px -18px rgba(60, 40, 20, .28);
-  --shadow-cta: 0 10px 22px -10px color-mix(in srgb, var(--dawn) 55%, transparent);
+  --shadow-cta: 0 14px 26px -12px rgba(255, 106, 61, .55);
   --shadow-cta-accent: 0 10px 22px -10px color-mix(in srgb, var(--accent) 50%, transparent);
   --font-display: "Gowun Batang", "Nanum Myeongjo", "AppleMyungjo", serif;
   --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
@@ -36,6 +37,7 @@
   :root:not([data-theme="light"]) {
     --bg: #19140F; --bg-glow: #3A2A1A; --surface: #241C15; --ink: #F3E9DA; --muted: #BBA78F; --line: #3C3023;
     --accent: #8FCEC6; --accent-ink: #11201D; --accent-soft: #28332E; --dawn: #F0A868; --dawn-soft: #3D2A18;
+    --dawn-grad: linear-gradient(135deg, #F7C078, #F0A868);
     --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78;
     --shadow-card: 0 1px 0 rgba(255, 220, 180, .05), 0 16px 32px -16px rgba(0, 0, 0, .55);
     --shadow-cta: 0 10px 24px -10px color-mix(in srgb, var(--dawn) 45%, transparent);
@@ -46,6 +48,7 @@
 :root[data-theme="dark"] {
   --bg: #19140F; --bg-glow: #3A2A1A; --surface: #241C15; --ink: #F3E9DA; --muted: #BBA78F; --line: #3C3023;
   --accent: #8FCEC6; --accent-ink: #11201D; --accent-soft: #28332E; --dawn: #F0A868; --dawn-soft: #3D2A18;
+  --dawn-grad: linear-gradient(135deg, #F7C078, #F0A868);
   --ok: #7DBF94; --watch: #DDB35A; --care: #E58D78;
   --shadow-card: 0 1px 0 rgba(255, 220, 180, .05), 0 16px 32px -16px rgba(0, 0, 0, .55);
   --shadow-cta: 0 10px 24px -10px color-mix(in srgb, var(--dawn) 45%, transparent);
@@ -97,7 +100,7 @@ p { margin: 0; }
 /* hero / intro */
 .hero { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
 .hero svg { width: 120px; height: auto; max-width: 100%; }
-.hero h1 { font-size: 28px; }
+.hero h1 { font-size: 32px; }
 .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .facts li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 15px; }
 .facts li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dawn); margin: 9px 0 0 6px; }
@@ -117,7 +120,7 @@ p { margin: 0; }
 .btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 0; border-radius: 12px; padding: 14px 20px; font-weight: 600; font-size: 16px; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease, filter .15s ease; }
 .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-cta-accent); }
 .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-.btn-dawn { background: var(--dawn); color: #1E1508; box-shadow: var(--shadow-cta); }
+.btn-dawn { background: var(--dawn-grad); color: #1E1508; box-shadow: var(--shadow-cta); }
 .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
 .btn-block { width: 100%; }
 .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
