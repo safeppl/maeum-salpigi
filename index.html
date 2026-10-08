@@ -266,7 +266,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const DEMO = !API_URL;
 
   const YEAR = new Date().getFullYear();
-  const FREQ = ["전혀 아니다", "가끔 그렇다", "자주 그렇다", "늘 그렇다"];
+  const FREQ = ["전혀 그렇지 않다", "그렇지 않다", "그렇다", "매우 그렇다"]; // 모든 문항이 같은 표현을 써요
   const GSE = ["전혀 그렇지 않다", "그렇지 않다", "그렇다", "매우 그렇다"];
   const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "0222471091"], ["안전한사람들", "031-898-1091", "0318981091"]];
   const REGIONS = {
@@ -334,6 +334,72 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   ];
   const SAT_COMMON = ["한 단계에서 다음 단계로 넘어갈 때 안내와 연결이 충분했다.", "내 이야기의 비밀이 지켜지고 안전하게 느껴졌다.",
     "안전한더유스의 단계적 회복 서비스에 전반적으로 만족한다.", "필요할 때 이 서비스에 다시 참여하고 싶다.", "비슷한 어려움을 겪는 사람에게 이 서비스를 추천하고 싶다."];
+  // 신청할 때 한 번만 묻는 문항 (기존 「나의 마음살피기」 설문지의 보기를 그대로 써요)
+  const EXTRA = [
+    { group: "관계에 대해", qs: [
+      { k: "econHelp", t: "경제적 어려움이 생길 때 가장 도움이 되는 사람은 누구인가요?", type: "radio", req: true,
+        opts: ["어머니", "아버지", "형제", "친구", "지인", "직장 동료", "기초수급자 지원", "없음"], etc: true },
+      { k: "familyHard", t: "현재 가정에서 가장 큰 어려움은 무엇인가요?", type: "radio", req: true,
+        opts: ["부모의 간섭", "부모의 폭력", "부모의 폭언", "부모의 무관심", "부모와의 갈등적인 상황", "부모에 대한 불신", "가족 해체(사망, 부모 이혼 등)"], etc: true,
+        why: "그렇게 고른 이유를 알려주세요" },
+      { k: "outsideHard", t: "현재 외부인과의 관계에서 가장 큰 어려움은 무엇인가요?", type: "radio", req: true,
+        opts: ["학교 내 폭력", "학교 내 폭언", "학교 내 따돌림", "학교 부적응", "등교 거부", "직장 내 폭력", "직장 내 폭언", "직장 내 따돌림", "직장 부적응", "출근 거부", "사이버불링"], etc: true,
+        why: "그렇게 고른 이유를 알려주세요" },
+      { k: "homeSpot", t: "방을 제외하고 집에서 주로 어디에 있나요?", type: "radio", req: true, opts: ["거실", "주방", "식탁", "베란다", "없음"], etc: true }
+    ] },
+    { group: "마음의 어려움에 대해", qs: [
+      { k: "cause", t: "은둔과 고립, 혹은 혼자만의 어려움의 원인은 무엇이라고 생각하나요?", type: "text", req: true,
+        hint: "학교폭력, 따돌림, 가정폭력, 부모의 무관심, 갈등 등 생각나는 대로 적어주세요" },
+      { k: "startAge", t: "그 어려움이 시작되었다고 생각되는 시기는 언제인가요?", type: "radio", req: true,
+        opts: ["10대 초반(초등학생 나이 정도)", "10대 중반(중학생 나이 정도)", "10대 후반(고등학생 나이 정도)", "20대 초반(대학생 나이 정도)", "20대 중반", "20대 후반", "30대 초반", "30대 중반", "30대 후반", "40대 초반", "40대 중반"], etc: true },
+      { k: "duration", t: "그 어려움이 이어진 지 얼마나 되었나요?", type: "radio", req: true,
+        opts: ["6개월 미만", "6개월 이상 1년 미만", "2년 이하", "3년 이하", "4년 이하", "5년 이하", "6년 이하", "7년 이하", "8년 이하", "9년 이하", "10년 이하", "10년 이상"], etc: true },
+      { k: "mood", t: "요즘 나의 마음에 대해 골라주세요.", type: "scale", req: true,
+        rows: [["bipolar", "조울이 있다 (기분이 크게 들떴다가 가라앉기를 반복한다)"], ["clean", "결벽이 있다 (청결이나 정리에 지나치게 신경이 쓰인다)"],
+          ["verbal", "폭력적인 언행이 있다"], ["physical", "물리적인 폭력 행동이 생긴다"]] }
+    ] },
+    { group: "지금까지의 노력과 관심사", qs: [
+      { k: "effort", t: "지금까지 어려움을 이겨내려고 어떤 노력을 해보았나요?", type: "text", req: true,
+        hint: "상담, 정신건강의학과 진료, 약물 등 해본 것을 모두 적어주세요. 없으면 ‘없음’" },
+      { k: "effortHelped", t: "그 노력이 도움이 되었나요?", type: "radio", req: true, opts: ["그렇다", "그렇지 않다"],
+        why: "도움이 되었던 이유, 또는 되지 않았던 이유를 알려주세요" },
+      { k: "interest", t: "지금 가장 관심이 가는 것, 또는 취미로 삼고 싶은 것 한 가지를 알려주세요.", type: "text", req: false,
+        hint: "예: 유튜브, 영화, 공연, 독서, 애니메이션, 여행, 산책" }
+    ] }
+  ];
+  const EXTRA_QS = EXTRA.flatMap(g => g.qs);
+  function extraMissing() {
+    const x = S.extra;
+    return EXTRA_QS.filter(q => q.req).filter(q =>
+      q.type === "scale" ? q.rows.some(([rk]) => x["mood_" + rk] === undefined)
+      : q.type === "text" ? !(x[q.k] || "").trim()
+      : !x[q.k] || (x[q.k] === "etc" && !(x[q.k + "Etc"] || "").trim())).map(q => q.k);
+  }
+  function extraScreen() {
+    const x = S.extra, miss = S.extraErr ? extraMissing() : [];
+    const er = k => miss.includes(k) ? `<span class="err">답해주세요.</span>` : "";
+    const field = q => {
+      if (q.type === "text") return `<div class="field"><label for="x-${q.k}">${q.t}${q.req ? "" : ` <span class="hint">(선택)</span>`}</label>
+        ${q.hint ? `<span class="hint">${q.hint}</span>` : ""}<textarea id="x-${q.k}" name="${q.k}">${esc(x[q.k] || "")}</textarea>${er(q.k)}</div>`;
+      if (q.type === "scale") return `<fieldset class="field"><legend>${q.t}</legend>${q.rows.map(([rk, label]) => `<fieldset class="likert"><legend class="likert-q" style="font-weight:500">${label}</legend>
+        <div class="likert-opts" style="grid-template-columns:repeat(4,1fr)">${FREQ.map((l, v) => `<label style="font-size:12px;padding:8px 2px;text-align:center"><input type="radio" name="mood_${rk}" id="mood_${rk}-${v}" value="${v}" ${x["mood_" + rk] === v ? "checked" : ""}>${l}</label>`).join("")}</div></fieldset>`).join("")}${er(q.k)}</fieldset>`;
+      return `<fieldset class="field"><legend>${q.t}</legend>
+        <div class="choices">${q.opts.map((o, i) => `<label><input type="radio" name="${q.k}" id="x-${q.k}-${i}" value="${esc(o)}" ${x[q.k] === o ? "checked" : ""}>${o}</label>`).join("")}${q.etc ? `<label><input type="radio" name="${q.k}" id="x-${q.k}-etc" value="etc" ${x[q.k] === "etc" ? "checked" : ""}>기타</label>` : ""}</div>
+        ${q.etc ? `<div id="${q.k}-etcwrap" ${x[q.k] === "etc" ? "" : "hidden"}><input type="text" id="x-${q.k}Etc" name="${q.k}Etc" placeholder="직접 적어주세요" value="${esc(x[q.k + "Etc"] || "")}"></div>` : ""}
+        ${q.why ? `<label for="x-${q.k}Why" class="hint" style="margin-top:4px">${q.why} (선택)</label><textarea id="x-${q.k}Why" name="${q.k}Why">${esc(x[q.k + "Why"] || "")}</textarea>` : ""}${er(q.k)}</fieldset>`;
+    };
+    return `${brand()}
+    <section class="result-head fade"><span class="eyebrow">마지막 단계 · 거의 다 왔어요</span>
+      <h1>나에 대해 조금 더 알려주세요</h1>
+      <p class="muted">더 잘 맞는 도움을 준비하려고 여쭤봐요. 대부분 고르기만 하면 되고, 4~5분 정도 걸려요.</p></section>
+    <form class="form" id="extra-form" novalidate>
+      ${EXTRA.map(g => `<section class="form"><h3>${g.group}</h3>${g.qs.map(field).join("")}</section>`).join("")}
+      ${miss.length ? `<span class="err">답하지 않은 문항이 ${miss.length}개 있어요.</span>` : ""}
+      <button type="submit" class="btn btn-dawn btn-block">신청 마치기</button>
+      <button type="button" class="link-btn" data-act="extra-back">이전으로</button>
+    </form>`;
+  }
+
   // 참여한 단계에 따라 나오는 만족도 문항 (id는 저장 쪽과 같아요: s1-0 … c-4)
   const satItems = () => STAGES.filter(st => S.satMeta.stages.includes(st.key)).flatMap(st => st.items.map((t, i) => ({ id: st.key + "-" + i, t })))
     .concat(SAT_COMMON.map((t, i) => ({ id: "c-" + i, t })));
@@ -348,14 +414,14 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const S = {
     screen: MODE === "pre" ? "form" : "loading",
     pos: 0, secIntro: true, ans: {}, helper: "", t0: 0, lock: false,
-    apply: {}, errors: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, satErr: "",
+    apply: {}, extra: {}, extraErr: false, errors: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, satErr: "",
     name: "", result: null, revisit: false, sendErr: ""
   };
   const app = document.getElementById("app");
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } },
-    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, helper: S.helper, t0: S.t0, apply: S.apply, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
+    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, helper: S.helper, t0: S.t0, apply: S.apply, extra: S.extra, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
     clear() { try { localStorage.removeItem(KEY); } catch (e) {} }
   };
 
@@ -647,7 +713,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   }
   function resumeScreen() {
     return `${brand()}<section class="hero fade">${windowArt()}
-      <h1>이어서 할까요?</h1><p class="muted">지난번 ${S.pos + 1}번째 문항에서 멈췄어요. 그동안 답한 내용은 그대로 있어요.</p>
+      <h1>이어서 할까요?</h1><p class="muted">${S._draft && S._draft.screen === "extra" ? "마지막 단계에서 멈췄어요." : `지난번 ${S.pos + 1}번째 문항에서 멈췄어요.`} 그동안 답한 내용은 그대로 있어요.</p>
       <button class="btn btn-primary btn-block" data-act="resume">이어서 하기</button>
       <button class="btn btn-ghost btn-block" data-act="fresh">처음부터 다시 하기</button></section>`;
   }
@@ -658,6 +724,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     let body;
     if (sc === "form") body = formScreen();
     else if (sc === "survey") body = S.secIntro ? secIntro() : question();
+    else if (sc === "extra") body = extraScreen();
     else if (sc === "sending") body = msgScreen("보내는 중이에요", "잠시만 기다려 주세요. 창을 닫지 말아 주세요.").replace(guideCard(), "");
     else if (sc === "sendError") body = `${msgScreen("보내지 못했어요", "인터넷 연결을 확인하고 다시 보내기를 눌러주세요. 답한 내용은 이 기기에 남아 있어요.")}
       <button class="btn btn-primary btn-block" data-act="retry">다시 보내기</button>`;
@@ -702,7 +769,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     }
     try {
       const r = MODE === "pre"
-        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: S.helper, secs })
+        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: S.helper, extra: S.extra, secs })
         : await api({ action: "post", token, answers: S.ans, helper: S.helper, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
       if (!r.ok) {
         if (r.error === "not_open") { store.clear(); S.screen = "notyet"; render(); return; }
@@ -716,7 +783,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   }
   function advance() {
     if (S.pos < FLAT.length - 1) { S.pos++; if (FLAT[S.pos].ii === 0) S.secIntro = true; store.set(); S.lock = false; render(); top(); }
-    else { S.lock = false; submit(); }
+    else { S.lock = false; if (MODE === "pre") go("extra"); else submit(); }
   }
   function back() {
     if (S.secIntro) {
@@ -746,7 +813,8 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     if (act === "retry") { submit(); return; }
     if (act === "reload") { location.reload(); return; }
     if (act === "resume") { const d = store.get(); Object.assign(S, d || {}); if (!S.t0) S.t0 = Date.now(); render(); top(); return; }
-    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
+    if (act === "extra-back") { S.pos = FLAT.length - 1; S.secIntro = false; go("survey"); return; }
+    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, extra: {}, extraErr: false, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
     if (act === "to-sat") { go("sat"); return; }
     if (act === "demo-post") { location.search = "?t=demo"; return; }
   });
@@ -759,6 +827,14 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       store.set(); return;
     }
     if (!f) return;
+    if (f.id === "extra-form") {
+      const x = S.extra;
+      if (t.name.startsWith("mood_")) x[t.name] = Number(t.value);
+      else x[t.name] = t.value;
+      const q = EXTRA_QS.find(q => q.k === t.name);
+      if (q && q.etc) { const w = f.querySelector("#" + q.k + "-etcwrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
+      store.set(); return;
+    }
     if (f.id === "apply-form") {
       const a = S.apply;
       if (t.name === "want") a.want = [...f.querySelectorAll('input[name="want"]:checked')].map(x => x.value);
@@ -786,6 +862,11 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
 
   app.addEventListener("submit", ev => {
     ev.preventDefault();
+    if (ev.target.id === "extra-form") {
+      S.extraErr = extraMissing().length > 0;
+      if (S.extraErr) { render(); const e = app.querySelector(".err"); if (e) e.scrollIntoView({ block: "center" }); return; }
+      submit(); return;
+    }
     if (ev.target.id === "sat-form") {
       const M = S.satMeta;
       S.satErr = !M.stages.length ? "stage" : !M.best ? "best" : satItems().some(it => !S.sat[it.id]) ? "items" : "";
@@ -814,7 +895,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   (async function boot() {
     const d = store.get();
     if (MODE === "pre") {
-      if (d && d.screen === "survey") { S.pos = d.pos || 0; S.screen = "resume"; S._draft = d; }
+      if (d && (d.screen === "survey" || d.screen === "extra")) { S.pos = d.pos || 0; S.screen = "resume"; S._draft = d; }
       else if (d && d.apply) S.apply = d.apply;
       render(); return;
     }
