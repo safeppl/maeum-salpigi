@@ -291,10 +291,17 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
 
   const SECTIONS = [
     { id: "rel", title: "관계", lead: "요즘 사람들과의 관계에서 느끼는 점을 골라주세요.", intro: "가족, 친구, 이웃처럼 주변 사람들과의 관계를 살펴봐요.",
-      items: [{ t: "힘들 때 도움을 청할 수 있는 사람이 있다.", rev: true, follow: true }, { t: "가까운 사람과 만나거나 연락하는 일이 거의 없다." }, { t: "요즘 외롭다고 느낀다." },
-        { t: "가족과 함께 있는 시간이 불편하거나 힘들다." }, { t: "새로운 사람과 어울리는 것이 어렵게 느껴진다." }, { t: "하루 대부분을 내 방 안에서 보낸다." }] },
+      // follow: '그렇다' 이상이면 이어서 적는 칸 (req: 꼭 적어야 다음으로 넘어가요)
+      items: [{ t: "힘들 때 도움을 청할 수 있는 사람이 있다.", rev: true, follow: { q: "그 사람은 누구인가요?", hint: "이름 대신 나와의 관계로 적어도 괜찮아요 (예: 엄마, 고등학교 친구)", req: true } },
+        { t: "가까운 사람과 만나거나 연락하는 일이 거의 없다." }, { t: "요즘 외롭다고 느낀다." },
+        { t: "가족과 함께 있는 시간이 불편하거나 힘들다." }, { t: "새로운 사람과 어울리는 것이 어렵게 느껴진다." }, { t: "하루 대부분을 내 방 안에서 보낸다." },
+        { t: "경제적 어려움이 생길 때 도움이 되는 사람이 있다.", rev: true, follow: { q: "그 사람은 누구인가요?", hint: "예: 어머니, 형제, 친구, 기초수급자 지원" } },
+        { t: "현재 가정에서 어려움이 있다.", follow: { q: "어떤 어려움인지, 그 이유를 적어주세요.", hint: "예: 부모의 간섭, 부모와의 갈등, 가족 해체 등" } },
+        { t: "현재 외부인과의 관계에서 어려움이 있다.", follow: { q: "어떤 어려움인지, 그 이유를 적어주세요.", hint: "예: 학교나 직장에서의 따돌림, 폭언, 부적응 등" } },
+        { t: "집에서 내 방 말고도 머무르는 곳이 있다.", rev: true, follow: { q: "어디에 주로 머무르나요?", hint: "예: 거실, 주방, 식탁, 베란다" } }] },
     { id: "emo", title: "정서", lead: "최근 2주 동안 내 마음은 어땠나요?", intro: "최근 2주 동안 느낀 마음을 떠올려 주세요. 정답은 없어요.",
-      items: ["아무것도 하기 싫고 무기력하다.", "불안하고 초조하다.", "우울하고 기분이 가라앉는다.", "충분히 쉬어도 피곤하다.", "갑자기 숨이 막히거나 가슴이 뛰는 공황 같은 느낌이 든다.", "화를 참기 어렵다."].map(t => ({ t })) },
+      items: ["아무것도 하기 싫고 무기력하다.", "불안하고 초조하다.", "우울하고 기분이 가라앉는다.", "충분히 쉬어도 피곤하다.", "갑자기 숨이 막히거나 가슴이 뛰는 공황 같은 느낌이 든다.", "화를 참기 어렵다.",
+        "조울이 있다. (기분이 크게 들떴다가 가라앉기를 반복한다)", "결벽이 있다. (청결이나 정리에 지나치게 신경이 쓰인다)", "폭력적인 언행이 있다.", "물리적인 폭력 행동이 생긴다."].map(t => ({ t })) },
     { id: "daily", title: "일상생활", lead: "최근 2주 동안의 하루는 어땠나요?", intro: "잠, 식사, 씻기처럼 매일의 생활 리듬을 살펴봐요.",
       items: ["밤낮이 바뀐 생활을 한다.", "잠드는 시간과 깨는 시간이 들쭉날쭉하다.", "씻거나 이를 닦는 일을 자주 미룬다.", "방에 설거지거리나 쓰레기가 쌓여 있다.", "끼니를 거르거나 불규칙하게 먹는다.", "일주일 동안 집 밖에 나가는 날이 거의 없다."].map(t => ({ t })) },
     { id: "mind", title: "마음과 생각", lead: "지금, 항상 드는 나의 마음과 생각을 알려주세요.", intro: "평소 나를 둘러싼 마음과 생각을 조금 더 깊이 살펴봐요.",
@@ -336,27 +343,13 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     "안전한더유스의 단계적 회복 서비스에 전반적으로 만족한다.", "필요할 때 이 서비스에 다시 참여하고 싶다.", "비슷한 어려움을 겪는 사람에게 이 서비스를 추천하고 싶다."];
   // 신청할 때 한 번만 묻는 문항 (기존 「나의 마음살피기」 설문지의 보기를 그대로 써요)
   const EXTRA = [
-    { group: "관계에 대해", qs: [
-      { k: "econHelp", t: "경제적 어려움이 생길 때 가장 도움이 되는 사람은 누구인가요?", type: "radio", req: true,
-        opts: ["어머니", "아버지", "형제", "친구", "지인", "직장 동료", "기초수급자 지원", "없음"], etc: true },
-      { k: "familyHard", t: "현재 가정에서 가장 큰 어려움은 무엇인가요?", type: "radio", req: true,
-        opts: ["부모의 간섭", "부모의 폭력", "부모의 폭언", "부모의 무관심", "부모와의 갈등적인 상황", "부모에 대한 불신", "가족 해체(사망, 부모 이혼 등)"], etc: true,
-        why: "그렇게 고른 이유를 알려주세요" },
-      { k: "outsideHard", t: "현재 외부인과의 관계에서 가장 큰 어려움은 무엇인가요?", type: "radio", req: true,
-        opts: ["학교 내 폭력", "학교 내 폭언", "학교 내 따돌림", "학교 부적응", "등교 거부", "직장 내 폭력", "직장 내 폭언", "직장 내 따돌림", "직장 부적응", "출근 거부", "사이버불링"], etc: true,
-        why: "그렇게 고른 이유를 알려주세요" },
-      { k: "homeSpot", t: "방을 제외하고 집에서 주로 어디에 있나요?", type: "radio", req: true, opts: ["거실", "주방", "식탁", "베란다", "없음"], etc: true }
-    ] },
     { group: "마음의 어려움에 대해", qs: [
       { k: "cause", t: "은둔과 고립, 혹은 혼자만의 어려움의 원인은 무엇이라고 생각하나요?", type: "text", req: true,
         hint: "학교폭력, 따돌림, 가정폭력, 부모의 무관심, 갈등 등 생각나는 대로 적어주세요" },
       { k: "startAge", t: "그 어려움이 시작되었다고 생각되는 시기는 언제인가요?", type: "radio", req: true,
         opts: ["10대 초반(초등학생 나이 정도)", "10대 중반(중학생 나이 정도)", "10대 후반(고등학생 나이 정도)", "20대 초반(대학생 나이 정도)", "20대 중반", "20대 후반", "30대 초반", "30대 중반", "30대 후반", "40대 초반", "40대 중반"], etc: true },
       { k: "duration", t: "그 어려움이 이어진 지 얼마나 되었나요?", type: "radio", req: true,
-        opts: ["6개월 미만", "6개월 이상 1년 미만", "2년 이하", "3년 이하", "4년 이하", "5년 이하", "6년 이하", "7년 이하", "8년 이하", "9년 이하", "10년 이하", "10년 이상"], etc: true },
-      { k: "mood", t: "요즘 나의 마음에 대해 골라주세요.", type: "scale", req: true,
-        rows: [["bipolar", "조울이 있다 (기분이 크게 들떴다가 가라앉기를 반복한다)"], ["clean", "결벽이 있다 (청결이나 정리에 지나치게 신경이 쓰인다)"],
-          ["verbal", "폭력적인 언행이 있다"], ["physical", "물리적인 폭력 행동이 생긴다"]] }
+        opts: ["6개월 미만", "6개월 이상 1년 미만", "2년 이하", "3년 이하", "4년 이하", "5년 이하", "6년 이하", "7년 이하", "8년 이하", "9년 이하", "10년 이하", "10년 이상"], etc: true }
     ] },
     { group: "지금까지의 노력과 관심사", qs: [
       { k: "effort", t: "지금까지 어려움을 이겨내려고 어떤 노력을 해보았나요?", type: "text", req: true,
@@ -391,7 +384,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     return `${brand()}
     <section class="result-head fade"><span class="eyebrow">마지막 단계 · 거의 다 왔어요</span>
       <h1>나에 대해 조금 더 알려주세요</h1>
-      <p class="muted">더 잘 맞는 도움을 준비하려고 여쭤봐요. 대부분 고르기만 하면 되고, 4~5분 정도 걸려요.</p></section>
+      <p class="muted">더 잘 맞는 도움을 준비하려고 여쭤봐요. 3분 정도 걸려요.</p></section>
     <form class="form" id="extra-form" novalidate>
       ${EXTRA.map(g => `<section class="form"><h3>${g.group}</h3>${g.qs.map(field).join("")}</section>`).join("")}
       ${miss.length ? `<span class="err">답하지 않은 문항이 ${miss.length}개 있어요.</span>` : ""}
@@ -413,7 +406,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const KEY = MODE === "pre" ? "msg-apply-v1" : "msg-post-v1-" + token;
   const S = {
     screen: MODE === "pre" ? "form" : "loading",
-    pos: 0, secIntro: true, ans: {}, helper: "", t0: 0, lock: false,
+    pos: 0, secIntro: true, ans: {}, follow: {}, t0: 0, lock: false,
     apply: {}, extra: {}, extraErr: false, errors: {}, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, satErr: "",
     name: "", result: null, revisit: false, sendErr: ""
   };
@@ -421,7 +414,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } },
-    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, helper: S.helper, t0: S.t0, apply: S.apply, extra: S.extra, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
+    set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, follow: S.follow, t0: S.t0, apply: S.apply, extra: S.extra, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
     clear() { try { localStorage.removeItem(KEY); } catch (e) {} }
   };
 
@@ -442,7 +435,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <rect x="10" y="88" width="112" height="7" rx="2" fill="var(--ink)"/></svg>`;
   }
   function timeline(at) {
-    const steps = [["신청서와 마음 살펴보기", "기본 정보와 지금의 마음 · 12분 정도"], ["관리자 검토", "확인 후 활동을 안내해 드려요"],
+    const steps = [["신청서와 마음 살펴보기", "기본 정보와 지금의 마음 · 15분 정도"], ["관리자 검토", "확인 후 활동을 안내해 드려요"],
       ["단계적 회복 서비스", "일상회복 → 관계형성 → 자립"], ["만족도와 다시 살펴보기", "참여를 마칠 때 · 10분 정도"]];
     return `<ol class="timeline">${steps.map(([b, s], i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"><div><b>${b}</b><span>${s}</span></div></li>`).join("")}</ol>`;
   }
@@ -535,14 +528,16 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <div class="nav-row"><button class="link-btn" data-act="back">이전으로</button><span></span></div>
     </section>`;
   }
-  const needsFollow = (it, v) => it.follow && v >= 2;
+  const needsFollow = (it, v) => !!it.follow && v >= 2;
+  const followText = id => S.follow[id] || "";
   function question() {
     const { si, ii } = FLAT[S.pos], s = SECTIONS[si], it = s.items[ii];
     const scale = s.scale || FREQ, base = s.base || 0, cur = S.ans[it.id], showFollow = needsFollow(it, cur);
-    const followHtml = showFollow ? `<div class="follow fade"><label for="helperText"><b>그 사람은 누구인가요?</b></label>
-        <span class="hint">이름 대신 나와의 관계로 적어도 괜찮아요 (예: 엄마, 고등학교 친구)</span>
-        <input type="text" id="helperText" name="helperText" placeholder="누구인지 적어주세요" value="${esc(S.helper)}">
-        <button class="btn btn-primary btn-block" data-act="next" ${S.helper.trim() ? "" : "disabled"}>다음</button></div>` : "";
+    const f = it.follow, txt = followText(it.id);
+    const followHtml = showFollow ? `<div class="follow fade"><label for="followText"><b>${f.q}</b>${f.req ? "" : ` <span class="hint">(선택)</span>`}</label>
+        <span class="hint">${f.hint}</span>
+        <input type="text" id="followText" name="followText" placeholder="적어주세요" value="${esc(txt)}">
+        <button class="btn btn-primary btn-block" data-act="next" ${f.req && !txt.trim() ? "disabled" : ""}>다음</button></div>` : "";
     return `${progress()}
     <section class="q fade" aria-live="polite">
       <p class="q-lead">${s.lead}</p><h2>${it.t}</h2>
@@ -762,15 +757,15 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       if (MODE === "pre") { store.clear(); S.screen = "done"; }
       else {
         S.result = { pre: { 관계: 2, 정서: 2, 일상: 2, 무망감: 2.3, 대인기피: 2, 비난: 1.3, 회피: 2.3, 수동공격: 1, 효능감: 18 }, post: keyed(S.ans),
-          helperPre: "", helperPost: S.helper, good: S.satOpen.good || "", stages: S.satMeta.stages, best: (STAGES.flatMap(st => st.best).find(b => b[0] === S.satMeta.best) || ["", ""])[1], doneAt: "" };
+          helperPre: "", helperPost: followText("rel-0"), good: S.satOpen.good || "", stages: S.satMeta.stages, best: (STAGES.flatMap(st => st.best).find(b => b[0] === S.satMeta.best) || ["", ""])[1], doneAt: "" };
         store.clear(); S.screen = "change";
       }
       render(); top(); return;
     }
     try {
       const r = MODE === "pre"
-        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: S.helper, extra: S.extra, secs })
-        : await api({ action: "post", token, answers: S.ans, helper: S.helper, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
+        ? await api({ action: "apply", apply: S.apply, answers: S.ans, helper: followText("rel-0"), follow: S.follow, extra: S.extra, secs })
+        : await api({ action: "post", token, answers: S.ans, helper: followText("rel-0"), follow: S.follow, sat: Object.fromEntries(satItems().map(it => [it.id, S.sat[it.id]])), satMeta: S.satMeta, satOpen: S.satOpen, secs });
       if (!r.ok) {
         if (r.error === "not_open") { store.clear(); S.screen = "notyet"; render(); return; }
         throw new Error(r.error);
@@ -793,7 +788,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     else S.pos--;
     store.set(); render(); top();
   }
-  function startSurvey() { S.pos = 0; S.secIntro = true; S.ans = {}; S.helper = ""; S.t0 = Date.now(); go("survey"); }
+  function startSurvey() { S.pos = 0; S.secIntro = true; S.ans = {}; S.follow = {}; S.t0 = Date.now(); go("survey"); }
 
   app.addEventListener("click", ev => {
     const b = ev.target.closest("[data-act]");
@@ -807,22 +802,24 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       const it = SECTIONS[FLAT[S.pos].si].items[FLAT[S.pos].ii], v = Number(b.dataset.v);
       S.ans[it.id] = v;
       if (needsFollow(it, v)) { store.set(); render(); return; }
-      if (it.follow) S.helper = "";
+      if (it.follow) delete S.follow[it.id];
       S.lock = true; render(); setTimeout(advance, 260); return;
     }
     if (act === "retry") { submit(); return; }
     if (act === "reload") { location.reload(); return; }
     if (act === "resume") { const d = store.get(); Object.assign(S, d || {}); if (!S.t0) S.t0 = Date.now(); render(); top(); return; }
     if (act === "extra-back") { S.pos = FLAT.length - 1; S.secIntro = false; go("survey"); return; }
-    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, extra: {}, extraErr: false, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
+    if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, follow: {}, apply: {}, extra: {}, extraErr: false, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
     if (act === "to-sat") { go("sat"); return; }
     if (act === "demo-post") { location.search = "?t=demo"; return; }
   });
 
   app.addEventListener("input", ev => {
     const t = ev.target, f = t.form;
-    if (t.name === "helperText") {
-      S.helper = t.value;
+    if (t.name === "followText") {
+      const it = SECTIONS[FLAT[S.pos].si].items[FLAT[S.pos].ii];
+      S.follow[it.id] = t.value;
+      if (!it.follow.req) { store.set(); return; }
       t.closest(".follow").querySelector('[data-act="next"]').disabled = !t.value.trim();
       store.set(); return;
     }
@@ -908,7 +905,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
         S.name = r.name || "";
         if (r.done) { S.result = r.result; S.revisit = true; }
         S.screen = r.done ? (r.result && r.result.pre ? "change" : "finished") : !r.open ? "notyet" : d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome";
-        if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, satMeta: d.satMeta || { stages: [], best: "" }, ans: d.ans || {}, helper: d.helper || "", t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
+        if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, satMeta: d.satMeta || { stages: [], best: "" }, ans: d.ans || {}, follow: d.follow || {}, t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
         if (S.screen === "resume") S.screen = "resume";
       }
     } catch (e) { S.screen = "loadError"; }
