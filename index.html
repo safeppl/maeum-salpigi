@@ -614,7 +614,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   }
 
   // ── 렌더 ──
-  function render() {
+  function renderScreen() {
     const sc = S.screen;
     let body;
     if (sc === "form") body = formScreen();
@@ -624,20 +624,30 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <button class="btn btn-primary btn-block" data-act="retry">다시 보내기</button>`;
     else if (sc === "done") body = doneScreen();
     else if (sc === "loading") body = msgScreen("불러오는 중이에요", "잠시만 기다려 주세요.").replace(guideCard(), "");
+    else if (sc === "loadError") body = `${msgScreen("불러오지 못했어요", "인터넷 연결을 확인하고 다시 시도해 주세요.")}
+      <button class="btn btn-primary btn-block" data-act="reload">다시 시도</button>`;
     else if (sc === "invalid") body = msgScreen("링크를 확인해 주세요", "이 링크로는 열 수 없어요. 받은 링크를 다시 확인하거나 아래로 문의해 주세요.");
     else if (sc === "notyet") body = msgScreen("아직 열리지 않았어요", "활동을 마칠 때 관리자가 열어 드려요. 그때 이 링크로 다시 들어와 주세요.");
     else if (sc === "postWelcome") body = postWelcome();
     else if (sc === "resume") body = resumeScreen();
     else if (sc === "sat") body = satScreen();
+    else if (sc === "finished") body = msgScreen("이미 모두 마쳤어요", "끝까지 답해줘서 고마워요. 그동안 정말 수고했어요.");
     else body = changeScreen();
     app.innerHTML = banner() + body;
+  }
+  function render() {
+    try { renderScreen(); }
+    catch (e) { app.innerHTML = banner() + msgScreen("화면을 열지 못했어요", "잠시 뒤 다시 열어 주세요. 계속 이러면 아래로 문의해 주세요."); }
   }
   const top = () => window.scrollTo(0, 0);
   const go = sc => { S.screen = sc; store.set(); render(); top(); };
 
   async function api(payload) {
-    const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-    return res.json();
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
+    try {
+      const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: ctl.signal });
+      return await res.json();
+    } finally { clearTimeout(timer); }
   }
   async function submit() {
     const secs = Math.round((Date.now() - S.t0) / 1000);
@@ -661,7 +671,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       }
       store.clear();
       if (MODE === "pre") S.screen = "done";
-      else { S.result = r.result; S.screen = "change"; }
+      else { S.result = r.result; S.screen = r.result && r.result.pre ? "change" : "finished"; }
     } catch (e) { S.screen = "sendError"; }
     render(); top();
   }
@@ -695,6 +705,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       S.lock = true; render(); setTimeout(advance, 260); return;
     }
     if (act === "retry") { submit(); return; }
+    if (act === "reload") { location.reload(); return; }
     if (act === "resume") { const d = store.get(); Object.assign(S, d || {}); if (!S.t0) S.t0 = Date.now(); render(); top(); return; }
     if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, helper: "", apply: {}, sat: {}, satOpen: {}, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
     if (act === "to-sat") { go("sat"); return; }
@@ -764,11 +775,11 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       else {
         S.name = r.name || "";
         if (r.done) { S.result = r.result; S.revisit = true; }
-        S.screen = r.done ? "change" : !r.open ? "notyet" : d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome";
+        S.screen = r.done ? (r.result && r.result.pre ? "change" : "finished") : !r.open ? "notyet" : d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome";
         if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, ans: d.ans || {}, helper: d.helper || "", t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
         if (S.screen === "resume") S.screen = "resume";
       }
-    } catch (e) { S.screen = "invalid"; }
+    } catch (e) { S.screen = "loadError"; }
     render();
   })();
 })();
