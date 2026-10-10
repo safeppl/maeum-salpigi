@@ -343,6 +343,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   const FLAT = [];
   SECTIONS.forEach((s, si) => s.items.forEach((it, ii) => FLAT.push({ si, ii })));
   const CORE = [{ key: "rel", name: "관계" }, { key: "emo", name: "정서" }, { key: "daily", name: "일상생활" }, { key: "hope", name: "앞으로에 대한 마음" }];
+  const KMAP = { rel: "관계", emo: "정서", daily: "일상", hope: "무망감" };
   const CORE_MSG = {
     rel: ["기댈 수 있는 사람과 연결되어 있는 편이에요.", "사람들과의 연결이 조금 느슨해져 있어요.", "가까이 기댈 사람이 적다고 느끼고 있어요."],
     emo: ["최근 마음 상태는 비교적 안정적이에요.", "무기력하거나 불안한 날이 종종 있었어요.", "최근 마음이 많이 지치고 무거웠던 것 같아요."],
@@ -581,6 +582,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   // ── 신청 접수 완료 ──
   function doneScreen() {
     const o = score(S.ans);
+    const myLink = S.myToken ? (location.origin + location.pathname + "?t=" + S.myToken) : "";
     return `${brand()}
     <section class="result-head fade"><span class="eyebrow">신청 완료</span>
       <h1>신청이 접수되었어요</h1>
@@ -590,9 +592,38 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       ${CORE.map(c => { const v = o[c.key], i = lvIdx(v);
         return `<div class="dom"><div class="dom-top"><b>${c.name}</b><span class="chip ${LEVEL[i]}">${LEVEL_NAME[LEVEL[i]]}</span></div>
         <div class="track"><i class="${LEVEL[i]}" style="width:${Math.max(4, v / 3 * 100)}%"></i></div><p>${CORE_MSG[c.key][i]}</p></div>`; }).join("")}
+      <p class="muted" style="margin-top:14px">‘살펴볼 필요’·‘도움이 필요’는 지금 상태를 함께 들여다보자는 뜻이지 평가가 아니에요. 담당자가 신청 내용을 보고 필요한 도움을 같이 찾아요.</p>
     </section>
+    ${myLink ? `<section class="panel"><h3>이 결과 나중에 다시 보기</h3>
+      <p class="muted">아래 링크를 저장해두면 언제든 이 결과를 다시 볼 수 있어요.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <code style="font-size:13px;word-break:break-all;flex:1 1 220px">${esc(myLink)}</code>
+        <button class="btn btn-ghost" data-act="copy-link" data-link="${esc(myLink)}">링크 복사하기</button>
+      </div>
+      <p class="hint" id="copyMsg"></p>
+    </section>` : ""}
     ${timeline(1)}
     ${DEMO ? `<button class="btn btn-ghost btn-block" data-act="demo-post">체험 계속하기 · 활동을 마쳤다고 보고 마지막 단계 해보기</button>` : ""}
+    ${footer()}`;
+  }
+
+  const STATUS_MSG = {
+    "검토 대기": "신청서를 확인하고 있어요. 조금만 기다려 주세요.",
+    "선정·서비스 중": "지금 함께 활동을 이어가고 있어요.",
+    "미선정": "이번 모집에서는 함께하지 못했지만, 신청할 때 살펴본 마음은 그대로예요."
+  };
+  function preResultScreen() {
+    const o = S.preResult || {};
+    return `${brand()}
+    <section class="result-head fade"><span class="eyebrow">${esc(S.pStatus || "")}</span>
+      <h1>${S.name ? esc(S.name) + "님, " : ""}신청할 때 살펴본 마음이에요</h1>
+      <p class="muted">${STATUS_MSG[S.pStatus] || "활동을 마칠 때 이 링크로 다시 들어오면 사후조사로 이어져요."}</p></section>
+    <section class="panel"><h3>그때의 나의 마음</h3>
+      ${CORE.map(c => { const v = Number(o[KMAP[c.key]]) || 0, i = lvIdx(v);
+        return `<div class="dom"><div class="dom-top"><b>${c.name}</b><span class="chip ${LEVEL[i]}">${LEVEL_NAME[LEVEL[i]]}</span></div>
+        <div class="track"><i class="${LEVEL[i]}" style="width:${Math.max(4, v / 3 * 100)}%"></i></div><p>${CORE_MSG[c.key][i]}</p></div>`; }).join("")}
+      <p class="muted" style="margin-top:14px">‘살펴볼 필요’·‘도움이 필요’는 지금 상태를 함께 들여다보자는 뜻이지 평가가 아니에요. 담당자가 신청 내용을 보고 필요한 도움을 같이 찾아요.</p>
+    </section>
     ${footer()}`;
   }
 
@@ -753,6 +784,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       <button class="btn btn-primary btn-block" data-act="reload">다시 시도</button>`;
     else if (sc === "invalid") body = msgScreen("링크를 확인해 주세요", "이 링크로는 열 수 없어요. 받은 링크를 다시 확인하거나 아래로 문의해 주세요.");
     else if (sc === "notyet") body = msgScreen("아직 열리지 않았어요", "활동을 마칠 때 관리자가 열어 드려요. 그때 이 링크로 다시 들어와 주세요.");
+    else if (sc === "preResult") body = preResultScreen();
     else if (sc === "postWelcome") body = postWelcome();
     else if (sc === "resume") body = resumeScreen();
     else if (sc === "sat") body = satScreen();
@@ -795,7 +827,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
         throw new Error(r.error);
       }
       store.clear();
-      if (MODE === "pre") S.screen = "done";
+      if (MODE === "pre") { S.myToken = r.token; S.screen = "done"; }
       else { S.result = r.result; S.screen = r.result && r.result.pre ? "change" : "finished"; }
     } catch (e) { S.screen = "sendError"; }
     render(); top();
@@ -836,6 +868,20 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     if (act === "fresh") { store.clear(); Object.assign(S, { ans: {}, follow: {}, apply: {}, extra: {}, extraErr: false, sat: {}, satOpen: {}, satMeta: { stages: [], best: "" }, pos: 0, secIntro: true }); go(MODE === "pre" ? "form" : "postWelcome"); return; }
     if (act === "to-sat") { go("sat"); return; }
     if (act === "demo-post") { location.search = "?t=demo"; return; }
+    if (act === "copy-link") {
+      const link = b.dataset.link, msg = app.querySelector("#copyMsg");
+      const say = t => { if (msg) msg.textContent = t; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => say("복사했어요."), () => say("복사하지 못했어요. 링크를 직접 선택해서 복사해 주세요."));
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = link; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand("copy"); say("복사했어요."); } catch (e) { say("복사하지 못했어요. 링크를 직접 선택해서 복사해 주세요."); }
+        document.body.removeChild(ta);
+      }
+      return;
+    }
   });
 
   app.addEventListener("input", ev => {
@@ -927,10 +973,13 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
       if (!r.ok) { S.screen = "invalid"; }
       else {
         S.name = r.name || "";
+        S.pStatus = r.status || "";
         if (r.done) { S.result = r.result; S.revisit = true; }
-        S.screen = r.done ? (r.result && r.result.pre ? "change" : "finished") : !r.open ? "notyet" : d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome";
-        if (d && S.screen !== "postWelcome") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, satMeta: d.satMeta || { stages: [], best: "" }, ans: d.ans || {}, follow: d.follow || {}, t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
-        if (S.screen === "resume") S.screen = "resume";
+        if (r.preResult) S.preResult = r.preResult;
+        S.screen = r.done ? (r.result && r.result.pre ? "change" : "finished")
+          : r.open ? (d && d.screen === "survey" ? "resume" : d && d.screen === "sat" ? "sat" : "postWelcome")
+          : r.preResult ? "preResult" : "notyet";
+        if (d && S.screen !== "postWelcome" && S.screen !== "preResult") Object.assign(S, { pos: d.pos || 0, sat: d.sat || {}, satOpen: d.satOpen || {}, satMeta: d.satMeta || { stages: [], best: "" }, ans: d.ans || {}, follow: d.follow || {}, t0: d.t0 || Date.now(), secIntro: d.secIntro !== false });
       }
     } catch (e) { S.screen = "loadError"; }
     render();
