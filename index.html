@@ -360,7 +360,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     { key: "s2", step: "2단계", name: "관계형성", prog: "자조모임 · 캠프", desc: "비슷한 경험을 가진 청년들과 모임과 캠프로 함께하며 관계를 맺어요.",
       best: [["selfhelp", "자조모임"], ["camp", "캠프"]],
       items: ["모임과 캠프의 분위기가 편안하고 안전하게 느껴졌다.", "비슷한 경험을 가진 사람들과 연결되어 있다는 느낌을 받았다.", "사람들과 관계를 맺는 데 자신감이 생겼다."] },
-    { key: "s3", step: "3단계", name: "자립", prog: "일경험", desc: "일을 직접 경험하며 자립의 계기를 만들어요.",
+    { key: "s3", step: "3단계", name: "자립형성", prog: "일경험", desc: "일을 직접 경험하며 자립의 계기를 만들어요.",
       best: [["work", "일경험"]],
       items: ["일경험의 내용과 방식이 나에게 잘 맞았다.", "일하는 생활 리듬과 책임감을 경험할 수 있었다.", "앞으로의 일이나 자립에 대한 구체적인 계획이 생겼다."] }
   ];
@@ -445,7 +445,9 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
 
   const CONTACT_HTML = `<div class="contacts">${CONTACTS.map(([n, p, t]) => `<a class="contact-line" href="tel:${t}"><span>${n}</span><b>${p}</b></a>`).join("")}</div>`;
   const banner = () => DEMO ? `<div class="proto"><div class="proto-row"><span class="proto-label">체험 버전 · 입력한 내용은 저장되지 않아요</span></div></div>` : "";
-  const brand = () => `<div class="brand"><b>안전한더유스</b><span>나의 마음살피기</span></div>`;
+  const SITE_NAME = MODE === "post" ? "나의 마음 다시 살피기" : "나의 마음살피기";
+  document.title = SITE_NAME;
+  const brand = () => `<div class="brand"><b>안전한더유스</b><span>${SITE_NAME}</span></div>`;
   const footer = () => `<footer class="foot"><span>궁금한 점이 있으면 언제든 연락하세요.</span>${CONTACT_HTML}</footer>`;
   const guideCard = () => `<div class="guide"><h3>관리자가 확인 후 활동을 안내해 드릴게요</h3><p>언제든 문의주세요.</p>${CONTACT_HTML}</div>`;
   function windowArt() {
@@ -461,7 +463,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
   }
   function timeline(at) {
     const steps = [["신청서와 마음 살펴보기", "기본 정보와 지금의 마음 · 15분 정도"], ["관리자 검토", "확인 후 활동을 안내해 드려요"],
-      ["단계적 회복 서비스", "일상회복 → 관계형성 → 자립"], ["만족도와 다시 살펴보기", "참여를 마칠 때 · 10분 정도"]];
+      ["단계적 회복 서비스", "일상회복 → 관계형성 → 자립형성"], ["만족도와 다시 살펴보기", "참여를 마칠 때 · 10분 정도"]];
     return `<ol class="timeline">${steps.map(([b, s], i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"><div><b>${b}</b><span>${s}</span></div></li>`).join("")}</ol>`;
   }
 
