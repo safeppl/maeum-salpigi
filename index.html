@@ -597,7 +597,7 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     ${myLink ? `<section class="panel"><h3>이 결과 나중에 다시 보기</h3>
       <p class="muted">아래 링크를 저장해두면 언제든 이 결과를 다시 볼 수 있어요.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
-        <code style="font-size:13px;word-break:break-all;flex:1 1 220px">${esc(myLink)}</code>
+        <input id="myLinkInput" type="text" readonly value="${esc(myLink)}" onclick="this.select()" style="flex:1 1 220px;min-width:0;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)">
         <button class="btn btn-ghost" data-act="copy-link" data-link="${esc(myLink)}">링크 복사하기</button>
       </div>
       <p class="hint" id="copyMsg"></p>
@@ -869,16 +869,13 @@ td.code { font-variant-numeric: tabular-nums; font-weight: 600; white-space: now
     if (act === "to-sat") { go("sat"); return; }
     if (act === "demo-post") { location.search = "?t=demo"; return; }
     if (act === "copy-link") {
-      const link = b.dataset.link, msg = app.querySelector("#copyMsg");
+      const link = b.dataset.link, msg = app.querySelector("#copyMsg"), input = app.querySelector("#myLinkInput");
       const say = t => { if (msg) msg.textContent = t; };
+      const selectFallback = () => { if (input) { input.focus(); input.select(); } say("링크를 선택했어요. 길게 눌러서 복사해 주세요."); };
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(() => say("복사했어요."), () => say("복사하지 못했어요. 링크를 직접 선택해서 복사해 주세요."));
+        navigator.clipboard.writeText(link).then(() => say("복사했어요."), selectFallback);
       } else {
-        const ta = document.createElement("textarea");
-        ta.value = link; ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        try { document.execCommand("copy"); say("복사했어요."); } catch (e) { say("복사하지 못했어요. 링크를 직접 선택해서 복사해 주세요."); }
-        document.body.removeChild(ta);
+        selectFallback();
       }
       return;
     }
