@@ -14,7 +14,10 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  const S = { screen: "loading", status: null, form: { date: todayStr(), type: "출근", timeIn: "", timeOut: "", note: "" }, sending: false, err: "" };
+  const MOODS = ["힘들었다", "즐거웠다", "할만했다", "유익했다"];
+  const S = { screen: "loading", status: null,
+    form: { date: todayStr(), type: "출근", timeIn: "", timeOut: "", location: "", task: "", mood: "", note: "" },
+    photo: null, photoName: "", sending: false, err: "" };
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
@@ -55,18 +58,49 @@
       '<div class="field"><label>활동</label><div class="choices">' +
       ["출근", "교육"].map(t => '<label><input type="radio" name="f-type" value="' + t + '" ' + (f.type === t ? "checked" : "") + '>' + t + '</label>').join("") +
       '</div></div>' +
+      '<div class="field"><label>활동 장소</label><input type="text" id="f-location" value="' + e(f.location) + '" placeholder="예: OO카페, OO센터"></div>' +
       '<div class="field"><label>출근 시각</label><input type="time" id="f-in" value="' + e(f.timeIn) + '"></div>' +
       '<div class="field"><label>퇴근 시각</label><input type="time" id="f-out" value="' + e(f.timeOut) + '"></div>' +
+      '<div class="field"><label>오늘 한 일</label><textarea id="f-task" placeholder="오늘 맡은 일이 무엇이었는지 적어주세요">' + e(f.task) + '</textarea></div>' +
+      '<div class="field"><label>사진 인증</label><span class="hint">오늘 활동 모습이나 결과물 사진을 한 장 올려주세요.</span>' +
+      '<input type="file" id="f-photo" accept="image/*" capture="environment">' +
+      (S.photoName ? '<span class="hint">선택됨: ' + e(S.photoName) + '</span>' : '') + '</div>' +
+      '<div class="field"><label>오늘의 기분</label><div class="choices">' +
+      MOODS.map(m => '<label><input type="radio" name="f-mood" value="' + m + '" ' + (f.mood === m ? "checked" : "") + '>' + m + '</label>').join("") +
+      '</div></div>' +
       '<div class="field"><label>오늘 소감</label><span class="hint">오늘 있었던 일이나 느낀 점을 적어주세요. 관리자가 확인해요.</span><textarea id="f-note">' + e(f.note) + '</textarea></div>' +
       (S.err ? '<p class="err">' + e(S.err) + '</p>' : '') +
       '<button class="btn btn-primary btn-block" id="f-submit" ' + (S.sending ? "disabled" : "") + '>' + (S.sending ? "보내는 중…" : "체크인 제출하기") + '</button>' +
       '</div></div>';
   }
 
+  // 사진을 너무 크게 안 보내게 줄여서 base64로 바꿔요.
+  function resizePhoto(file, maxSize) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_fail"));
+      reader.onload = ev => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("decode_fail"));
+        img.onload = () => {
+          const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.7).split(",")[1]);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   function recentList(st) {
     if (!st.recent.length) return '<div class="panel"><h3>최근 체크인</h3><p class="empty">아직 체크인 기록이 없어요.</p></div>';
     const rows = st.recent.map(r => '<div class="list-item"><div class="list-top"><b>' + e(r.date) + ' · ' + e(r.type) + ' (' + e(r.hours) + '시간)</b>' +
       '<span class="chip ' + (r.verified ? "ok" : "muted") + '">' + (r.verified ? "인증됨" : "인증 대기") + '</span></div>' +
+      '<p class="list-note">' + e(r.location || "—") + (r.mood ? " · " + e(r.mood) : "") + '</p>' +
       '<p class="list-note">' + e(r.note || "—") + '</p></div>').join("");
     return '<div class="panel"><h3>최근 체크인</h3>' + rows + '</div>';
   }
@@ -103,6 +137,13 @@
     const btn = document.getElementById("f-submit");
     if (!btn) return;
     document.querySelectorAll('input[name="f-type"]').forEach(r => r.addEventListener("change", () => { S.form.type = r.value; }));
+    document.querySelectorAll('input[name="f-mood"]').forEach(r => r.addEventListener("change", () => { S.form.mood = r.value; }));
+    const photo = document.getElementById("f-photo");
+    if (photo) photo.addEventListener("change", () => {
+      const f = photo.files[0];
+      S.photoName = f ? f.name : "";
+      S.photo = f || null;
+    });
     btn.addEventListener("click", submit);
   }
 
@@ -110,19 +151,31 @@
     const date = document.getElementById("f-date").value;
     const timeIn = document.getElementById("f-in").value;
     const timeOut = document.getElementById("f-out").value;
+    const location = document.getElementById("f-location").value.trim();
+    const task = document.getElementById("f-task").value.trim();
     const note = document.getElementById("f-note").value.trim();
     const type = document.querySelector('input[name="f-type"]:checked').value;
+    const moodEl = document.querySelector('input[name="f-mood"]:checked');
+    const mood = moodEl ? moodEl.value : "";
     if (!date || !timeIn || !timeOut) { S.err = "날짜와 시각을 모두 입력해 주세요."; render(); return; }
-    if (!note) { S.err = "오늘 소감을 적어주세요."; render(); return; }
     if (timeOut <= timeIn) { S.err = "퇴근 시각이 출근 시각보다 늦어야 해요."; render(); return; }
-    S.err = ""; S.sending = true; S.form = { date, type, timeIn, timeOut, note }; render();
+    if (!location) { S.err = "활동 장소를 적어주세요."; render(); return; }
+    if (!task) { S.err = "오늘 한 일을 적어주세요."; render(); return; }
+    if (!mood) { S.err = "오늘의 기분을 골라주세요."; render(); return; }
+    if (!S.photo) { S.err = "사진을 한 장 올려주세요."; render(); return; }
+    if (!note) { S.err = "오늘 소감을 적어주세요."; render(); return; }
+
+    S.err = ""; S.sending = true; S.form = { date, type, timeIn, timeOut, location, task, mood, note }; render();
     try {
+      let photoBase64 = "";
+      if (!DEMO) photoBase64 = await resizePhoto(S.photo, 1280);
       if (DEMO) { await new Promise(r => setTimeout(r, 400)); }
       else {
-        const r = await api({ action: "checkin", token, date, timeIn, timeOut, type, note });
+        const r = await api({ action: "checkin", token, date, timeIn, timeOut, type, location, task, mood, note, photo: photoBase64 });
         if (!r.ok) throw new Error(r.error || "fail");
       }
-      S.form = { date: todayStr(), type: "출근", timeIn: "", timeOut: "", note: "" };
+      S.form = { date: todayStr(), type: "출근", timeIn: "", timeOut: "", location: "", task: "", mood: "", note: "" };
+      S.photo = null; S.photoName = "";
       await load();
     } catch (err) {
       S.err = "저장하지 못했어요. 다시 시도해 주세요.";
