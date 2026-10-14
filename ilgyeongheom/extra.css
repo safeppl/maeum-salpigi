@@ -1,0 +1,21 @@
+/* 일경험 화면 전용 — 공유 style.css(../style.css)의 색/간격 변수만 가져다 써요. 공유 파일은 건드리지 않아요. */
+
+.banner { font-size: 14px; border-radius: 10px; padding: 12px 14px; background: var(--accent-soft); color: var(--ink); display: grid; gap: 2px; }
+.banner.warn { background: color-mix(in srgb, var(--dawn) 14%, transparent); }
+.banner b { color: var(--accent); }
+.banner.warn b { color: var(--dawn); }
+
+.list-item { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.list-item:last-child { border-bottom: none; }
+.list-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.list-top b { font-size: 14px; }
+.list-note { font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+.empty { font-size: 14px; color: var(--muted); padding: 8px 0; }
+
+.coach-card { background: var(--surface); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; box-shadow: var(--shadow-card); }
+.coach-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.coach-top b { font-size: 16px; }
+.coach-meta { font-size: 13px; color: var(--muted); }
+.coach-card textarea { width: 100%; box-sizing: border-box; min-height: 56px; font: inherit; font-size: 14px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); resize: vertical; }
+.coach-save { align-self: start; }
+.save-msg { font-size: 12px; color: var(--accent); min-height: 16px; }
