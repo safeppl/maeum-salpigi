@@ -63,7 +63,7 @@
       '<div class="field"><label>퇴근 시각</label><input type="time" id="f-out" value="' + e(f.timeOut) + '"></div>' +
       '<div class="field"><label>오늘 한 일</label><textarea id="f-task" placeholder="오늘 맡은 일이 무엇이었는지 적어주세요">' + e(f.task) + '</textarea></div>' +
       '<div class="field"><label>사진 인증</label><span class="hint">오늘 활동 모습이나 결과물 사진을 한 장 올려주세요.</span>' +
-      '<input type="file" id="f-photo" accept="image/*" capture="environment">' +
+      '<input type="file" id="f-photo" accept="image/*">' +
       (S.photoName ? '<span class="hint">선택됨: ' + e(S.photoName) + '</span>' : '') + '</div>' +
       '<div class="field"><label>오늘의 기분</label><div class="choices">' +
       MOODS.map(m => '<label><input type="radio" name="f-mood" value="' + m + '" ' + (f.mood === m ? "checked" : "") + '>' + m + '</label>').join("") +
