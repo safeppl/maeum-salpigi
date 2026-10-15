@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>위드워킹 동행활동보고서</title>
+<style>
+  :root { --teal:#2C6765; --orange:#D68B47; --bg:#EDF1EC; --text:#1E2A2B; --muted:#5A6968; --border:#D2DAD3; }
+  * { box-sizing: border-box; }
+  body { font-family: "Apple SD Gothic Neo","Malgun Gothic",sans-serif; background:var(--bg); color:var(--text); margin:0; padding:16px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  select, input, textarea { width:100%; font:inherit; font-size:15px; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px; background:#fff; }
+  label { display:block; margin-top:14px; font-weight:600; font-size:14px; }
+  .sub { font-weight:400; color:var(--muted); font-size:12px; margin-top:2px; }
+  .row2 { display:flex; gap:8px; }
+  .row2 > * { flex:1; }
+  button { width:100%; margin-top:20px; background:var(--teal); color:#fff; font-size:16px; font-weight:700; padding:14px; border:0; border-radius:10px; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  .scale { display:flex; gap:6px; margin-top:6px; }
+  .scale button { flex:1; margin:0; padding:10px 0; background:#fff; color:var(--text); border:1px solid var(--border); font-size:13px; font-weight:500; }
+  .scale button.sel { background:var(--orange); color:#fff; border-color:var(--orange); }
+  #msg { margin-top:14px; font-weight:600; }
+  #loading, #done { text-align:center; padding:40px 0; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="loading">불러오는 중이에요…</div>
+<div id="app" style="display:none">
+  <h1 id="hello"></h1>
+  <p class="muted">회차별 동행활동보고서를 작성해 주세요.</p>
+
+  <div class="card">
+    <label>참여자<span class="sub">누구와 함께한 활동인가요</span></label>
+    <select id="code"></select>
+
+    <label>회차</label>
+    <input id="round" type="number" min="1">
+
+    <label>대면활동 — 일정 및 장소</label>
+    <input id="faceWhen" placeholder="예: 10/15(수) 14시, OO카페">
+    <label>대면활동 — 소통 내용</label>
+    <textarea id="faceTalk" rows="3" placeholder="나눈 이야기, 활동 내용을 적어주세요"></textarea>
+    <label>사진<span class="sub">선택 — 대표 사진 1장</span></label>
+    <input id="facePhoto" type="file" accept="image/*">
+    <label>특이사항</label>
+    <textarea id="faceNote" rows="2"></textarea>
+  </div>
+
+  <div class="card">
+    <label>비대면활동 1 — 일정/수단</label>
+    <div class="row2"><input id="remote1When" placeholder="날짜"><input id="remote1How" placeholder="예: 전화, 문자"></div>
+    <label>비대면활동 1 — 내용</label>
+    <textarea id="remote1Talk" rows="2"></textarea>
+    <label>비대면활동 2 — 일정/수단<span class="sub">없으면 비워두세요</span></label>
+    <div class="row2"><input id="remote2When" placeholder="날짜"><input id="remote2How" placeholder="예: 전화, 문자"></div>
+    <label>비대면활동 2 — 내용</label>
+    <textarea id="remote2Talk" rows="2"></textarea>
+  </div>
+
+  <div class="card">
+    <label>이후 활동계획 — 대면</label>
+    <textarea id="nextFace" rows="2"></textarea>
+    <label>이후 활동계획 — 비대면</label>
+    <textarea id="nextRemote" rows="2"></textarea>
+  </div>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크 (0~3점, 임시 문항이에요 — 실제 문항으로 교체 예정)</p>
+    <label>관심</label><div class="scale" data-for="interest"></div>
+    <label>통제</label><div class="scale" data-for="control"></div>
+    <label>호기심</label><div class="scale" data-for="curiosity"></div>
+    <label>자신감</label><div class="scale" data-for="confidence"></div>
+    <label>메모</label>
+    <textarea id="reactionNote" rows="2"></textarea>
+  </div>
+
+  <button id="submit">보고서 제출하기</button>
+  <div id="msg"></div>
+</div>
+<div id="done" style="display:none">보고서를 제출했어요. 수고 많으셨어요!</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxCOhYfrffxcX-vklBPRYUVGbm66rPcdoUiuNCAVKAH-GIO2rz0n0C7xHRAc1PMAIGi/exec';
+const token = new URLSearchParams(location.search).get('t') || '';
+const scaleVals = { interest: null, control: null, curiosity: null, confidence: null };
+
+function post(body) {
+  return fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
+}
+
+function buildScale(key) {
+  const el = document.querySelector('.scale[data-for="' + key + '"]');
+  el.innerHTML = '';
+  ['0','1','2','3'].forEach(v => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = v;
+    b.onclick = () => { scaleVals[key] = Number(v); [...el.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel'); };
+    el.appendChild(b);
+  });
+}
+['interest','control','curiosity','confidence'].forEach(buildScale);
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve('');
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const max = 1280;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale; canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+post({ action: 'myInfo', token }).then(res => {
+  document.getElementById('loading').style.display = 'none';
+  if (!res.ok) { document.getElementById('loading').textContent = '링크가 올바르지 않아요. 안내받은 링크를 다시 확인해 주세요.'; document.getElementById('loading').style.display='block'; return; }
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('hello').textContent = res.name + '님, 안녕하세요';
+  const sel = document.getElementById('code');
+  res.participants.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.code; o.textContent = p.name;
+    o.dataset.next = p.reportCount + 1;
+    sel.appendChild(o);
+  });
+  const fillRound = () => { document.getElementById('round').value = sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.next : 1; };
+  sel.onchange = fillRound;
+  if (sel.options.length) fillRound();
+  if (!res.participants.length) { document.getElementById('msg').textContent = '아직 배정된 참여자가 없어요.'; document.getElementById('submit').disabled = true; }
+});
+
+document.getElementById('submit').onclick = async () => {
+  const btn = document.getElementById('submit');
+  const msg = document.getElementById('msg');
+  const sel = document.getElementById('code');
+  if (!sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
+  btn.disabled = true; msg.textContent = '제출하는 중이에요…';
+  const photoData = await fileToBase64(document.getElementById('facePhoto').files[0]);
+  const form = {
+    code: sel.value, round: document.getElementById('round').value,
+    faceWhen: document.getElementById('faceWhen').value,
+    faceTalk: document.getElementById('faceTalk').value,
+    facePhotoData: photoData,
+    faceNote: document.getElementById('faceNote').value,
+    remote1When: document.getElementById('remote1When').value,
+    remote1How: document.getElementById('remote1How').value,
+    remote1Talk: document.getElementById('remote1Talk').value,
+    remote2When: document.getElementById('remote2When').value,
+    remote2How: document.getElementById('remote2How').value,
+    remote2Talk: document.getElementById('remote2Talk').value,
+    nextFace: document.getElementById('nextFace').value,
+    nextRemote: document.getElementById('nextRemote').value,
+    interest: scaleVals.interest, control: scaleVals.control, curiosity: scaleVals.curiosity, confidence: scaleVals.confidence,
+    reactionNote: document.getElementById('reactionNote').value
+  };
+  const res = await post({ action: 'report', token, form });
+  if (res.ok) { document.getElementById('app').style.display = 'none'; document.getElementById('done').style.display = 'block'; }
+  else { msg.textContent = '제출하지 못했어요: ' + res.error; btn.disabled = false; }
+};
+</script>
+</body>
+</html>
