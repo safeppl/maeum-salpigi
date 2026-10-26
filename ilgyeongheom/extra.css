@@ -20,6 +20,10 @@
 .coach-save { align-self: start; }
 .save-msg { font-size: 12px; color: var(--accent); min-height: 16px; }
 
+.plan-block { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.plan-block textarea { width: 100%; box-sizing: border-box; min-height: 48px; font: inherit; font-size: 13px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); resize: vertical; }
+.plan-actions { display: flex; gap: 8px; }
+
 .adapt-block { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
 .adapt-title { font-size: 12.5px; color: var(--muted); margin: 0 0 2px; }
 .adapt-row { display: grid; grid-template-columns: 56px 1fr; gap: 8px; align-items: center; }

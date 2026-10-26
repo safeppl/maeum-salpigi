@@ -17,7 +17,9 @@
   const MOODS = ["힘들었다", "즐거웠다", "할만했다", "유익했다"];
   const S = { screen: "loading", status: null,
     form: { date: todayStr(), type: "출근", timeIn: "", timeOut: "", location: "", task: "", mood: "", note: "" },
-    photo: null, photoName: "", sending: false, err: "" };
+    photo: null, photoName: "", sending: false, err: "",
+    planForm: { goal: "", startDate: "", endDate: "", location: "", content: "", weeklyHours: "" },
+    planSending: false, planErr: "" };
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
@@ -113,6 +115,40 @@
     return '<div class="panel"><h3>지급 내역</h3>' + rows + '</div>';
   }
 
+  function planSummary(plan) {
+    return '<div class="panel"><h3>제출한 활동 계획서</h3>' +
+      '<p class="list-note"><b>목표</b> ' + e(plan.goal) + '</p>' +
+      '<p class="list-note"><b>기간</b> ' + e(plan.startDate) + ' ~ ' + e(plan.endDate) + '</p>' +
+      '<p class="list-note"><b>장소</b> ' + e(plan.location) + '</p>' +
+      '<p class="list-note"><b>주요 활동</b> ' + e(plan.content) + '</p>' +
+      '<p class="list-note"><b>주당 희망 시간</b> ' + e(plan.weeklyHours) + '시간</p></div>';
+  }
+
+  function planForm(plan) {
+    const f = S.planForm;
+    return '<div class="panel"><h3>활동 계획서 작성</h3>' +
+      (plan && plan.status === "반려" ? '<div class="banner warn"><b>코치님이 반려했어요.</b><br>' + e(plan.comment || "") + '</div>' : "") +
+      '<div class="form">' +
+      '<div class="field"><label>활동 목표</label><textarea id="p-goal" placeholder="이 일경험을 통해 이루고 싶은 것을 적어주세요">' + e(f.goal) + '</textarea></div>' +
+      '<div class="field"><label>활동 시작일</label><input type="date" id="p-start" value="' + e(f.startDate) + '"></div>' +
+      '<div class="field"><label>활동 종료일</label><input type="date" id="p-end" value="' + e(f.endDate) + '"></div>' +
+      '<div class="field"><label>활동 장소</label><input type="text" id="p-location" value="' + e(f.location) + '" placeholder="예: OO카페, OO센터"></div>' +
+      '<div class="field"><label>주요 활동 내용</label><textarea id="p-content" placeholder="어떤 일을 할 계획인지 적어주세요">' + e(f.content) + '</textarea></div>' +
+      '<div class="field"><label>주당 희망 활동 시간</label><input type="number" id="p-hours" min="1" max="40" value="' + e(f.weeklyHours) + '"></div>' +
+      (S.planErr ? '<p class="err">' + e(S.planErr) + '</p>' : "") +
+      '<button class="btn btn-primary btn-block" id="p-submit" ' + (S.planSending ? "disabled" : "") + '>' + (S.planSending ? "보내는 중…" : "계획서 제출하기") + '</button>' +
+      '</div></div>';
+  }
+
+  function planScreen() {
+    const st = S.status, plan = st.plan;
+    return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
+      '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
+      (plan && plan.status === "대기"
+        ? '<div class="banner"><b>계획서를 제출했어요.</b> 코치님이 확인하고 있어요.</div>' + planSummary(plan)
+        : planForm(plan)) + contacts();
+  }
+
   function dashboard() {
     const st = S.status;
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
@@ -128,23 +164,53 @@
     if (S.screen === "loading") body = '<div class="sec-intro"><p class="eyebrow">자기주도적 일경험</p><h2>불러오는 중…</h2></div>';
     else if (S.screen === "no-token") body = noTokenScreen();
     else if (S.screen === "error") body = errorScreen();
-    else body = dashboard();
+    else body = S.status.checkinAllowed ? dashboard() : planScreen();
     app.innerHTML = body;
     bind();
   }
 
   function bind() {
     const btn = document.getElementById("f-submit");
-    if (!btn) return;
-    document.querySelectorAll('input[name="f-type"]').forEach(r => r.addEventListener("change", () => { S.form.type = r.value; }));
-    document.querySelectorAll('input[name="f-mood"]').forEach(r => r.addEventListener("change", () => { S.form.mood = r.value; }));
-    const photo = document.getElementById("f-photo");
-    if (photo) photo.addEventListener("change", () => {
-      const f = photo.files[0];
-      S.photoName = f ? f.name : "";
-      S.photo = f || null;
-    });
-    btn.addEventListener("click", submit);
+    if (btn) {
+      document.querySelectorAll('input[name="f-type"]').forEach(r => r.addEventListener("change", () => { S.form.type = r.value; }));
+      document.querySelectorAll('input[name="f-mood"]').forEach(r => r.addEventListener("change", () => { S.form.mood = r.value; }));
+      const photo = document.getElementById("f-photo");
+      if (photo) photo.addEventListener("change", () => {
+        const f = photo.files[0];
+        S.photoName = f ? f.name : "";
+        S.photo = f || null;
+      });
+      btn.addEventListener("click", submit);
+    }
+    const pbtn = document.getElementById("p-submit");
+    if (pbtn) pbtn.addEventListener("click", submitPlan);
+  }
+
+  async function submitPlan() {
+    const goal = document.getElementById("p-goal").value.trim();
+    const startDate = document.getElementById("p-start").value;
+    const endDate = document.getElementById("p-end").value;
+    const location = document.getElementById("p-location").value.trim();
+    const content = document.getElementById("p-content").value.trim();
+    const weeklyHours = Number(document.getElementById("p-hours").value);
+    if (!goal) { S.planErr = "활동 목표를 적어주세요."; render(); return; }
+    if (!startDate || !endDate) { S.planErr = "활동 기간을 입력해 주세요."; render(); return; }
+    if (endDate < startDate) { S.planErr = "종료일이 시작일보다 늦어야 해요."; render(); return; }
+    if (!location) { S.planErr = "활동 장소를 적어주세요."; render(); return; }
+    if (!content) { S.planErr = "주요 활동 내용을 적어주세요."; render(); return; }
+    if (!(weeklyHours > 0 && weeklyHours <= 40)) { S.planErr = "주당 희망 활동 시간을 1~40 사이로 입력해 주세요."; render(); return; }
+
+    S.planErr = ""; S.planSending = true; S.planForm = { goal, startDate, endDate, location, content, weeklyHours }; render();
+    try {
+      if (!DEMO) {
+        const r = await api({ action: "submitPlan", token, goal, startDate, endDate, location, content, weeklyHours });
+        if (!r.ok) throw new Error(r.error || "fail");
+      }
+      await load();
+    } catch (err) {
+      S.planErr = "제출하지 못했어요. 다시 시도해 주세요.";
+      S.planSending = false; render();
+    }
   }
 
   async function submit() {
@@ -187,13 +253,16 @@
     try {
       if (DEMO) {
         S.status = { name: "체험", stage: "일경험 진행", thisWeekHours: 6, weeklyMinHours: 10, hourlyRate: 12000,
-          monthEstimate: 240000, nextPayDate: todayStr(), recent: [], payments: [] };
+          monthEstimate: 240000, nextPayDate: todayStr(), recent: [], payments: [],
+          checkinAllowed: true, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
       } else {
         const r = await api({ action: "status", token });
         if (!r.ok) throw new Error(r.error || "fail");
         S.status = r;
+        if (r.plan) S.planForm = { goal: r.plan.goal || "", startDate: r.plan.startDate || "", endDate: r.plan.endDate || "",
+          location: r.plan.location || "", content: r.plan.content || "", weeklyHours: r.plan.weeklyHours || "" };
       }
-      S.sending = false; S.screen = "ready"; render();
+      S.sending = false; S.planSending = false; S.screen = "ready"; render();
     } catch (err) {
       S.err = "불러오지 못했어요."; S.screen = "error"; render();
     }
