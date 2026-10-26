@@ -19,7 +19,7 @@
     form: { date: todayStr(), type: "출근", timeIn: "", timeOut: "", location: "", task: "", mood: "", note: "" },
     photo: null, photoName: "", sending: false, err: "",
     planForm: { goal: "", startDate: "", endDate: "", location: "", content: "", weeklyHours: "" },
-    planSending: false, planErr: "" };
+    planSending: false, planErr: "", viewPlan: false };
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
@@ -140,13 +140,21 @@
       '</div></div>';
   }
 
-  function planScreen() {
+  function planScreen(optional) {
     const st = S.status, plan = st.plan;
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
       '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
+      (optional ? '<button class="btn btn-ghost btn-sm" id="plan-back">← 돌아가기</button>' : '') +
       (plan && plan.status === "대기"
         ? '<div class="banner"><b>계획서를 제출했어요.</b> 코치님이 확인하고 있어요.</div>' + planSummary(plan)
         : planForm(plan)) + contacts();
+  }
+
+  function planCard(st) {
+    const plan = st.plan;
+    const label = !plan ? "아직 작성 전이에요" : plan.status === "대기" ? "코치님 확인 중" : plan.status === "반려" ? "반려됨 — 다시 작성해 주세요" : "승인됨";
+    return '<div class="panel"><h3>활동 계획서</h3><p class="list-note">' + e(label) + '</p>' +
+      '<button class="btn btn-ghost btn-sm" id="plan-open">' + (plan ? "내용 보기 / 다시 쓰기" : "계획서 작성하기") + '</button></div>';
   }
 
   function dashboard() {
@@ -156,7 +164,7 @@
       (st.thisWeekHours < st.weeklyMinHours
         ? '<div class="banner warn"><b>이번 주 ' + (st.weeklyMinHours - st.thisWeekHours) + '시간 더 필요해요.</b> 주 최소 ' + st.weeklyMinHours + '시간을 채워야 그 주가 보상금 계산에 들어가요.</div>'
         : '<div class="banner"><b>이번 주 목표를 채웠어요.</b> 수고하셨어요!</div>') +
-      kpis(st) + checkinForm() + recentList(st) + payList(st) + contacts();
+      kpis(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
   }
 
   function render() {
@@ -164,7 +172,9 @@
     if (S.screen === "loading") body = '<div class="sec-intro"><p class="eyebrow">자기주도적 일경험</p><h2>불러오는 중…</h2></div>';
     else if (S.screen === "no-token") body = noTokenScreen();
     else if (S.screen === "error") body = errorScreen();
-    else body = S.status.checkinAllowed ? dashboard() : planScreen();
+    else if (!S.status.checkinAllowed) body = planScreen(false);
+    else if (S.viewPlan) body = planScreen(true);
+    else body = dashboard();
     app.innerHTML = body;
     bind();
   }
@@ -184,6 +194,10 @@
     }
     const pbtn = document.getElementById("p-submit");
     if (pbtn) pbtn.addEventListener("click", submitPlan);
+    const popen = document.getElementById("plan-open");
+    if (popen) popen.addEventListener("click", () => { S.viewPlan = true; render(); });
+    const pback = document.getElementById("plan-back");
+    if (pback) pback.addEventListener("click", () => { S.viewPlan = false; render(); });
   }
 
   async function submitPlan() {
@@ -206,6 +220,7 @@
         const r = await api({ action: "submitPlan", token, goal, startDate, endDate, location, content, weeklyHours });
         if (!r.ok) throw new Error(r.error || "fail");
       }
+      S.viewPlan = false;
       await load();
     } catch (err) {
       S.planErr = "제출하지 못했어요. 다시 시도해 주세요.";
