@@ -7,7 +7,7 @@
   const YEAR = new Date().getFullYear();
   const FREQ = ["전혀 그렇지 않다", "그렇지 않다", "그렇다", "매우 그렇다"]; // 모든 문항이 같은 표현을 써요
   const GSE = ["전혀 그렇지 않다", "그렇지 않다", "그렇다", "매우 그렇다"];
-  const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "0222471091"], ["안전한사람들", "031-898-1091", "0318981091"]];
+  const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "0222471091"], ["안전한사람들", "031-898-1091", "0318981091", "경기도 용인시 수지구 용구대로2753번길 37-30, 401호 (죽전동)"]];
   const REGIONS = {
     "서울특별시": "종로구 중구 용산구 성동구 광진구 동대문구 중랑구 성북구 강북구 도봉구 노원구 은평구 서대문구 마포구 양천구 강서구 구로구 금천구 영등포구 동작구 관악구 서초구 강남구 송파구 강동구",
     "부산광역시": "중구 서구 동구 영도구 부산진구 동래구 남구 북구 해운대구 사하구 금정구 강서구 연제구 수영구 사상구 기장군",
@@ -157,7 +157,8 @@
     clear() { try { localStorage.removeItem(KEY); } catch (e) {} }
   };
 
-  const CONTACT_HTML = `<div class="contacts">${CONTACTS.map(([n, p, t]) => `<a class="contact-line" href="tel:${t}"><span>${n}</span><b>${p}</b></a>`).join("")}</div>`;
+  const CONTACT_HTML = `<div class="contacts">${CONTACTS.map(([n, p, t, addr]) => `<a class="contact-line" href="tel:${t}"><span>${n}</span><b>${p}</b></a>${addr ? `<p class="contact-addr">${addr}</p>` : ""}`).join("")}
+    <p class="privacy-note">수집한 개인정보는 신청 검토·서비스 제공 목적으로만 쓰고, 사업 종료 후 파기해요.</p></div>`;
   const banner = () => DEMO ? `<div class="proto"><div class="proto-row"><span class="proto-label">체험 버전 · 입력한 내용은 저장되지 않아요</span></div></div>` : "";
   const SITE_NAME = MODE === "post" ? "나의 마음 다시 살피기" : "나의 마음살피기";
   document.title = SITE_NAME;
