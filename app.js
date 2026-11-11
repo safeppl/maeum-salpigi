@@ -234,7 +234,7 @@
       <fieldset class="field"><legend>원하는 지원 <span class="hint">(여러 개 골라도 돼요)</span></legend>
         <div class="choices">${check("want", [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]])}</div></fieldset>
       <fieldset class="field"><legend>이 사업을 어떻게 알게 되었나요?</legend>
-        <div class="choices">${radio("route", [["family", "가족·지인"], ["org", "관계기관"], ["sns", "인터넷·SNS"], ["poster", "홍보물"], ["etc", "그 밖에"]])}</div>
+        <div class="choices">${radio("route", [["family", "가족·지인"], ["org", "관계기관"], ["gov", "지자체"], ["host", "주관기관"], ["sns", "인터넷·SNS"], ["poster", "홍보물"], ["etc", "그 밖에"]])}</div>
         ${etc("route", "어떻게 알게 되었는지 적어주세요")}${er("routeEtc", "어떻게 알게 되었는지 적어주세요.")}</fieldset>
       <label class="consent"><input type="checkbox" id="agree" name="agree" ${a.agree ? "checked" : ""}>
         <span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 성별, 태어난 해, 사는 곳, 연락처를 대상자 검토와 서비스 제공에만 쓰고, 사업 종료 후 파기해요.</span></span></label>
