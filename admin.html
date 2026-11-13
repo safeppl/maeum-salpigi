@@ -41,6 +41,12 @@
   .care { color: var(--care); font-weight: 700; } .watch { color: var(--watch); font-weight: 700; } .ok { color: var(--ok); font-weight: 700; }
   .msg { color: var(--muted); font-size: 13px; padding: 40px; text-align: center; }
   #detail h3 { margin: 18px 0 6px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .statusRow { display: flex; align-items: center; gap: 8px; margin: 10px 0 16px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .statusRow select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); }
+  .statusRow button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; cursor: pointer; }
+  .statusRow button:disabled { opacity: .5; cursor: default; }
+  .statusRow .m { font-size: 12.5px; color: var(--muted); }
+  .statusRow .m a { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -69,6 +75,16 @@ let activeCode = null;
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
+// 참여자 목록·상태집계만 새로 받아와요(대시보드/상세 화면 중 어느 걸 보고 있는지는 안 건드림).
+async function fetchData() {
+  const res = await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN));
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "오류");
+  DATA = json;
+  renderFilters();
+  renderList();
+}
+
 async function load() {
   if (!SCRIPT_URL || SCRIPT_URL.indexOf("PASTE_") === 0) {
     document.getElementById("main").innerHTML = '<div class="msg">SCRIPT_URL이 아직 설정되지 않았어요. 파일 상단의 SCRIPT_URL 값을 마음살피기 웹앱 주소로 바꿔주세요.</div>';
@@ -79,12 +95,7 @@ async function load() {
     return;
   }
   try {
-    const res = await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN));
-    const json = await res.json();
-    if (!json.ok) { document.getElementById("main").innerHTML = '<div class="msg">접속할 수 없어요 (' + esc(json.error || "오류") + '). 토큰을 다시 확인해주세요.</div>'; return; }
-    DATA = json;
-    renderFilters();
-    renderList();
+    await fetchData();
     renderDashboard();
   } catch (err) {
     document.getElementById("main").innerHTML = '<div class="msg">불러오지 못했어요: ' + esc(err.message) + '</div>';
@@ -144,8 +155,13 @@ function renderDashboard() {
 function renderDetail(p) {
   if (!p) return;
   const row2 = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : "";
+  const statusOptions = STATUS_LIST.map(s => '<option value="' + esc(s) + '"' + (s === p.status ? " selected" : "") + '>' + esc(s) + '</option>').join("");
   let h = '<div id="detail">';
   h += '<p><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · ' + esc(p.status) + (p.flag ? ' · <span class="care">정서확인필요: ' + esc(p.flag) + '</span>' : "") + '</p>';
+  h += '<div class="statusRow">' +
+    '<select id="statusSelect">' + statusOptions + '</select>' +
+    '<button id="statusBtn">상태 변경</button>' +
+    '<span id="statusMsg" class="m"></span></div>';
   h += '<h3>기본 정보</h3><table>' +
     row2("나이·성별", (p.age ? p.age + "세 " : "") + (p.sex || "")) +
     row2("지역", p.area) + row2("연락처", p.phone + (p.contact ? " (" + p.contact + " 선호)" : "")) +
@@ -154,6 +170,39 @@ function renderDetail(p) {
     row2("참여 단계", [p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ")) +
     '</table></div>';
   document.getElementById("main").innerHTML = h;
+  document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
+}
+
+// 선택한 참여자의 상태를 바꿔요. "선정·서비스 중"으로 바꾸면 서버가 초기면접지도 같이 만들어서 링크를 돌려줘요.
+async function changeStatus(code) {
+  const sel = document.getElementById("statusSelect");
+  const btn = document.getElementById("statusBtn");
+  const msg = document.getElementById("statusMsg");
+  const newStatus = sel.value;
+  btn.disabled = true;
+  msg.textContent = "변경 중...";
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "adminSetStatus", token: TOKEN, code: code, status: newStatus })
+    });
+    const json = await res.json();
+    if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); btn.disabled = false; return; }
+    await fetchData();
+    activeCode = code;
+    renderList();
+    renderDetail(DATA.participants.find(p => p.code === code));
+    const msg2 = document.getElementById("statusMsg");
+    let text = '상태를 "' + esc(newStatus) + '"로 바꿨어요.';
+    if (json.docUrl) text += ' <a href="' + esc(json.docUrl) + '" target="_blank">초기면접지 열기</a>';
+    if (json.docError) text += ' (초기면접지 생성 실패: ' + esc(json.docError) + ')';
+    if (json.withwalkingError) text += ' (위드워킹 연동 실패: ' + esc(json.withwalkingError) + ')';
+    msg2.innerHTML = text;
+  } catch (err) {
+    msg.textContent = "실패: " + err.message;
+    btn.disabled = false;
+  }
 }
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
