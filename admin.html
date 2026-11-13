@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>안전한더유스 · 관리자 통합보기</title>
+<style>
+  :root {
+    --bg: #FDF6EA; --surface: #FFFDF8; --ink: #241508; --muted: #6B5540; --line: #EAD9BE;
+    --accent: #2C6765; --accent-soft: #D9EFEA; --dawn: #D68B47; --dawn-soft: #FFE3BE;
+    --care: #C0392B; --watch: #B9790F; --ok: #2C6765;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Apple SD Gothic Neo","Malgun Gothic",sans-serif; background: var(--bg); color: var(--ink); }
+  #app { display: flex; height: 100vh; }
+  #side { width: 280px; flex: none; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  #side header { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
+  #side header b { font-size: 15px; }
+  #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; }
+  #filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
+  #filters button { font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
+  #filters button.on { background: var(--accent); color: #fff; border-color: transparent; }
+  #list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .p-item { padding: 8px 9px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; font-size: 12.5px; }
+  .p-item:hover { background: var(--accent-soft); }
+  .p-item.on { background: var(--accent); color: #fff; }
+  .p-meta { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .p-item.on .p-meta { color: #D2E4E3; }
+  #dashBtn { margin: 0 12px 10px; padding: 9px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  #main { flex: 1; overflow-y: auto; padding: 26px 32px; }
+  .cards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; min-width: 110px; }
+  .card b { display: block; font-size: 22px; }
+  .card span { font-size: 12px; color: var(--muted); }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  td, th { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
+  th { background: var(--accent-soft); color: var(--accent); font-size: 11.5px; }
+  td:first-child { color: var(--muted); white-space: nowrap; width: 130px; }
+  .care { color: var(--care); font-weight: 700; } .watch { color: var(--watch); font-weight: 700; } .ok { color: var(--ok); font-weight: 700; }
+  .msg { color: var(--muted); font-size: 13px; padding: 40px; text-align: center; }
+  #detail h3 { margin: 18px 0 6px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <header><b>안전한더유스</b><span>관리자 통합보기 · 마음살피기</span></header>
+    <input id="search" placeholder="이름·참여번호 검색">
+    <div id="filters"></div>
+    <button id="dashBtn">대시보드</button>
+    <div id="list"></div>
+  </div>
+  <div id="main"><div class="msg">불러오는 중...</div></div>
+</div>
+
+<script>
+// shortcut: 지금은 마음살피기 한 시스템만 연결돼 있어요. 위드워킹·일경험·인력풀도 같은 방식(doGet + 토큰)으로
+// JSON API를 열면, 이 페이지의 탭을 늘려서 네 시스템을 한 화면에서 보는 진짜 "컨트롤타워"로 확장할 수 있어요.
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec"; // 마음살피기 Apps Script 배포 URL (app.js의 API_URL과 동일)
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get("t") || "";
+const STATUS_LIST = ["검토 대기", "선정·서비스 중", "미선정", "서비스 완료", "사후 완료"];
+
+let DATA = null;
+let activeFilter = "전체";
+let activeCode = null;
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function load() {
+  if (!SCRIPT_URL || SCRIPT_URL.indexOf("PASTE_") === 0) {
+    document.getElementById("main").innerHTML = '<div class="msg">SCRIPT_URL이 아직 설정되지 않았어요. 파일 상단의 SCRIPT_URL 값을 마음살피기 웹앱 주소로 바꿔주세요.</div>';
+    return;
+  }
+  if (!TOKEN) {
+    document.getElementById("main").innerHTML = '<div class="msg">주소 끝에 ?t=관리자토큰 이 빠져 있어요.</div>';
+    return;
+  }
+  try {
+    const res = await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN));
+    const json = await res.json();
+    if (!json.ok) { document.getElementById("main").innerHTML = '<div class="msg">접속할 수 없어요 (' + esc(json.error || "오류") + '). 토큰을 다시 확인해주세요.</div>'; return; }
+    DATA = json;
+    renderFilters();
+    renderList();
+    renderDashboard();
+  } catch (err) {
+    document.getElementById("main").innerHTML = '<div class="msg">불러오지 못했어요: ' + esc(err.message) + '</div>';
+  }
+}
+
+function renderFilters() {
+  const counts = DATA.byStatus || {};
+  const total = DATA.participants.length;
+  const chips = [["전체", total]].concat(STATUS_LIST.map(s => [s, counts[s] || 0]));
+  document.getElementById("filters").innerHTML = chips.map(([name, n]) =>
+    '<button data-f="' + esc(name) + '" class="' + (name === activeFilter ? "on" : "") + '">' + esc(name) + ' ' + n + '</button>'
+  ).join("");
+  document.querySelectorAll("#filters button").forEach(b => b.addEventListener("click", () => {
+    activeFilter = b.dataset.f;
+    renderFilters(); renderList();
+  }));
+}
+
+function matches(p, q) {
+  const inFilter = activeFilter === "전체" || p.status === activeFilter;
+  const inSearch = !q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0;
+  return inFilter && inSearch;
+}
+
+function renderList() {
+  const q = document.getElementById("search").value.trim();
+  const rows = DATA.participants.filter(p => matches(p, q));
+  document.getElementById("list").innerHTML = rows.map(p => {
+    const care = p.flag ? ' <span class="care">⚑</span>' : "";
+    return '<div class="p-item' + (p.code === activeCode ? " on" : "") + '" data-code="' + esc(p.code) + '">' +
+      '<b>' + esc(p.code) + '</b> ' + esc(p.name) + care +
+      '<span class="p-meta">' + esc(p.status) + (p.preType ? " · " + esc(p.preType) : "") + (p.activist ? " · 활동가 " + esc(p.activist) : "") + '</span></div>';
+  }).join("") || '<div class="msg">해당하는 참여자가 없어요.</div>';
+  document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
+    activeCode = el.dataset.code;
+    renderList();
+    renderDetail(DATA.participants.find(p => p.code === activeCode));
+  }));
+}
+
+function renderDashboard() {
+  activeCode = null;
+  const counts = DATA.byStatus || {};
+  const cards = STATUS_LIST.map(s => '<div class="card"><b>' + (counts[s] || 0) + '</b><span>' + esc(s) + '</span></div>').join("");
+  const flagged = DATA.participants.filter(p => p.flag);
+  let h = '<div class="cards">' + cards + '</div>';
+  h += '<h2>지금 살펴볼 사람 (정서확인필요 표시 · ' + flagged.length + '명)</h2>';
+  h += flagged.length
+    ? '<table><tr><th>참여번호</th><th>이름</th><th>상태</th><th>표시</th></tr>' +
+      flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.status) + '</td><td class="care">' + esc(p.flag) + '</td></tr>').join("") +
+      '</table>'
+    : '<p class="msg" style="padding:16px 0">지금 표시된 사람이 없어요.</p>';
+  document.getElementById("main").innerHTML = h;
+}
+
+function renderDetail(p) {
+  if (!p) return;
+  const row2 = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : "";
+  let h = '<div id="detail">';
+  h += '<p><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · ' + esc(p.status) + (p.flag ? ' · <span class="care">정서확인필요: ' + esc(p.flag) + '</span>' : "") + '</p>';
+  h += '<h3>기본 정보</h3><table>' +
+    row2("나이·성별", (p.age ? p.age + "세 " : "") + (p.sex || "")) +
+    row2("지역", p.area) + row2("연락처", p.phone + (p.contact ? " (" + p.contact + " 선호)" : "")) +
+    row2("사업", p.biz) + row2("담당활동가", p.activist) +
+    row2("유형(사전)", p.preType) + row2("응답 점검", p.checkFlag) +
+    row2("참여 단계", [p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ")) +
+    '</table></div>';
+  document.getElementById("main").innerHTML = h;
+}
+
+document.getElementById("dashBtn").addEventListener("click", renderDashboard);
+document.getElementById("search").addEventListener("input", renderList);
+load();
+</script>
+</body>
+</html>
