@@ -33,7 +33,8 @@
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; min-width: 110px; }
   .card b { display: block; font-size: 22px; }
   .card span { font-size: 12px; color: var(--muted); }
-  h2 { font-size: 16px; margin: 0 0 10px; }
+  h2 { font-size: 16px; margin: 26px 0 10px; }
+  h2:first-child { margin-top: 0; }
   table { border-collapse: collapse; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   td, th { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
   th { background: var(--accent-soft); color: var(--accent); font-size: 11.5px; }
@@ -43,10 +44,22 @@
   #detail h3 { margin: 18px 0 6px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
   .statusRow { display: flex; align-items: center; gap: 8px; margin: 10px 0 16px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
   .statusRow select { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); }
-  .statusRow button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; cursor: pointer; }
-  .statusRow button:disabled { opacity: .5; cursor: default; }
-  .statusRow .m { font-size: 12.5px; color: var(--muted); }
-  .statusRow .m a { color: var(--accent); font-weight: 600; }
+  .statusRow button, .noticeBtns button, .actions button, .smsForm button, button.danger {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 0; border-radius: 7px; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .statusRow button:disabled, .noticeBtns button:disabled, .smsForm button:disabled { opacity: .5; cursor: default; }
+  .statusRow .m, .m { font-size: 12.5px; color: var(--muted); }
+  .statusRow .m a, .m a { color: var(--accent); font-weight: 600; }
+  .noticeBox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+  .noticeBox textarea { width: 100%; font: inherit; font-size: 13px; line-height: 1.5; padding: 8px; border: 1px solid var(--line); border-radius: 7px; resize: vertical; }
+  .noticeBtns { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .actions button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+  .actions button:hover { background: var(--accent-soft); }
+  #smsBox, #purgeBox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .smsForm { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .smsForm input { font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; flex: 1; min-width: 140px; }
+  button.danger { background: var(--care); }
 </style>
 </head>
 <body>
@@ -74,6 +87,16 @@ let activeFilter = "전체";
 let activeCode = null;
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// 시트 메뉴 기능들을 admin.html에서도 쓰기 위한 공통 호출기 — action/token과 함께 POST해요.
+async function callAdmin(action, extra) {
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ action: action, token: TOKEN }, extra || {}))
+  });
+  return res.json();
+}
 
 // 참여자 목록·상태집계만 새로 받아와요(대시보드/상세 화면 중 어느 걸 보고 있는지는 안 건드림).
 async function fetchData() {
@@ -149,7 +172,94 @@ function renderDashboard() {
       flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.status) + '</td><td class="care">' + esc(p.flag) + '</td></tr>').join("") +
       '</table>'
     : '<p class="msg" style="padding:16px 0">지금 표시된 사람이 없어요.</p>';
+
+  h += '<h2>관리 작업</h2><div class="actions">' +
+    '<button data-act="dup">사업별 중복 참여자 확인</button>' +
+    '<button data-act="match">1단계 활동가 자동 매칭</button>' +
+    '<button data-act="analysis">분석용 시트 새로 만들기</button>' +
+    '<button data-act="backfill">[1회] 사업 일괄 채우기</button></div>' +
+    '<div id="actionResult" class="m" style="margin-top:8px"></div>';
+
+  h += '<h2>문자 발송 설정</h2><div id="smsBox">' +
+    '<p class="m" id="smsStatus">확인 중...</p>' +
+    '<div class="smsForm">' +
+    '<input id="smsKey" placeholder="솔라피 API Key">' +
+    '<input id="smsSecret" placeholder="솔라피 API Secret" type="password">' +
+    '<input id="smsSender" placeholder="발신번호(예: 0222471091)">' +
+    '<button id="smsSaveBtn">저장</button></div></div>';
+
+  h += '<h2>개인정보 지우기 (미선정·대기 미동의자)</h2><div id="purgeBox">' +
+    '<p class="m">되돌릴 수 없는 작업이에요 — 먼저 대상을 확인한 다음에만 지울 수 있어요.</p>' +
+    '<button id="purgePreviewBtn">대상 확인</button><div id="purgeResult" class="m" style="margin-top:8px"></div></div>';
+
   document.getElementById("main").innerHTML = h;
+  document.querySelectorAll("[data-act]").forEach(btn => btn.addEventListener("click", () => runAction(btn.dataset.act)));
+  document.getElementById("smsSaveBtn").addEventListener("click", saveSmsSettings);
+  document.getElementById("purgePreviewBtn").addEventListener("click", purgePreview);
+  refreshSmsStatus();
+}
+
+async function runAction(act) {
+  const out = document.getElementById("actionResult");
+  out.textContent = "처리 중...";
+  const map = { dup: "adminCheckDuplicateBiz", match: "adminMatchActivists", analysis: "adminBuildAnalysisSheet", backfill: "adminBackfillBiz" };
+  const json = await callAdmin(map[act]);
+  if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
+  if (act === "dup") {
+    out.innerHTML = !json.duplicates.length ? "사업 간 중복 참여자가 없어요." :
+      json.duplicates.length + "명이 2개 이상의 사업에 걸쳐 있어요: " +
+      json.duplicates.map(g => g.map(x => esc(x.code) + " " + esc(x.name) + "(" + esc(x.biz) + ")").join(", ")).join(" / ");
+  } else if (act === "match") {
+    out.textContent = json.made + "명을 새로 매칭했어요 (대상 " + json.waiting + "명 중).";
+  } else if (act === "analysis") {
+    out.textContent = "[분석용] 탭을 새로 만들었어요 (" + json.count + "명).";
+  } else if (act === "backfill") {
+    out.textContent = json.count + "명의 사업을 거주 시군구 기준으로 채웠어요.";
+  }
+}
+
+async function refreshSmsStatus() {
+  const el = document.getElementById("smsStatus");
+  const json = await callAdmin("adminSmsStatus");
+  el.textContent = !json.ok ? "확인 실패" : json.ready ? ("설정됨 (발신번호 " + json.sender + ")") : "아직 설정 안 됨";
+}
+
+async function saveSmsSettings() {
+  const key = document.getElementById("smsKey").value.trim();
+  const secret = document.getElementById("smsSecret").value.trim();
+  const sender = document.getElementById("smsSender").value.trim();
+  if (!key || !secret || !sender) { alert("세 칸 다 입력해주세요."); return; }
+  const btn = document.getElementById("smsSaveBtn");
+  btn.disabled = true;
+  const json = await callAdmin("adminSmsSettings", { key: key, secret: secret, sender: sender });
+  btn.disabled = false;
+  if (!json.ok) { alert("저장 실패: " + (json.error || "오류")); return; }
+  document.getElementById("smsKey").value = "";
+  document.getElementById("smsSecret").value = "";
+  document.getElementById("smsSender").value = "";
+  refreshSmsStatus();
+}
+
+async function purgePreview() {
+  const out = document.getElementById("purgeResult");
+  out.textContent = "확인 중...";
+  const json = await callAdmin("adminPurgePreview");
+  if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
+  if (!json.count) { out.textContent = "지울 대상이 없어요."; return; }
+  out.innerHTML = json.count + "명의 개인정보를 지워요(되돌릴 수 없어요): " + json.names.map(esc).join(", ") +
+    '<br><button id="purgeConfirmBtn" class="danger" style="margin-top:8px">정말로 지우기</button>';
+  document.getElementById("purgeConfirmBtn").addEventListener("click", purgeExecute);
+}
+
+async function purgeExecute() {
+  const out = document.getElementById("purgeResult");
+  const btn = document.getElementById("purgeConfirmBtn");
+  if (!btn.dataset.armed) { btn.dataset.armed = "1"; btn.textContent = "한 번 더 누르면 정말 지워요"; return; }
+  btn.disabled = true;
+  const json = await callAdmin("adminPurgeDeclined");
+  if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
+  out.textContent = json.count + "명의 개인정보를 지웠어요.";
+  await fetchData();
 }
 
 // p.intake는 시트 [초기면접지 보기]와 똑같은 내용(서버가 보낸 HTML 그대로) — 상태를 바꾸기 전에
@@ -164,10 +274,15 @@ function renderDetail(p) {
     '<span id="statusMsg" class="m"></span></div>';
   h += '<p class="m">담당활동가: ' + esc(p.activist || "미배정") + ' · 참여 단계: ' +
     esc([p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ") || "없음") + '</p>';
+  h += '<div class="noticeBox"><h3>안내 보내기</h3>' +
+    '<textarea id="noticeText" rows="5">불러오는 중...</textarea>' +
+    '<div class="noticeBtns"><button id="noticeCopyBtn">문구 복사</button>' +
+    '<button id="noticeSendBtn">문자 보내기</button><span id="noticeMsg" class="m"></span></div></div>';
   h += p.intake || '<p class="msg">신청서 내용을 못 불러왔어요.</p>';
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
+  bindNotice(p);
 }
 
 // 선택한 참여자의 상태를 바꿔요. "선정·서비스 중"으로 바꾸면 서버가 초기면접지도 같이 만들어서 링크를 돌려줘요.
@@ -179,12 +294,7 @@ async function changeStatus(code) {
   btn.disabled = true;
   msg.textContent = "변경 중...";
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "adminSetStatus", token: TOKEN, code: code, status: newStatus })
-    });
-    const json = await res.json();
+    const json = await callAdmin("adminSetStatus", { code: code, status: newStatus });
     if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); btn.disabled = false; return; }
     await fetchData();
     activeCode = code;
@@ -200,6 +310,33 @@ async function changeStatus(code) {
     msg.textContent = "실패: " + err.message;
     btn.disabled = false;
   }
+}
+
+// 안내 문구를 받아와 채우고, 복사·문자발송 버튼을 연결해요. 문자 보내기는 실수로 바로 안 나가게
+// 한 번 더 눌러야 실제로 발송되는 "확인 두 번" 방식이에요(시트 쪽 안내 보내기와 같은 방식).
+let noticeArmed = false;
+async function bindNotice(p) {
+  const ta = document.getElementById("noticeText");
+  const copyBtn = document.getElementById("noticeCopyBtn");
+  const sendBtn = document.getElementById("noticeSendBtn");
+  const msg = document.getElementById("noticeMsg");
+  noticeArmed = false;
+  sendBtn.textContent = "문자 보내기";
+  const json = await callAdmin("adminGetNotice", { code: p.code });
+  if (!json.ok) { msg.textContent = "문구를 못 불러왔어요: " + (json.error || "오류"); return; }
+  ta.value = json.text;
+  if (!json.smsReady) { sendBtn.disabled = true; msg.textContent = "문자 발송 설정이 안 돼 있어요(대시보드 → 문자 발송 설정)"; }
+  copyBtn.onclick = async () => {
+    try { await navigator.clipboard.writeText(ta.value); msg.textContent = "복사했어요."; }
+    catch (err) { msg.textContent = "자동 복사가 안 돼요. 문구를 직접 선택해서 복사해주세요."; }
+  };
+  sendBtn.onclick = async () => {
+    if (!noticeArmed) { noticeArmed = true; sendBtn.textContent = "한 번 더 누르면 보내요"; return; }
+    sendBtn.disabled = true; msg.textContent = "보내는 중...";
+    const res = await callAdmin("adminSendNotice", { code: p.code, text: ta.value });
+    if (res.ok) { msg.textContent = "문자를 보냈어요."; }
+    else { msg.textContent = "실패: " + (res.error || "오류"); sendBtn.disabled = false; noticeArmed = false; sendBtn.textContent = "문자 보내기"; }
+  };
 }
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
