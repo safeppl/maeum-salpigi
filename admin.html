@@ -152,23 +152,20 @@ function renderDashboard() {
   document.getElementById("main").innerHTML = h;
 }
 
+// p.intake는 시트 [초기면접지 보기]와 똑같은 내용(서버가 보낸 HTML 그대로) — 상태를 바꾸기 전에
+// 신청서 전체(기본정보·자가진단 점수·배경 문항)를 여기서 다 검토할 수 있어요.
 function renderDetail(p) {
   if (!p) return;
-  const row2 = (k, v) => v ? '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>' : "";
   const statusOptions = STATUS_LIST.map(s => '<option value="' + esc(s) + '"' + (s === p.status ? " selected" : "") + '>' + esc(s) + '</option>').join("");
   let h = '<div id="detail">';
-  h += '<p><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · ' + esc(p.status) + (p.flag ? ' · <span class="care">정서확인필요: ' + esc(p.flag) + '</span>' : "") + '</p>';
   h += '<div class="statusRow">' +
     '<select id="statusSelect">' + statusOptions + '</select>' +
     '<button id="statusBtn">상태 변경</button>' +
     '<span id="statusMsg" class="m"></span></div>';
-  h += '<h3>기본 정보</h3><table>' +
-    row2("나이·성별", (p.age ? p.age + "세 " : "") + (p.sex || "")) +
-    row2("지역", p.area) + row2("연락처", p.phone + (p.contact ? " (" + p.contact + " 선호)" : "")) +
-    row2("사업", p.biz) + row2("담당활동가", p.activist) +
-    row2("유형(사전)", p.preType) + row2("응답 점검", p.checkFlag) +
-    row2("참여 단계", [p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ")) +
-    '</table></div>';
+  h += '<p class="m">담당활동가: ' + esc(p.activist || "미배정") + ' · 참여 단계: ' +
+    esc([p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ") || "없음") + '</p>';
+  h += p.intake || '<p class="msg">신청서 내용을 못 불러왔어요.</p>';
+  h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
 }
