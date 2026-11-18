@@ -151,6 +151,13 @@
   };
   const app = document.getElementById("app");
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // 미래내일일경험(중앙정부 지원사업, 고립청년가장 등 취약청년 대상) 신청자는 일반 신청자와 욕구가 달라서
+  // "원하는 지원" 선택지 문구·구성을 따로 둠(저장되는 실제 값은 백엔드가 future 플래그로 똑같이 다시 결정함).
+  const wantOptionsFor = future => future
+    ? [["rhythm", "동행코치를 통한 멘탈케어 (1단계)"], ["peer", "집단상담을 통한 지속성·협업·관계망 형성 (2단계)"], ["job", "일·진로 경험 (3단계)"]]
+    : [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]];
+  const wantChoicesHtml = a => wantOptionsFor(a.future).map(([v, l]) =>
+    `<label><input type="checkbox" name="want" id="want-${v}" value="${v}" ${(a.want || []).includes(v) ? "checked" : ""}>${l}</label>`).join("");
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } },
     set() { try { localStorage.setItem(KEY, JSON.stringify({ screen: S.screen, pos: S.pos, secIntro: S.secIntro, ans: S.ans, follow: S.follow, t0: S.t0, apply: S.apply, extra: S.extra, sat: S.sat, satOpen: S.satOpen, satMeta: S.satMeta })); } catch (e) {} },
@@ -231,8 +238,10 @@
       <fieldset class="field"><legend>함께 사는 사람</legend><div class="choices">${radio("house", [["family", "가족과 함께"], ["alone", "혼자"], ["etc", "그 밖에"]])}</div>
         ${etc("house", "누구와 함께 사는지 적어주세요")}${er("houseEtc", "누구와 함께 사는지 적어주세요.")}</fieldset>
       <fieldset class="field"><legend>지금 일을 하고 있나요?</legend><div class="choices">${radio("work", [["no", "하고 있지 않아요"], ["part", "가끔 하고 있어요"], ["yes", "하고 있어요"]])}</div></fieldset>
+      <label class="consent"><input type="checkbox" id="future" name="future" ${a.future ? "checked" : ""}>
+        <span><b>미래내일일경험(일경험 지원사업)에도 함께 신청해요</b><br><span class="muted">중앙정부 지원사업으로, 고립청년가장 등 취약청년을 대상으로 동행코치·집단상담을 병행해요.</span></span></label>
       <fieldset class="field"><legend>원하는 지원 <span class="hint">(여러 개 골라도 돼요)</span></legend>
-        <div class="choices">${check("want", [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]])}</div></fieldset>
+        <div class="choices" id="wantChoices">${wantChoicesHtml(a)}</div></fieldset>
       <fieldset class="field"><legend>이 사업을 어떻게 알게 되었나요?</legend>
         <div class="choices">${radio("route", [["family", "가족·지인"], ["org", "관계기관"], ["gov", "지자체"], ["host", "주관기관"], ["sns", "인터넷·SNS"], ["poster", "홍보물"], ["etc", "그 밖에"]])}</div>
         ${etc("route", "어떻게 알게 되었는지 적어주세요")}${er("routeEtc", "어떻게 알게 되었는지 적어주세요.")}</fieldset>
@@ -622,6 +631,10 @@
       else if (t.type === "checkbox") a[t.name] = t.checked;
       else a[t.name] = t.value;
       if (t.name === "sido" || t.name === "sigungu") { if (t.name === "sido") a.sigungu = ""; f.querySelector("#addr").innerHTML = addrHtml(); }
+      if (t.name === "future") {
+        a.want = (a.want || []).filter(w => wantOptionsFor(a.future).some(([v]) => v === w));
+        f.querySelector("#wantChoices").innerHTML = wantChoicesHtml(a);
+      }
       if (["contact", "house", "route"].includes(t.name)) { const w = f.querySelector("#" + t.name + "-etc-wrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
       if (["sido", "sigungu", "year"].includes(t.name)) { const el = eligibility(); f.querySelector("#elig").innerHTML = el ? eligHtml(el) : ""; }
     } else if (f.id === "sat-form") {
