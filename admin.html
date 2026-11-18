@@ -18,6 +18,7 @@
   #side header b { font-size: 15px; }
   #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; }
+  #bizFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
   #filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
   #filters button { font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
   #filters button.on { background: var(--accent); color: #fff; border-color: transparent; }
@@ -67,6 +68,7 @@
   <div id="side">
     <header><b>안전한더유스</b><span>관리자 통합보기 · 마음살피기</span></header>
     <input id="search" placeholder="이름·참여번호 검색">
+    <select id="bizFilter"></select>
     <div id="filters"></div>
     <button id="dashBtn">대시보드</button>
     <div id="list"></div>
@@ -81,9 +83,11 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmV
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 const STATUS_LIST = ["검토 대기", "선정·서비스 중", "미선정", "서비스 완료", "사후 완료"];
+const BIZ_LIST = ["용인시", "도봉구", "은평구", "미분류"];
 
 let DATA = null;
 let activeFilter = "전체";
+let activeBiz = "전체";
 let activeCode = null;
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -140,8 +144,9 @@ function renderFilters() {
 
 function matches(p, q) {
   const inFilter = activeFilter === "전체" || p.status === activeFilter;
+  const inBiz = activeBiz === "전체" || p.biz === activeBiz;
   const inSearch = !q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0;
-  return inFilter && inSearch;
+  return inFilter && inBiz && inSearch;
 }
 
 function renderList() {
@@ -151,7 +156,7 @@ function renderList() {
     const care = p.flag ? ' <span class="care">⚑</span>' : "";
     return '<div class="p-item' + (p.code === activeCode ? " on" : "") + '" data-code="' + esc(p.code) + '">' +
       '<b>' + esc(p.code) + '</b> ' + esc(p.name) + care +
-      '<span class="p-meta">' + esc(p.status) + (p.preType ? " · " + esc(p.preType) : "") + (p.activist ? " · 활동가 " + esc(p.activist) : "") + '</span></div>';
+      '<span class="p-meta">' + esc(p.biz || "미분류") + " · " + esc(p.status) + (p.preType ? " · " + esc(p.preType) : "") + (p.activist ? " · 활동가 " + esc(p.activist) : "") + '</span></div>';
   }).join("") || '<div class="msg">해당하는 참여자가 없어요.</div>';
   document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
     activeCode = el.dataset.code;
@@ -269,6 +274,9 @@ function renderDetail(p) {
     '<select id="statusSelect">' + statusOptions + '</select>' +
     '<button id="statusBtn">상태 변경</button>' +
     '<span id="statusMsg" class="m"></span></div>';
+  const bizOptions = BIZ_LIST.map(b => '<option value="' + esc(b) + '"' + (b === (p.biz || "미분류") ? " selected" : "") + '>' + esc(b) + '</option>').join("");
+  h += '<div class="statusRow">사업: <select id="bizSelect">' + bizOptions + '</select>' +
+    '<button id="bizBtn">변경</button><span id="bizMsg" class="m"></span></div>';
   const activistOptions = '<option value="">미배정</option>' + (DATA.activistList || [])
     .map(name => '<option value="' + esc(name) + '"' + (name === p.activist ? " selected" : "") + '>' + esc(name) + '</option>').join("");
   h += '<div class="statusRow">담당활동가: <select id="activistSelect">' + activistOptions + '</select>' +
@@ -283,8 +291,24 @@ function renderDetail(p) {
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
+  document.getElementById("bizBtn").addEventListener("click", () => changeBiz(p.code));
   document.getElementById("activistBtn").addEventListener("click", () => assignActivist(p.code));
   bindNotice(p);
+}
+
+// 거주지 기준 자동분류("[1회] 사업 일괄 채우기")와 다르게 실제 참여 사업을 지정해야 하는 예외를 여기서 바로 고쳐요.
+async function changeBiz(code) {
+  const sel = document.getElementById("bizSelect");
+  const btn = document.getElementById("bizBtn");
+  const msg = document.getElementById("bizMsg");
+  btn.disabled = true;
+  msg.textContent = "변경 중...";
+  const json = await callAdmin("adminSetBiz", { code: code, biz: sel.value });
+  btn.disabled = false;
+  if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); return; }
+  msg.textContent = "변경했어요.";
+  await fetchData();
+  renderDetail(DATA.participants.find(p => p.code === code));
 }
 
 // 담당활동가를 관리자가 드롭다운에서 직접 골라 지정해요(자동 매칭 규칙은 폐지됨).
@@ -358,6 +382,8 @@ async function bindNotice(p) {
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
 document.getElementById("search").addEventListener("input", renderList);
+document.getElementById("bizFilter").innerHTML = ["전체"].concat(BIZ_LIST).map(b => '<option value="' + esc(b) + '">' + esc(b) + '</option>').join("");
+document.getElementById("bizFilter").addEventListener("change", e => { activeBiz = e.target.value; renderList(); });
 load();
 </script>
 </body>
