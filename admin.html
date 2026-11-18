@@ -18,7 +18,7 @@
   #side header b { font-size: 15px; }
   #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; }
-  #bizFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
+  #bizFilter, #yearFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
   #filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
   #filters button { font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
   #filters button.on { background: var(--accent); color: #fff; border-color: transparent; }
@@ -69,6 +69,7 @@
     <header><b>안전한더유스</b><span>관리자 통합보기 · 마음살피기</span></header>
     <input id="search" placeholder="이름·참여번호 검색">
     <select id="bizFilter"></select>
+    <select id="yearFilter"></select>
     <div id="filters"></div>
     <button id="dashBtn">대시보드</button>
     <div id="list"></div>
@@ -85,9 +86,12 @@ const TOKEN = params.get("t") || "";
 const STATUS_LIST = ["검토 대기", "선정·서비스 중", "미선정", "서비스 완료", "사후 완료"];
 const BIZ_LIST = ["용인시", "도봉구", "은평구", "미래내일일경험", "갭이어", "미분류"];
 
+const ONGOING_STATUSES = ["검토 대기", "선정·서비스 중"];
+
 let DATA = null;
-let activeFilter = "전체";
+let activeFilter = "진행중"; // 기본값: 종료된 사람(서비스완료·사후완료 등)은 숨기고 진행 중인 사람만 먼저 보여줌
 let activeBiz = "전체";
+let activeYear = "전체";
 let activeCode = null;
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -109,6 +113,7 @@ async function fetchData() {
   if (!json.ok) throw new Error(json.error || "오류");
   DATA = json;
   renderFilters();
+  renderYearFilter();
   renderList();
 }
 
@@ -132,7 +137,8 @@ async function load() {
 function renderFilters() {
   const counts = DATA.byStatus || {};
   const total = DATA.participants.length;
-  const chips = [["전체", total]].concat(STATUS_LIST.map(s => [s, counts[s] || 0]));
+  const ongoing = ONGOING_STATUSES.reduce((sum, s) => sum + (counts[s] || 0), 0);
+  const chips = [["진행중", ongoing], ["전체", total]].concat(STATUS_LIST.map(s => [s, counts[s] || 0]));
   document.getElementById("filters").innerHTML = chips.map(([name, n]) =>
     '<button data-f="' + esc(name) + '" class="' + (name === activeFilter ? "on" : "") + '">' + esc(name) + ' ' + n + '</button>'
   ).join("");
@@ -142,11 +148,21 @@ function renderFilters() {
   }));
 }
 
+// 접수일시(연도)로 좁혀 볼 수 있게, 실제 데이터에 있는 연도만 골라 드롭다운을 매번 다시 채워요.
+function renderYearFilter() {
+  const years = Array.from(new Set(DATA.participants.map(p => (p.applied || "").slice(0, 4)).filter(Boolean))).sort().reverse();
+  if (!years.includes(activeYear)) activeYear = "전체";
+  document.getElementById("yearFilter").innerHTML = ["전체"].concat(years).map(y =>
+    '<option value="' + esc(y) + '"' + (y === activeYear ? " selected" : "") + '>' + (y === "전체" ? "전체 연도" : esc(y) + "년") + '</option>'
+  ).join("");
+}
+
 function matches(p, q) {
-  const inFilter = activeFilter === "전체" || p.status === activeFilter;
+  const inFilter = activeFilter === "전체" ? true : activeFilter === "진행중" ? ONGOING_STATUSES.includes(p.status) : p.status === activeFilter;
   const inBiz = activeBiz === "전체" || p.biz === activeBiz;
+  const inYear = activeYear === "전체" || (p.applied || "").slice(0, 4) === activeYear;
   const inSearch = !q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0;
-  return inFilter && inBiz && inSearch;
+  return inFilter && inBiz && inYear && inSearch;
 }
 
 function renderList() {
@@ -384,6 +400,7 @@ document.getElementById("dashBtn").addEventListener("click", renderDashboard);
 document.getElementById("search").addEventListener("input", renderList);
 document.getElementById("bizFilter").innerHTML = ["전체"].concat(BIZ_LIST).map(b => '<option value="' + esc(b) + '">' + esc(b) + '</option>').join("");
 document.getElementById("bizFilter").addEventListener("change", e => { activeBiz = e.target.value; renderList(); });
+document.getElementById("yearFilter").addEventListener("change", e => { activeYear = e.target.value; renderList(); });
 load();
 </script>
 </body>
