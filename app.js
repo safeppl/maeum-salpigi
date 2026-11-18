@@ -151,12 +151,13 @@
   };
   const app = document.getElementById("app");
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  // 미래내일일경험(중앙정부 지원사업, 고립청년가장 등 취약청년 대상) 신청자는 일반 신청자와 욕구가 달라서
-  // "원하는 지원" 선택지 문구·구성을 따로 둠(저장되는 실제 값은 백엔드가 future 플래그로 똑같이 다시 결정함).
-  const wantOptionsFor = future => future
+  // 미래내일일경험·갭이어(지자체 사업, 같은 지원구조) 신청자는 일반 신청자와 욕구가 달라서
+  // "원하는 지원" 선택지 문구·구성을 따로 둠(저장되는 실제 값은 백엔드가 specialBiz 값으로 똑같이 다시 결정함).
+  const isSpecialBiz = a => a.specialBiz === "future" || a.specialBiz === "gapyear";
+  const wantOptionsFor = special => special
     ? [["rhythm", "코치를 통한 멘탈케어와 멘토링 (1단계)"], ["peer", "집단상담을 통한 지속성·협업·관계망 형성 (2단계)"], ["job", "일·진로 경험 (3단계)"]]
     : [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]];
-  const wantChoicesHtml = a => wantOptionsFor(a.future).map(([v, l]) =>
+  const wantChoicesHtml = a => wantOptionsFor(isSpecialBiz(a)).map(([v, l]) =>
     `<label><input type="checkbox" name="want" id="want-${v}" value="${v}" ${(a.want || []).includes(v) ? "checked" : ""}>${l}</label>`).join("");
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } },
@@ -231,8 +232,9 @@
         <span class="hint">도봉구는 만 19~45세, 그 외 지역은 만 19~39세 청년이 신청할 수 있어요.</span>${er("year", "태어난 해를 네 자리 숫자로 적어주세요.")}</div>
       <fieldset class="field"><legend>사는 곳</legend><div id="addr">${addrHtml()}</div>
         ${er("addr", "시/도와 시/군/구를 고르고, 동을 적어주세요.")}<div id="elig">${el ? eligHtml(el) : ""}</div></fieldset>
-      <label class="consent"><input type="checkbox" id="future" name="future" ${a.future ? "checked" : ""}>
-        <span><b>미래내일일경험 신청자만 체크.</b><br><span class="muted">일경험과 함께 동행코치·집단상담을 병행해요.</span></span></label>
+      <fieldset class="field"><legend>미래내일일경험·갭이어 신청자만 선택</legend>
+        <div class="choices">${radio("specialBiz", [["future", "미래내일일경험"], ["gapyear", "갭이어"], ["none", "해당없음"]])}</div>
+        <span class="hint">코치를 통한 멘탈케어와 멘토링·집단상담·일경험을 병행해요.</span></fieldset>
       <div class="field"><label for="phone">연락처</label>
         <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="010-0000-0000" value="${esc(a.phone || "")}">${er("phone", "010-0000-0000 형식으로 적어주세요.")}</div>
       <fieldset class="field"><legend>가장 편한 연락 방법</legend><div class="choices">${radio("contact", [["kakao", "카카오톡"], ["sms", "문자"], ["call", "전화"], ["etc", "그 밖에"]])}</div>
@@ -631,9 +633,9 @@
       else if (t.type === "checkbox") a[t.name] = t.checked;
       else a[t.name] = t.value;
       if (t.name === "sido" || t.name === "sigungu") { if (t.name === "sido") a.sigungu = ""; f.querySelector("#addr").innerHTML = addrHtml(); }
-      if (t.name === "future") {
-        // 미래내일일경험은 세 가지가 사실상 기본값이라, 체크 한 번으로 다 같이 선택되게 함(해제하면 다시 비움).
-        a.want = a.future ? wantOptionsFor(true).map(([v]) => v) : [];
+      if (t.name === "specialBiz") {
+        // 미래내일일경험·갭이어는 세 가지가 사실상 기본값이라, 선택 한 번으로 다 같이 선택되게 함(해당없음으로 되돌리면 다시 비움).
+        a.want = isSpecialBiz(a) ? wantOptionsFor(true).map(([v]) => v) : [];
         f.querySelector("#wantChoices").innerHTML = wantChoicesHtml(a);
       }
       if (["contact", "house", "route"].includes(t.name)) { const w = f.querySelector("#" + t.name + "-etc-wrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
