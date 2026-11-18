@@ -1,7 +1,7 @@
 (function () {
   const API_URL = "https://script.google.com/macros/s/AKfycbxMM5tEf9X_rOPmpwlOg9MOBW6Q1VEICBxd5GJe7SKUQ9WHW7Cx1OVbFuP4phEA9wzs/exec";
   const DEMO = !API_URL;
-  const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "tel:0222471091"], ["안전한사람들", "031-898-1091", "tel:0318981091"]];
+  const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "0222471091"], ["안전한사람들", "031-898-1091", "0318981091", "경기도 용인시 수지구 용구대로2753번길 37-30, 401호 (죽전동)"]];
   const REGIONS = {
     "서울특별시": "종로구 중구 용산구 성동구 광진구 동대문구 중랑구 성북구 강북구 도봉구 노원구 은평구 서대문구 마포구 양천구 강서구 구로구 금천구 영등포구 동작구 관악구 서초구 강남구 송파구 강동구",
     "부산광역시": "중구 서구 동구 영도구 부산진구 동래구 남구 북구 해운대구 사하구 금정구 강서구 연제구 수영구 사상구 기장군",
@@ -37,7 +37,9 @@
   }
 
   function contacts() {
-    return '<div class="contacts">' + CONTACTS.map(c => '<a class="contact-line" href="' + c[2] + '"><span>' + c[0] + '</span><b>' + c[1] + '</b></a>').join("") + "</div>";
+    return '<div class="contacts">' + CONTACTS.map(([n, p, t, addr]) =>
+      '<a class="contact-line" href="tel:' + t + '"><span>' + n + '</span><b>' + p + '</b></a>' + (addr ? '<p class="contact-addr">' + addr + '</p>' : "")
+    ).join("") + '<p class="privacy-note">수집한 개인정보는 신청 검토·연락 목적으로만 쓰고, 모집 종료 후 파기해요.</p></div>';
   }
 
   function sigunguOptions() {
@@ -63,7 +65,7 @@
       ["코치", "활동가"].map(v => '<label><input type="checkbox" class="f-role" value="' + v + '">' + v + '</label>').join("") + '</div></div>' +
       '<div class="field"><label>활동 경력 <span class="hint">(선택)</span></label><textarea id="f-exp" placeholder="관련 활동이나 경력이 있다면 적어주세요"></textarea></div>' +
       '<div class="field"><label>참여 동기</label><textarea id="f-motive" placeholder="지원 동기를 적어주세요"></textarea></div>' +
-      '<label class="consent"><input type="checkbox" id="f-agree"><span>개인정보 수집·이용에 동의해요. 신청서 검토와 연락을 위해서만 써요.</span></label>' +
+      '<label class="consent"><input type="checkbox" id="f-agree"><span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 연락처, 거주지역, 성별, 나이, 소속을 신청서 검토와 연락 목적으로만 쓰고, 모집 종료 후 파기해요.</span></span></label>' +
       (S.err ? '<p class="err">' + e(S.err) + '</p>' : '') +
       '<button class="btn btn-primary btn-block" id="f-submit" ' + (S.sending ? "disabled" : "") + '>' + (S.sending ? "보내는 중…" : "신청하기") + '</button>' +
       '</div>' + contacts();
