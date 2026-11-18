@@ -175,7 +175,6 @@ function renderDashboard() {
 
   h += '<h2>관리 작업</h2><div class="actions">' +
     '<button data-act="dup">사업별 중복 참여자 확인</button>' +
-    '<button data-act="match">1단계 활동가 자동 매칭</button>' +
     '<button data-act="analysis">분석용 시트 새로 만들기</button>' +
     '<button data-act="backfill">[1회] 사업 일괄 채우기</button></div>' +
     '<div id="actionResult" class="m" style="margin-top:8px"></div>';
@@ -202,15 +201,13 @@ function renderDashboard() {
 async function runAction(act) {
   const out = document.getElementById("actionResult");
   out.textContent = "처리 중...";
-  const map = { dup: "adminCheckDuplicateBiz", match: "adminMatchActivists", analysis: "adminBuildAnalysisSheet", backfill: "adminBackfillBiz" };
+  const map = { dup: "adminCheckDuplicateBiz", analysis: "adminBuildAnalysisSheet", backfill: "adminBackfillBiz" };
   const json = await callAdmin(map[act]);
   if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
   if (act === "dup") {
     out.innerHTML = !json.duplicates.length ? "사업 간 중복 참여자가 없어요." :
       json.duplicates.length + "명이 2개 이상의 사업에 걸쳐 있어요: " +
       json.duplicates.map(g => g.map(x => esc(x.code) + " " + esc(x.name) + "(" + esc(x.biz) + ")").join(", ")).join(" / ");
-  } else if (act === "match") {
-    out.textContent = json.made + "명을 새로 매칭했어요 (대상 " + json.waiting + "명 중).";
   } else if (act === "analysis") {
     out.textContent = "[분석용] 탭을 새로 만들었어요 (" + json.count + "명).";
   } else if (act === "backfill") {
@@ -272,7 +269,11 @@ function renderDetail(p) {
     '<select id="statusSelect">' + statusOptions + '</select>' +
     '<button id="statusBtn">상태 변경</button>' +
     '<span id="statusMsg" class="m"></span></div>';
-  h += '<p class="m">담당활동가: ' + esc(p.activist || "미배정") + ' · 참여 단계: ' +
+  const activistOptions = '<option value="">미배정</option>' + (DATA.activistList || [])
+    .map(name => '<option value="' + esc(name) + '"' + (name === p.activist ? " selected" : "") + '>' + esc(name) + '</option>').join("");
+  h += '<div class="statusRow">담당활동가: <select id="activistSelect">' + activistOptions + '</select>' +
+    '<button id="activistBtn">지정</button><span id="activistMsg" class="m"></span></div>';
+  h += '<p class="m">참여 단계: ' +
     esc([p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ") || "없음") + '</p>';
   h += '<div class="noticeBox"><h3>안내 보내기</h3>' +
     '<textarea id="noticeText" rows="5">불러오는 중...</textarea>' +
@@ -282,7 +283,23 @@ function renderDetail(p) {
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
+  document.getElementById("activistBtn").addEventListener("click", () => assignActivist(p.code));
   bindNotice(p);
+}
+
+// 담당활동가를 관리자가 드롭다운에서 직접 골라 지정해요(자동 매칭 규칙은 폐지됨).
+async function assignActivist(code) {
+  const sel = document.getElementById("activistSelect");
+  const btn = document.getElementById("activistBtn");
+  const msg = document.getElementById("activistMsg");
+  btn.disabled = true;
+  msg.textContent = "지정 중...";
+  const json = await callAdmin("adminAssignActivist", { code: code, activistName: sel.value });
+  btn.disabled = false;
+  if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); return; }
+  msg.textContent = "지정했어요.";
+  await fetchData();
+  renderDetail(DATA.participants.find(p => p.code === code));
 }
 
 // 선택한 참여자의 상태를 바꿔요. "선정·서비스 중"으로 바꾸면 서버가 초기면접지도 같이 만들어서 링크를 돌려줘요.
