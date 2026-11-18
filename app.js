@@ -231,6 +231,8 @@
         <span class="hint">도봉구는 만 19~45세, 그 외 지역은 만 19~39세 청년이 신청할 수 있어요.</span>${er("year", "태어난 해를 네 자리 숫자로 적어주세요.")}</div>
       <fieldset class="field"><legend>사는 곳</legend><div id="addr">${addrHtml()}</div>
         ${er("addr", "시/도와 시/군/구를 고르고, 동을 적어주세요.")}<div id="elig">${el ? eligHtml(el) : ""}</div></fieldset>
+      <label class="consent"><input type="checkbox" id="future" name="future" ${a.future ? "checked" : ""}>
+        <span><b>미래내일일경험 신청자만 체크.</b><br><span class="muted">일경험과 함께 동행코치·집단상담을 병행해요.</span></span></label>
       <div class="field"><label for="phone">연락처</label>
         <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="010-0000-0000" value="${esc(a.phone || "")}">${er("phone", "010-0000-0000 형식으로 적어주세요.")}</div>
       <fieldset class="field"><legend>가장 편한 연락 방법</legend><div class="choices">${radio("contact", [["kakao", "카카오톡"], ["sms", "문자"], ["call", "전화"], ["etc", "그 밖에"]])}</div>
@@ -238,8 +240,6 @@
       <fieldset class="field"><legend>함께 사는 사람</legend><div class="choices">${radio("house", [["family", "가족과 함께"], ["alone", "혼자"], ["etc", "그 밖에"]])}</div>
         ${etc("house", "누구와 함께 사는지 적어주세요")}${er("houseEtc", "누구와 함께 사는지 적어주세요.")}</fieldset>
       <fieldset class="field"><legend>지금 일을 하고 있나요?</legend><div class="choices">${radio("work", [["no", "하고 있지 않아요"], ["part", "가끔 하고 있어요"], ["yes", "하고 있어요"]])}</div></fieldset>
-      <label class="consent"><input type="checkbox" id="future" name="future" ${a.future ? "checked" : ""}>
-        <span><b>미래내일일경험(일경험 지원사업)에도 함께 신청해요</b><br><span class="muted">중앙정부 지원사업으로, 고립청년가장 등 취약청년을 대상으로 동행코치·집단상담을 병행해요.</span></span></label>
       <fieldset class="field"><legend>원하는 지원 <span class="hint">(여러 개 골라도 돼요)</span></legend>
         <div class="choices" id="wantChoices">${wantChoicesHtml(a)}</div></fieldset>
       <fieldset class="field"><legend>이 사업을 어떻게 알게 되었나요?</legend>
@@ -632,7 +632,8 @@
       else a[t.name] = t.value;
       if (t.name === "sido" || t.name === "sigungu") { if (t.name === "sido") a.sigungu = ""; f.querySelector("#addr").innerHTML = addrHtml(); }
       if (t.name === "future") {
-        a.want = (a.want || []).filter(w => wantOptionsFor(a.future).some(([v]) => v === w));
+        // 미래내일일경험은 세 가지가 사실상 기본값이라, 체크 한 번으로 다 같이 선택되게 함(해제하면 다시 비움).
+        a.want = a.future ? wantOptionsFor(true).map(([v]) => v) : [];
         f.querySelector("#wantChoices").innerHTML = wantChoicesHtml(a);
       }
       if (["contact", "house", "route"].includes(t.name)) { const w = f.querySelector("#" + t.name + "-etc-wrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
