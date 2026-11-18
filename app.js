@@ -154,7 +154,7 @@
   // 미래내일일경험(중앙정부 지원사업, 고립청년가장 등 취약청년 대상) 신청자는 일반 신청자와 욕구가 달라서
   // "원하는 지원" 선택지 문구·구성을 따로 둠(저장되는 실제 값은 백엔드가 future 플래그로 똑같이 다시 결정함).
   const wantOptionsFor = future => future
-    ? [["rhythm", "동행코치를 통한 멘탈케어 (1단계)"], ["peer", "집단상담을 통한 지속성·협업·관계망 형성 (2단계)"], ["job", "일·진로 경험 (3단계)"]]
+    ? [["rhythm", "코치를 통한 멘탈케어와 멘토링 (1단계)"], ["peer", "집단상담을 통한 지속성·협업·관계망 형성 (2단계)"], ["job", "일·진로 경험 (3단계)"]]
     : [["rhythm", "생활 리듬·외출 되찾기 (1단계)"], ["peer", "비슷한 청년들과의 만남 (2단계)"], ["job", "일·진로 경험 (3단계)"], ["talk", "마음 이야기 나누기"]];
   const wantChoicesHtml = a => wantOptionsFor(a.future).map(([v, l]) =>
     `<label><input type="checkbox" name="want" id="want-${v}" value="${v}" ${(a.want || []).includes(v) ? "checked" : ""}>${l}</label>`).join("");
