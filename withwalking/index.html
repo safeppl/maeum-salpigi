@@ -67,11 +67,8 @@
   </div>
 
   <div class="card">
-    <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크 (0~3점, 임시 문항이에요 — 실제 문항으로 교체 예정)</p>
-    <label>관심</label><div class="scale" data-for="interest"></div>
-    <label>통제</label><div class="scale" data-for="control"></div>
-    <label>호기심</label><div class="scale" data-for="curiosity"></div>
-    <label>자신감</label><div class="scale" data-for="confidence"></div>
+    <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크(척도) — 해당하는 만큼만 체크해도 돼요</p>
+    <div id="scaleItems"></div>
     <label>메모</label>
     <textarea id="reactionNote" rows="2"></textarea>
   </div>
@@ -84,23 +81,50 @@
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbxCOhYfrffxcX-vklBPRYUVGbm66rPcdoUiuNCAVKAH-GIO2rz0n0C7xHRAc1PMAIGi/exec';
 const token = new URLSearchParams(location.search).get('t') || '';
-const scaleVals = { interest: null, control: null, curiosity: null, confidence: null };
+
+// 실제 "활동 보고서(신 척도)" 구글폼과 똑같은 15개 문항 — 서버(Code.gs)의 SCALE_ITEMS와 순서·문구가 같아야 해요.
+const SCALE_ITEMS = [
+  ['시선자세', '대화 시 시선을 맞추거나 편안한 신체 자세를 유지하는가?'],
+  ['시간준수', '정해진 활동 시간을 준수하며, 변동 시 사전에 연락하여 조율하는가?'],
+  ['의사표현', '자신의 의사를 명확히 표현하지 못하며 활동가와 원활한 소통이 원활하지 못 한가?'],
+  ['수면리듬', '밤낮이 바뀐 생활이나 불규칙한 수면을 개선하는가?'],
+  ['위생외모', '청결 상태(세안, 의복 등)를 유지하며 외모의 긍정적 변화를 시도하는가?'],
+  ['활동반경', '방 외 다른 공간이나 장소로 활동 범위를 넓히고 있는가?'],
+  ['욕구표현', '취미, 진로 등 자신이 하고 싶은 활동에 대해 구체적인 욕구를 드러내는가?'],
+  ['자기가치', '타인의 기준이 아닌 자신만의 장점이나 가치를 스스로 발견하고 말하는가?'],
+  ['자신감', '"나도 할 수 있다"는 자신감과 희망을 표현하는가?'],
+  ['정서불안', '무기력, 불안, 우울의 표출과 정서적인 불안함이 보이는가?'],
+  ['감정조절', '감정 기복이 있고 분노를 스스로 인지 못하거나 조절하지 못하는가?'],
+  ['소통왜곡', '대면 소통 상황을 부정적으로 왜곡하고 있는 그대로 받아들이지 못하는가?'],
+  ['신뢰관계', '활동가를 신뢰할 수 있는 타자로 인식하고 정서적 교감을 나누는가?'],
+  ['가족관계', '주 양육자(부모)나 가족과의 갈등을 줄이고 소통을 시도하려는 변화가 있는가?'],
+  ['타인소통', '타인과 마주치거나 소통하는 것이 원할한가?']
+];
+const SCALE_LEVELS = ['1점(매우 낮음)', '2점(낮음)', '3점(높음)', '4점(매우 높음)'];
+const scaleVals = {};
+SCALE_ITEMS.forEach(([key]) => { scaleVals[key] = null; });
 
 function post(body) {
   return fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
 }
 
-function buildScale(key) {
-  const el = document.querySelector('.scale[data-for="' + key + '"]');
-  el.innerHTML = '';
-  ['0','1','2','3'].forEach(v => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.textContent = v;
-    b.onclick = () => { scaleVals[key] = Number(v); [...el.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel'); };
-    el.appendChild(b);
+function buildScaleItems() {
+  const wrap = document.getElementById('scaleItems');
+  wrap.innerHTML = SCALE_ITEMS.map(([key, q]) =>
+    '<label>' + q + '</label><div class="scale" data-for="' + key + '"></div>' +
+    '<textarea id="' + key + '_evidence" rows="2" placeholder="판단 근거(구체적 행동)"></textarea>'
+  ).join('');
+  SCALE_ITEMS.forEach(([key]) => {
+    const el = wrap.querySelector('.scale[data-for="' + key + '"]');
+    SCALE_LEVELS.forEach((level, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = String(i + 1); b.title = level;
+      b.onclick = () => { scaleVals[key] = level; [...el.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel'); };
+      el.appendChild(b);
+    });
   });
 }
-['interest','control','curiosity','confidence'].forEach(buildScale);
+buildScaleItems();
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -163,9 +187,12 @@ document.getElementById('submit').onclick = async () => {
     remote2Talk: document.getElementById('remote2Talk').value,
     nextFace: document.getElementById('nextFace').value,
     nextRemote: document.getElementById('nextRemote').value,
-    interest: scaleVals.interest, control: scaleVals.control, curiosity: scaleVals.curiosity, confidence: scaleVals.confidence,
     reactionNote: document.getElementById('reactionNote').value
   };
+  SCALE_ITEMS.forEach(([key]) => {
+    form[key] = scaleVals[key];
+    form[key + '_근거'] = document.getElementById(key + '_evidence').value;
+  });
   const res = await post({ action: 'report', token, form });
   if (res.ok) { document.getElementById('app').style.display = 'none'; document.getElementById('done').style.display = 'block'; }
   else { msg.textContent = '제출하지 못했어요: ' + res.error; btn.disabled = false; }
