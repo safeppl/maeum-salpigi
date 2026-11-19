@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>위드워킹 관리자 화면</title>
+<style>
+  :root { --teal:#2C6765; --orange:#D68B47; --bg:#EDF1EC; --surface:#fff; --text:#1E2A2B; --muted:#5A6968; --border:#D2DAD3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Apple SD Gothic Neo","Malgun Gothic",sans-serif; background: var(--bg); color: var(--text); }
+  #app { display: flex; min-height: 100vh; }
+  #side { width: 280px; flex: none; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  #side header { padding: 14px; border-bottom: 1px solid var(--border); }
+  #side header b { font-size: 15px; } #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 12.5px; }
+  #dashBtn { margin: 0 12px 10px; padding: 9px; border: 0; border-radius: 8px; background: var(--teal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  #list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .p-item { padding: 8px 9px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; font-size: 12.5px; }
+  .p-item:hover { background: var(--bg); } .p-item.on { background: var(--teal); color: #fff; }
+  .p-meta { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; } .p-item.on .p-meta { color: #D2E4E3; }
+  #main { flex: 1; overflow-y: auto; padding: 26px 32px; }
+  .cards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; min-width: 110px; }
+  .card b { display: block; font-size: 22px; } .card span { font-size: 12px; color: var(--muted); }
+  h2 { font-size: 16px; margin: 26px 0 10px; } h2:first-child { margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  td, th { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; font-size: 13px; }
+  th { background: var(--bg); color: var(--teal); font-size: 11.5px; }
+  .msg { color: var(--muted); font-size: 13px; padding: 40px; text-align: center; }
+  .m { font-size: 12.5px; color: var(--muted); }
+  .report { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+  .report h3 { margin: 0 0 8px; font-size: 14px; } .report .m { margin: 2px 0; }
+  .report a { color: var(--teal); }
+  .scaleRow { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--bg); font-size: 12.5px; }
+  .scaleRow:last-child { border-bottom: 0; }
+  .lv { font-weight: 700; white-space: nowrap; }
+  .lv1 { color: #C0392B; } .lv2 { color: #B9790F; } .lv3 { color: #2C6765; } .lv4 { color: #1E6B5C; }
+  .evidence { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
+  details { margin-top: 10px; } summary { cursor: pointer; font-size: 12.5px; color: var(--teal); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <header><b>안전한더유스</b><span>위드워킹 관리자 화면</span></header>
+    <input id="search" placeholder="이름·참여번호 검색">
+    <button id="dashBtn">대시보드</button>
+    <div id="list"></div>
+  </div>
+  <div id="main"><div class="msg">불러오는 중...</div></div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwj4uAvLD50QYSEvq2qV1zcz0ru-wQN33gxPKrMfh6QFF3UO9zH1SDOVH1ARbXt1xc/exec";
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get("t") || "";
+let DATA = null, activeCode = null;
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function fetchData() {
+  const res = await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN));
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "오류");
+  DATA = json;
+  renderList();
+}
+
+async function load() {
+  if (!TOKEN) { document.getElementById("main").innerHTML = '<div class="msg">주소 끝에 ?t=관리자토큰 이 빠져 있어요.</div>'; return; }
+  try { await fetchData(); renderDashboard(); }
+  catch (err) { document.getElementById("main").innerHTML = '<div class="msg">불러오지 못했어요: ' + esc(err.message) + '</div>'; }
+}
+
+function renderList() {
+  const q = document.getElementById("search").value.trim();
+  const rows = DATA.participants.filter(p => !q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0);
+  document.getElementById("list").innerHTML = rows.map(p =>
+    '<div class="p-item' + (p.code === activeCode ? " on" : "") + '" data-code="' + esc(p.code) + '">' +
+      '<b>' + esc(p.code) + '</b> ' + esc(p.name) +
+      '<span class="p-meta">' + esc(p.status) + (p.activistName ? " · 활동가 " + esc(p.activistName) : " · 미배정") + " · 보고서 " + p.reportCount + "건" + '</span></div>'
+  ).join("") || '<div class="msg">해당하는 참여자가 없어요.</div>';
+  document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
+    activeCode = el.dataset.code; renderList(); renderDetail(DATA.participants.find(p => p.code === activeCode));
+  }));
+}
+
+function renderDashboard() {
+  activeCode = null; renderList();
+  const ongoing = DATA.participants.filter(p => p.status !== "종료").length;
+  const ended = DATA.participants.length - ongoing;
+  let h = '<div class="cards">' +
+    '<div class="card"><b>' + DATA.activists.length + '</b><span>활동가</span></div>' +
+    '<div class="card"><b>' + ongoing + '</b><span>진행중 참여자</span></div>' +
+    '<div class="card"><b>' + ended + '</b><span>종료</span></div>' +
+    '<div class="card"><b>' + DATA.reports.length + '</b><span>누적 보고서</span></div></div>';
+  h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th></tr>' +
+    DATA.activists.map(a => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td></tr>').join("") +
+    '</table>';
+  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
+    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
+    '</table>';
+  document.getElementById("main").innerHTML = h;
+}
+
+function scaleRowHtml(s) {
+  const lv = s.level ? s.level.charAt(0) : "";
+  return '<div class="scaleRow"><span>' + esc(s.q) + '</span><span class="lv lv' + esc(lv) + '">' + esc(s.level || "미응답") + '</span></div>' +
+    (s.evidence ? '<p class="evidence">↳ ' + esc(s.evidence) + '</p>' : '');
+}
+
+function renderDetail(p) {
+  if (!p) return;
+  const reports = DATA.reports.filter(r => r.code === p.code);
+  let h = '<p class="m"><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · 활동가 ' + esc(p.activistName || "미배정") + ' · ' + esc(p.status) + '</p>';
+  if (!reports.length) { h += '<p class="msg">아직 제출된 보고서가 없어요.</p>'; document.getElementById("main").innerHTML = h; return; }
+  h += reports.map(r => {
+    let c = '<div class="report"><h3>' + esc(r.round || "") + '회차 · ' + esc(r.writtenAt) + '</h3>';
+    c += '<p class="m"><b>대면</b> — ' + esc(r.faceWhen || "—") + '</p><p>' + esc(r.faceTalk || "").replace(/\n/g, "<br>") + '</p>';
+    if (r.facePhoto) c += '<p class="m"><a href="' + esc(r.facePhoto) + '" target="_blank">활동 사진 보기</a></p>';
+    if (r.faceNote) c += '<p class="m">특이사항: ' + esc(r.faceNote) + '</p>';
+    const remoteHtml = ([r.remote1, r.remote2]).filter(x => x[0] || x[2]).map(x => esc(x[0] || "") + (x[1] ? " (" + esc(x[1]) + ")" : "") + (x[2] ? " — " + esc(x[2]) : "")).join("<br>");
+    if (remoteHtml) c += '<p class="m"><b>비대면</b></p><p>' + remoteHtml + '</p>';
+    if (r.nextFace || r.nextRemote) c += '<p class="m"><b>다음 계획</b></p><p>' + esc(r.nextFace || "") + (r.nextRemote ? '<br>' + esc(r.nextRemote) : '') + '</p>';
+    if (r.memo) c += '<p class="m">메모: ' + esc(r.memo) + '</p>';
+    c += '<details><summary>참여자 반응 변화 체크(15문항) 보기</summary>' + r.scale.map(scaleRowHtml).join("") + '</details>';
+    c += '</div>';
+    return c;
+  }).join("");
+  document.getElementById("main").innerHTML = h;
+}
+
+document.getElementById("dashBtn").addEventListener("click", renderDashboard);
+document.getElementById("search").addEventListener("input", renderList);
+load();
+</script>
+</body>
+</html>
