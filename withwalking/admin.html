@@ -114,6 +114,7 @@ function renderDetail(p) {
   if (!p) return;
   const reports = DATA.reports.filter(r => r.code === p.code);
   let h = '<p class="m"><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · 활동가 ' + esc(p.activistName || "미배정") + ' · ' + esc(p.status) + '</p>';
+  if (p.intakeUrl) h += '<p class="m"><a href="' + esc(p.intakeUrl) + '" target="_blank">초기면접지 보기</a></p>';
   if (!reports.length) { h += '<p class="msg">아직 제출된 보고서가 없어요.</p>'; document.getElementById("main").innerHTML = h; return; }
   h += reports.map(r => {
     let c = '<div class="report"><h3>' + esc(r.round || "") + '회차 · ' + esc(r.writtenAt) + '</h3>';
