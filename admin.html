@@ -295,7 +295,9 @@ function renderDetail(p) {
     '<button id="bizBtn">변경</button><span id="bizMsg" class="m"></span></div>';
   const activistOptions = '<option value="">미배정</option>' + (DATA.activistList || [])
     .map(name => '<option value="' + esc(name) + '"' + (name === p.activist ? " selected" : "") + '>' + esc(name) + '</option>').join("");
+  const trackOptions = ["15", "10"].map(t => '<option value="' + t + '"' + (String(p.track || "15") === t ? " selected" : "") + '>' + t + '회 종결</option>').join("");
   h += '<div class="statusRow">담당활동가: <select id="activistSelect">' + activistOptions + '</select>' +
+    '트랙: <select id="trackSelect">' + trackOptions + '</select>' +
     '<button id="activistBtn">지정</button><span id="activistMsg" class="m"></span></div>';
   h += '<p class="m">참여 단계: ' +
     esc([p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ") || "없음") + '</p>';
@@ -334,7 +336,8 @@ async function assignActivist(code) {
   const msg = document.getElementById("activistMsg");
   btn.disabled = true;
   msg.textContent = "지정 중...";
-  const json = await callAdmin("adminAssignActivist", { code: code, activistName: sel.value });
+  const track = document.getElementById("trackSelect").value;
+  const json = await callAdmin("adminAssignActivist", { code: code, activistName: sel.value, track: track });
   btn.disabled = false;
   if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); return; }
   msg.textContent = "지정했어요.";

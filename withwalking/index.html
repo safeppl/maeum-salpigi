@@ -35,8 +35,9 @@
     <label>참여자<span class="sub">누구와 함께한 활동인가요</span></label>
     <select id="code"></select>
 
-    <label>회차</label>
-    <input id="round" type="number" min="1">
+    <label>회차<span class="sub" id="trackHint"></span></label>
+    <select id="round"></select>
+    <label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(체크 후 제출하면 이 참여자와의 동행이 종료 처리돼요)</label>
 
     <label>대면활동 — 일정 및 장소</label>
     <input id="faceWhen" placeholder="예: 10/15(수) 14시, OO동 카페(식당·도서관 등, 구체적 상호명은 적지 말아주세요)">
@@ -154,13 +155,19 @@ post({ action: 'myInfo', token }).then(res => {
   document.getElementById('app').style.display = 'block';
   document.getElementById('hello').textContent = res.name + '님, 안녕하세요';
   const sel = document.getElementById('code');
+  const roundSel = document.getElementById('round');
+  roundSel.innerHTML = Array.from({ length: 15 }, (_, i) => i + 1).map(n => '<option value="' + n + '">' + n + '회차</option>').join('');
   res.participants.forEach(p => {
     const o = document.createElement('option');
     o.value = p.code; o.textContent = p.name;
-    o.dataset.next = p.reportCount + 1;
+    o.dataset.next = p.reportCount + 1; o.dataset.track = p.track || '15';
     sel.appendChild(o);
   });
-  const fillRound = () => { document.getElementById('round').value = sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.next : 1; };
+  const fillRound = () => {
+    const opt = sel.selectedOptions[0];
+    roundSel.value = opt ? opt.dataset.next : 1;
+    document.getElementById('trackHint').textContent = opt ? '(이 참여자 트랙: ' + opt.dataset.track + '회 종결)' : '';
+  };
   sel.onchange = fillRound;
   if (sel.options.length) fillRound();
   if (!res.participants.length) { document.getElementById('msg').textContent = '아직 배정된 참여자가 없어요.'; document.getElementById('submit').disabled = true; }
@@ -187,7 +194,8 @@ document.getElementById('submit').onclick = async () => {
     remote2Talk: document.getElementById('remote2Talk').value,
     nextFace: document.getElementById('nextFace').value,
     nextRemote: document.getElementById('nextRemote').value,
-    reactionNote: document.getElementById('reactionNote').value
+    reactionNote: document.getElementById('reactionNote').value,
+    finalize: document.getElementById('finalize').checked
   };
   SCALE_ITEMS.forEach(([key]) => {
     form[key] = scaleVals[key];

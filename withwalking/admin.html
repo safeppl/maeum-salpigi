@@ -98,8 +98,8 @@ function renderDashboard() {
   h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th></tr>' +
     DATA.activists.map(a => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td></tr>').join("") +
     '</table>';
-  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
-    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
+  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
+    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
 }
@@ -124,6 +124,7 @@ function renderDetail(p) {
     if (remoteHtml) c += '<p class="m"><b>비대면</b></p><p>' + remoteHtml + '</p>';
     if (r.nextFace || r.nextRemote) c += '<p class="m"><b>다음 계획</b></p><p>' + esc(r.nextFace || "") + (r.nextRemote ? '<br>' + esc(r.nextRemote) : '') + '</p>';
     if (r.memo) c += '<p class="m">메모: ' + esc(r.memo) + '</p>';
+    if (r.doc) c += '<p class="m"><a href="' + esc(r.doc) + '" target="_blank">제출용 문서 보기</a></p>';
     c += '<details><summary>참여자 반응 변화 체크(15문항) 보기</summary>' + r.scale.map(scaleRowHtml).join("") + '</details>';
     c += '</div>';
     return c;
