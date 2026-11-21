@@ -39,6 +39,7 @@
   <label>위드워킹 보고서 토큰</label>
   <input id="t-withwalking" placeholder="기존 withwalking/admin.html 링크의 t= 뒤 값">
   <button id="saveBtn">저장하고 열기</button>
+  <button id="cancelBtn" style="display:none;background:transparent;color:var(--muted);box-shadow:none;">취소</button>
 </div>
 
 <div id="tabs"></div>
@@ -75,7 +76,22 @@
   }
 
   function showSetup() {
+    document.getElementById('tabs').style.display = 'none';
+    document.getElementById('frames').style.display = 'none';
     document.getElementById('setup').style.display = 'block';
+
+    // 기존에 저장된 값이 있으면 미리 채워둬서, 틀린 것 하나만 고치면 되게 함
+    var hasAll = true;
+    keys.forEach(function (k) {
+      var el = document.getElementById('t-' + k);
+      var cur = localStorage.getItem('hub_t_' + k);
+      if (cur) el.value = cur; else hasAll = false;
+    });
+
+    var cancelBtn = document.getElementById('cancelBtn');
+    cancelBtn.style.display = hasAll ? 'inline-block' : 'none';
+    cancelBtn.onclick = function () { location.href = location.pathname; };
+
     document.getElementById('saveBtn').onclick = function () {
       keys.forEach(function (k) {
         var el = document.getElementById('t-' + k);
@@ -108,11 +124,8 @@
 
     var reset = document.createElement('button');
     reset.id = 'resetBtn';
-    reset.textContent = '토큰 재설정';
-    reset.onclick = function () {
-      keys.forEach(function (k) { localStorage.removeItem('hub_t_' + k); });
-      location.href = location.pathname;
-    };
+    reset.textContent = '토큰 수정';
+    reset.onclick = function () { showSetup(); };
     tabsEl.appendChild(reset);
 
     selectTab(keys[0]);
