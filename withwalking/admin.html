@@ -111,9 +111,11 @@ function renderDashboard() {
   document.getElementById("main").innerHTML = h;
 }
 
+const SCALE_LEVELS_ = ["매우 그렇다", "그렇다", "그렇지 않다", "매우 그렇지 않다"];
 function scaleRowHtml(s) {
-  const lv = s.level ? s.level.charAt(0) : "";
-  return '<div class="scaleRow"><span>' + esc(s.q) + '</span><span class="lv lv' + esc(lv) + '">' + esc(s.level || "미응답") + '</span></div>' +
+  const idx = SCALE_LEVELS_.indexOf(s.level);
+  const lv = idx >= 0 ? String(idx + 1) : "";
+  return '<div class="scaleRow"><span>' + esc(s.q) + '</span><span class="lv lv' + lv + '">' + esc(s.level || "미응답") + '</span></div>' +
     (s.evidence ? '<p class="evidence">↳ ' + esc(s.evidence) + '</p>' : '');
 }
 
@@ -123,15 +125,16 @@ function renderDetail(p) {
   let h = '<p class="m"><b>' + esc(p.code) + ' · ' + esc(p.name) + '</b> · 활동가 ' + esc(p.activistName || "미배정") + ' · ' + esc(p.status) + '</p>';
   if (p.intakeUrl) h += '<p class="m"><a href="' + esc(p.intakeUrl) + '" target="_blank">초기면접지 보기</a></p>';
   if (!reports.length) { h += '<p class="msg">아직 제출된 보고서가 없어요.</p>'; document.getElementById("main").innerHTML = h; return; }
+  const remoteLine = x => [x[0], x[1], x[2]].filter(Boolean).map(esc).join(" ") + (x[3] ? " (" + esc(x[3]) + ")" : "") + (x[4] ? " — " + esc(x[4]) : "");
   h += reports.map(r => {
     let c = '<div class="report"><h3>' + esc(r.round || "") + '회차 · ' + esc(r.writtenAt) + '</h3>';
-    c += '<p class="m"><b>대면</b> — ' + esc(r.faceWhen || "—") + '</p><p>' + esc(r.faceTalk || "").replace(/\n/g, "<br>") + '</p>';
+    const faceLine = [r.faceDate, r.faceDay, r.faceTime].filter(Boolean).map(esc).join(" ");
+    c += '<p class="m"><b>대면</b> — ' + (faceLine || "—") + (r.facePlace ? " · " + esc(r.facePlace) : "") + '</p><p>' + esc(r.faceTalk || "").replace(/\n/g, "<br>") + '</p>';
     if (r.facePhoto) c += '<p class="m"><a href="' + esc(r.facePhoto) + '" target="_blank">활동 사진 보기</a></p>';
     if (r.faceNote) c += '<p class="m">특이사항: ' + esc(r.faceNote) + '</p>';
-    const remoteHtml = ([r.remote1, r.remote2]).filter(x => x[0] || x[2]).map(x => esc(x[0] || "") + (x[1] ? " (" + esc(x[1]) + ")" : "") + (x[2] ? " — " + esc(x[2]) : "")).join("<br>");
-    if (remoteHtml) c += '<p class="m"><b>비대면</b></p><p>' + remoteHtml + '</p>';
+    const remoteHtml = [r.remote1, r.remote2].filter(x => x[0] || x[4]).map(remoteLine).join("<br>");
+    if (remoteHtml) c += '<p class="m"><b>비대면 연락</b></p><p>' + remoteHtml + '</p>';
     if (r.nextFace || r.nextRemote) c += '<p class="m"><b>다음 계획</b></p><p>' + esc(r.nextFace || "") + (r.nextRemote ? '<br>' + esc(r.nextRemote) : '') + '</p>';
-    if (r.memo) c += '<p class="m">메모: ' + esc(r.memo) + '</p>';
     if (r.doc) c += '<p class="m"><a href="' + esc(r.doc) + '" target="_blank">제출용 문서 보기</a></p>';
     c += '<details><summary>참여자 반응 변화 체크(15문항) 보기</summary>' + r.scale.map(scaleRowHtml).join("") + '</details>';
     c += '</div>';
