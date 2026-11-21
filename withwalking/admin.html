@@ -98,17 +98,40 @@ function renderDashboard() {
     '<div class="card"><b>' + DATA.reports.length + '</b><span>누적 보고서</span></div></div>';
   h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
     DATA.activists.map((a, i) => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
-      '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button></td></tr>').join("") +
+      '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button> <span class="m linkMsg" data-i="' + i + '"></span></td></tr>').join("") +
     '</table>';
   h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
     DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
   document.querySelectorAll(".linkBtn").forEach(btn => btn.addEventListener("click", () => {
-    const a = DATA.activists[Number(btn.dataset.i)];
+    const i = Number(btn.dataset.i);
+    const a = DATA.activists[i];
     const link = "https://safeppl.github.io/maeum-salpigi/withwalking/?t=" + a.token;
-    navigator.clipboard.writeText(link).then(() => { btn.textContent = "복사됨"; setTimeout(() => btn.textContent = "링크 복사", 1500); });
+    const msgEl = document.querySelector('.linkMsg[data-i="' + i + '"]');
+    copyToClipboard_(link, msgEl);
   }));
+}
+
+// 클립보드 권한이 막힌 환경(예: 허브 페이지 iframe 안)에서도 최대한 복사되도록,
+// navigator.clipboard가 안 되면 숨겨진 textarea + execCommand로 한 번 더 시도해요.
+function copyToClipboard_(text, msgEl) {
+  const ok = () => { msgEl.textContent = "복사되었습니다."; setTimeout(() => msgEl.textContent = "", 2500); };
+  const fail = () => { msgEl.textContent = "자동 복사가 안 돼요 — 길게 눌러 직접 복사해주세요."; };
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    let done = false;
+    try { done = document.execCommand("copy"); } catch (e) { done = false; }
+    document.body.removeChild(ta);
+    done ? ok() : fail();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 const SCALE_LEVELS_ = ["매우 그렇다", "그렇다", "그렇지 않다", "매우 그렇지 않다"];
