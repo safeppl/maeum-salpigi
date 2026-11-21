@@ -32,14 +32,19 @@
 <div id="loading">불러오는 중이에요…</div>
 <div id="app" style="display:none">
   <h1 id="hello"></h1>
-  <p class="muted">회차별 동행활동보고서를 작성해 주세요.</p>
+  <p class="muted">회차별 동행활동보고서를 작성해 주세요. <button type="button" id="myReportsBtn" style="width:auto;display:inline;background:none;border:none;color:var(--teal);text-decoration:underline;font-size:13px;padding:0;margin:0">내 보고서 목록</button></p>
 
-  <div class="card">
+  <div id="myReports" class="card" style="display:none"></div>
+
+  <div id="formCard" class="card">
+    <p class="muted" id="editingHint" style="display:none"></p>
+    <div id="pickerFields">
     <label>참여자<span class="sub">누구와 함께한 활동인가요</span></label>
     <select id="code"></select>
 
     <label>회차<span class="sub" id="trackHint"></span></label>
     <select id="round"></select>
+    </div>
     <label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(10회 또는 15회 활동인지 확인 후 체크할 것! 체크하면 참여자와 동행활동이 종료 처리되니 유의하세요!)</label>
 
     <label>대면활동 — 날짜</label>
@@ -250,15 +255,68 @@ post({ action: 'myInfo', token }).then(res => {
   if (!res.participants.length) { document.getElementById('msg').textContent = '아직 배정된 참여자가 없어요.'; document.getElementById('submit').disabled = true; }
 });
 
+let editing = null; // {code, round} — 수정 모드일 때만 값이 들어있어요
+
+function renderMyReports(list) {
+  const wrap = document.getElementById('myReports');
+  if (!list.length) { wrap.innerHTML = '<p class="muted">아직 제출한 보고서가 없어요.</p>'; return; }
+  wrap.innerHTML = list.map((r, i) =>
+    '<p class="muted" style="margin:8px 0">' + r.name + ' · ' + r.round + '회차 · ' + r.writtenAt +
+    (r.editable ? ' <button type="button" class="editBtn" data-i="' + i + '" style="width:auto;display:inline;padding:4px 8px;margin:0;font-size:12px">수정하기</button>'
+      : ' <span style="color:var(--muted)">(수정 기간 지남)</span>') + '</p>'
+  ).join('');
+  wrap.querySelectorAll('.editBtn').forEach(btn => btn.addEventListener('click', () => loadForEdit(list[Number(btn.dataset.i)])));
+}
+
+document.getElementById('myReportsBtn').addEventListener('click', async () => {
+  const wrap = document.getElementById('myReports');
+  const show = wrap.style.display === 'none';
+  wrap.style.display = show ? 'block' : 'none';
+  if (show) {
+    wrap.innerHTML = '<p class="muted">불러오는 중…</p>';
+    const res = await post({ action: 'listMyReports', token });
+    renderMyReports(res.ok ? res.reports : []);
+  }
+});
+
+async function loadForEdit(item) {
+  const msg = document.getElementById('msg');
+  const res = await post({ action: 'getReport', token, code: item.code, round: item.round });
+  if (!res.ok) { msg.textContent = res.error === 'edit_window_closed' ? '수정 기간(24시간)이 지났어요.' : '불러오지 못했어요.'; return; }
+  const r = res.report;
+  editing = { code: item.code, round: item.round };
+  document.getElementById('myReports').style.display = 'none';
+  document.getElementById('pickerFields').style.display = 'none';
+  const hint = document.getElementById('editingHint');
+  hint.style.display = 'block'; hint.textContent = '✏️ ' + item.name + ' · ' + item.round + '회차 수정 중(24시간 이내만 가능)';
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('faceDate', r['대면_날짜']); set('faceTime', r['대면_시간']); set('facePlace', r['대면_장소']);
+  set('faceTalk', r['대면_소통내용']); set('faceNote', r['대면_특이사항']);
+  set('remote1Date', r['비대면1_날짜']); set('remote1Time', r['비대면1_시간']); set('remote1How', r['비대면1_수단']); set('remote1Talk', r['비대면1_내용']);
+  set('remote2Date', r['비대면2_날짜']); set('remote2Time', r['비대면2_시간']); set('remote2How', r['비대면2_수단']); set('remote2Talk', r['비대면2_내용']);
+  set('nextFace', r['다음계획_대면']); set('nextRemote', r['다음계획_비대면']);
+  document.getElementById('faceDayHint').textContent = r['대면_요일'] || '';
+  document.getElementById('remote1DayHint').textContent = r['비대면1_요일'] || '';
+  document.getElementById('remote2DayHint').textContent = r['비대면2_요일'] || '';
+  SCALE_ITEMS.forEach(([key]) => {
+    const level = r[key];
+    scaleVals[key] = SCALE_LEVELS.indexOf(level) >= 0 ? level : null;
+    const el = document.querySelector('.scale[data-for="' + key + '"]');
+    if (el) [...el.children].forEach(b => b.classList.toggle('sel', b.textContent.indexOf(level) === 0));
+    set(key + '_evidence', r[key + '_근거']);
+  });
+  msg.textContent = '';
+}
+
 document.getElementById('submit').onclick = async () => {
   const btn = document.getElementById('submit');
   const msg = document.getElementById('msg');
   const sel = document.getElementById('code');
-  if (!sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
+  if (!editing && !sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
   btn.disabled = true; msg.textContent = '제출하는 중이에요…';
   const photoData = await fileToBase64(document.getElementById('facePhoto').files[0]);
   const form = {
-    code: sel.value, round: document.getElementById('round').value,
+    code: editing ? editing.code : sel.value, round: editing ? editing.round : document.getElementById('round').value,
     faceDate: document.getElementById('faceDate').value,
     faceDay: dayOf(document.getElementById('faceDate').value),
     faceTime: document.getElementById('faceTime').value,
@@ -284,7 +342,7 @@ document.getElementById('submit').onclick = async () => {
     form[key] = scaleVals[key];
     form[key + '_근거'] = document.getElementById(key + '_evidence').value;
   });
-  const res = await post({ action: 'report', token, form });
+  const res = await post({ action: editing ? 'editReport' : 'report', token, form });
   if (res.ok) { document.getElementById('app').style.display = 'none'; document.getElementById('done').style.display = 'block'; }
   else { msg.textContent = '제출하지 못했어요: ' + res.error; btn.disabled = false; }
 };
