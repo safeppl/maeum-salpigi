@@ -138,6 +138,8 @@ function renderDetail(p) {
   h += '<p class="m">참여동기: ' + esc(p.motive || "—") + '</p>';
   if (p.done.length) h += '<p class="m">이미 처리됨: ' + esc(p.done.join(", ")) + '</p>';
   if (p.trainedAt) h += '<p class="m">이수확인일: ' + esc(p.trainedAt) + (p.docSubmittedAt ? " · 서류제출: " + esc(p.docSubmittedAt) : " · 서류 미제출") + '</p>';
+  const isComplete = p.showReject && !p.showCoach && !p.showActivist && !p.needsTraining && p.docSubmittedAt;
+  if (isComplete) h += '<p class="m" style="color:#2C6765;font-weight:700">✅ 등록 완료 — 희망한 역할 등록, 양성교육 이수확인, 서류 제출까지 모두 끝났어요.</p>';
   h += '<div class="btns">' +
     (p.showCoach ? '<button class="act coach" id="btnCoach">코치로 등록</button>' : '') +
     (p.showActivist ? '<button class="act activist" id="btnActivist">활동가로 등록</button>' : '') +
