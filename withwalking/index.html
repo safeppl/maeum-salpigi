@@ -262,6 +262,7 @@ function renderMyReports(list) {
   if (!list.length) { wrap.innerHTML = '<p class="muted">아직 제출한 보고서가 없어요.</p>'; return; }
   wrap.innerHTML = list.map((r, i) =>
     '<p class="muted" style="margin:8px 0">' + r.name + ' · ' + r.round + '회차 · ' + r.writtenAt +
+    (r.doc ? ' <a href="' + r.doc + '" target="_blank" style="color:var(--teal)">문서 보기</a>' : '') +
     (r.editable ? ' <button type="button" class="editBtn" data-i="' + i + '" style="width:auto;display:inline;padding:4px 8px;margin:0;font-size:12px">수정하기</button>'
       : ' <span style="color:var(--muted)">(수정 기간 지남)</span>') + '</p>'
   ).join('');
