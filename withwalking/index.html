@@ -18,8 +18,8 @@
   .row2 > * { flex:1; }
   button { width:100%; margin-top:20px; background:var(--teal); color:#fff; font-size:16px; font-weight:700; padding:14px; border:0; border-radius:10px; cursor:pointer; }
   button:disabled { opacity:.5; }
-  .scale { display:flex; gap:6px; margin-top:6px; }
-  .scale button { flex:1; margin:0; padding:10px 0; background:#fff; color:var(--text); border:1px solid var(--border); font-size:13px; font-weight:500; }
+  .scale { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .scale button { flex:1 1 47%; margin:0; padding:10px 4px; background:#fff; color:var(--text); border:1px solid var(--border); font-size:12.5px; font-weight:500; }
   .scale button.sel { background:var(--orange); color:#fff; border-color:var(--orange); }
   #msg { margin-top:14px; font-weight:600; }
   #loading, #done { text-align:center; padding:40px 0; color:var(--muted); }
@@ -39,8 +39,13 @@
     <select id="round"></select>
     <label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(체크 후 제출하면 이 참여자와의 동행이 종료 처리돼요)</label>
 
-    <label>대면활동 — 일정 및 장소</label>
-    <input id="faceWhen" placeholder="예: 10/15(수) 14시, OO동 카페(식당·도서관 등, 구체적 상호명은 적지 말아주세요)">
+    <label>대면활동 — 날짜</label>
+    <input id="faceDate" type="date">
+    <p class="sub" id="faceDayHint" style="margin-top:2px"></p>
+    <label>대면활동 — 시간</label>
+    <select id="faceTime"></select>
+    <label>대면활동 — 장소</label>
+    <input id="facePlace" placeholder="예: OO동 카페, 도서관 등(구체적 상호명은 적지 말아주세요)">
     <label>대면활동 — 소통 내용<span class="sub">개조식으로 5문장 이하</span></label>
     <textarea id="faceTalk" rows="3" placeholder="나눈 이야기, 활동 내용을 개조식으로 5문장 이하로 적어주세요"></textarea>
     <label>사진<span class="sub">선택 — 대표 사진 1장</span></label>
@@ -50,13 +55,23 @@
   </div>
 
   <div class="card">
-    <label>비대면활동 1 — 일정/수단</label>
-    <div class="row2"><input id="remote1When" placeholder="날짜"><input id="remote1How" placeholder="예: 전화, 문자"></div>
-    <label>비대면활동 1 — 내용</label>
+    <label>비대면 연락 1 — 날짜</label>
+    <input id="remote1Date" type="date">
+    <p class="sub" id="remote1DayHint" style="margin-top:2px"></p>
+    <div class="row2">
+      <div><label style="margin-top:0">시간</label><select id="remote1Time"></select></div>
+      <div><label style="margin-top:0">수단</label><input id="remote1How" placeholder="예: 전화, 문자"></div>
+    </div>
+    <label>비대면 연락 1 — 내용</label>
     <textarea id="remote1Talk" rows="2"></textarea>
-    <label>비대면활동 2 — 일정/수단<span class="sub">없으면 비워두세요</span></label>
-    <div class="row2"><input id="remote2When" placeholder="날짜"><input id="remote2How" placeholder="예: 전화, 문자"></div>
-    <label>비대면활동 2 — 내용</label>
+    <label>비대면 연락 2 — 날짜<span class="sub">없으면 비워두세요</span></label>
+    <input id="remote2Date" type="date">
+    <p class="sub" id="remote2DayHint" style="margin-top:2px"></p>
+    <div class="row2">
+      <div><label style="margin-top:0">시간</label><select id="remote2Time"></select></div>
+      <div><label style="margin-top:0">수단</label><input id="remote2How" placeholder="예: 전화, 문자"></div>
+    </div>
+    <label>비대면 연락 2 — 내용</label>
     <textarea id="remote2Talk" rows="2"></textarea>
   </div>
 
@@ -70,8 +85,6 @@
   <div class="card">
     <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크(척도) — 해당하는 만큼만 체크해도 돼요</p>
     <div id="scaleItems"></div>
-    <label>메모</label>
-    <textarea id="reactionNote" rows="2"></textarea>
   </div>
 
   <button id="submit">보고서 제출하기</button>
@@ -101,9 +114,39 @@ const SCALE_ITEMS = [
   ['가족관계', '주 양육자(부모)나 가족과의 갈등을 줄이고 소통을 시도하려는 변화가 있는가?'],
   ['타인소통', '타인과 마주치거나 소통하는 것이 원할한가?']
 ];
-const SCALE_LEVELS = ['1점(매우 낮음)', '2점(낮음)', '3점(높음)', '4점(매우 높음)'];
+const SCALE_LEVELS = ['매우 그렇다', '그렇다', '그렇지 않다', '매우 그렇지 않다'];
 const scaleVals = {};
 SCALE_ITEMS.forEach(([key]) => { scaleVals[key] = null; });
+
+const DOW_ = ['일', '월', '화', '수', '목', '금', '토'];
+function dayOf(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return isNaN(d) ? '' : DOW_[d.getDay()] + '요일';
+}
+function timeOptions_() {
+  const opts = [];
+  for (let h = 6; h <= 23; h++) {
+    for (const m of [0, 30]) {
+      const hh = String(h).padStart(2, '0'), mm = String(m).padStart(2, '0');
+      const ampm = h < 12 ? '오전' : '오후';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      opts.push({ value: hh + ':' + mm, label: ampm + ' ' + h12 + ':' + mm });
+    }
+  }
+  return opts;
+}
+function fillTimeSelect_(id) {
+  document.getElementById(id).innerHTML = timeOptions_().map(o => '<option value="' + o.value + '">' + o.label + '</option>').join('');
+}
+function bindDateHint_(dateId, hintId) {
+  const dateEl = document.getElementById(dateId), hintEl = document.getElementById(hintId);
+  dateEl.addEventListener('change', () => { hintEl.textContent = dayOf(dateEl.value); });
+}
+['faceTime', 'remote1Time', 'remote2Time'].forEach(fillTimeSelect_);
+bindDateHint_('faceDate', 'faceDayHint');
+bindDateHint_('remote1Date', 'remote1DayHint');
+bindDateHint_('remote2Date', 'remote2DayHint');
 
 function post(body) {
   return fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
@@ -117,9 +160,9 @@ function buildScaleItems() {
   ).join('');
   SCALE_ITEMS.forEach(([key]) => {
     const el = wrap.querySelector('.scale[data-for="' + key + '"]');
-    SCALE_LEVELS.forEach((level, i) => {
+    SCALE_LEVELS.forEach(level => {
       const b = document.createElement('button');
-      b.type = 'button'; b.textContent = String(i + 1); b.title = level;
+      b.type = 'button'; b.textContent = level;
       b.onclick = () => { scaleVals[key] = level; [...el.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel'); };
       el.appendChild(b);
     });
@@ -182,19 +225,25 @@ document.getElementById('submit').onclick = async () => {
   const photoData = await fileToBase64(document.getElementById('facePhoto').files[0]);
   const form = {
     code: sel.value, round: document.getElementById('round').value,
-    faceWhen: document.getElementById('faceWhen').value,
+    faceDate: document.getElementById('faceDate').value,
+    faceDay: dayOf(document.getElementById('faceDate').value),
+    faceTime: document.getElementById('faceTime').value,
+    facePlace: document.getElementById('facePlace').value,
     faceTalk: document.getElementById('faceTalk').value,
     facePhotoData: photoData,
     faceNote: document.getElementById('faceNote').value,
-    remote1When: document.getElementById('remote1When').value,
+    remote1Date: document.getElementById('remote1Date').value,
+    remote1Day: dayOf(document.getElementById('remote1Date').value),
+    remote1Time: document.getElementById('remote1Time').value,
     remote1How: document.getElementById('remote1How').value,
     remote1Talk: document.getElementById('remote1Talk').value,
-    remote2When: document.getElementById('remote2When').value,
+    remote2Date: document.getElementById('remote2Date').value,
+    remote2Day: dayOf(document.getElementById('remote2Date').value),
+    remote2Time: document.getElementById('remote2Time').value,
     remote2How: document.getElementById('remote2How').value,
     remote2Talk: document.getElementById('remote2Talk').value,
     nextFace: document.getElementById('nextFace').value,
     nextRemote: document.getElementById('nextRemote').value,
-    reactionNote: document.getElementById('reactionNote').value,
     finalize: document.getElementById('finalize').checked
   };
   SCALE_ITEMS.forEach(([key]) => {
