@@ -2,7 +2,7 @@
   const API_URL = "https://script.google.com/macros/s/AKfycbxMM5tEf9X_rOPmpwlOg9MOBW6Q1VEICBxd5GJe7SKUQ9WHW7Cx1OVbFuP4phEA9wzs/exec";
   const CONTACTS = [["사람을 세우는 사람들 더유스", "02-2247-1091", "0222471091"], ["안전한사람들", "031-898-1091", "0318981091", "경기도 용인시 수지구 용구대로2753번길 37-30, 401호 (죽전동)"]];
   // [입력필드 id, 화면에 보일 라벨, 서버에 저장할 서류종류 — Code.gs의 DOC_TYPES와 철자가 같아야 파일명에 종류가 붙어요]
-  const DOC_TYPES = [["resume", "이력서", "이력서"], ["cert", "자격증(있으면)", "자격증"], ["id", "신분증 사본", "신분증사본"], ["bank", "통장 사본", "통장사본"], ["contract", "계약서", "계약서"]];
+  const DOC_TYPES = [["resume", "이력서", "이력서"], ["cert", "자격증(있으면)", "자격증"], ["id", "신분증 사본", "신분증사본"], ["bank", "통장 사본", "통장사본"], ["completion", "이수증", "이수증"]];
   const MAX_FILE_MB = 15;
 
   const qs = new URLSearchParams(location.search);
