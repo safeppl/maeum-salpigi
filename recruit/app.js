@@ -60,10 +60,10 @@
       '<div class="field"><label>성별</label><div class="choices">' +
       ["남", "여"].map(v => '<label><input type="radio" name="f-sex" value="' + v + '">' + v + '</label>').join("") + '</div></div>' +
       '<div class="field"><label>나이</label><input type="number" id="f-age" min="14" max="100"></div>' +
-      '<div class="field"><label>소속 <span class="hint">(학교·직장·단체 등, 없으면 비워두세요)</span></label><input type="text" id="f-org"></div>' +
+      '<div class="field"><label>소속 <span class="hint">(학교·직장·단체 등, 없으면 없음)</span></label><input type="text" id="f-org"></div>' +
       '<div class="field"><label>희망 역할 <span class="hint">(중복 선택 가능)</span></label><div class="choices">' +
       ["코치", "활동가"].map(v => '<label><input type="checkbox" class="f-role" value="' + v + '">' + v + '</label>').join("") + '</div></div>' +
-      '<div class="field"><label>활동 경력 <span class="hint">(선택)</span></label><textarea id="f-exp" placeholder="관련 활동이나 경력이 있다면 적어주세요"></textarea></div>' +
+      '<div class="field"><label>활동 경력<span class="hint">(진로코칭2년, 청소년 봉사 3년, 사회복지사3년 등으로 표기, 없으면 없음)</span></label><textarea id="f-exp" placeholder="관련 활동이나 경력이 있다면 적어주세요"></textarea></div>' +
       '<div class="field"><label>참여 동기</label><textarea id="f-motive" placeholder="지원 동기를 적어주세요"></textarea></div>' +
       '<label class="consent"><input type="checkbox" id="f-agree"><span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 연락처, 거주지역, 성별, 나이, 소속을 신청서 검토와 연락 목적으로만 쓰고, 모집 종료 후 파기해요.</span></span></label>' +
       (S.err ? '<p class="err">' + e(S.err) + '</p>' : '') +
