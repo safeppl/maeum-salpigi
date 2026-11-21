@@ -78,7 +78,7 @@
       if (!r.ok) throw new Error(r.error || "fail");
       S.screen = "done"; S.sending = false; render();
     } catch (err) {
-      S.err = "제출하지 못했어요: " + err.message; S.sending = false; render(); // 임시로 실제 에러를 보여줘요(원인 확인되면 되돌릴 예정)
+      S.err = "제출하지 못했어요. 다시 시도해 주세요."; S.sending = false; render();
     }
   }
 
