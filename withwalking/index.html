@@ -118,6 +118,7 @@ const SCALE_ITEMS = [
   ['타인소통', '타인과 마주치거나 소통하는 것이 원할한가?']
 ];
 const SCALE_LEVELS = ['매우 그렇다', '그렇다', '그렇지 않다', '매우 그렇지 않다'];
+const SCALE_SCORES_ = [4, 3, 2, 1]; // 기준표(ⓘ)의 점수와 맞춰서 버튼에 같이 표기 — 매우 그렇다=4점 ~ 매우 그렇지 않다=1점
 // 동행활동가 양성과정 교안("4. 보고서작성요령.pptx")의 문항별 1~4점 행동기준표를 그대로 옮김(참고용 느낌표 안내).
 const RUBRIC_ = {
   시선자세: ['시선회피/고개숙임', '필요시에만 시선마주침', '50% 이상 자연스러운 시선', '편안한 시선+반응확인'],
@@ -193,9 +194,9 @@ function buildScaleItems() {
   }));
   SCALE_ITEMS.forEach(([key]) => {
     const el = wrap.querySelector('.scale[data-for="' + key + '"]');
-    SCALE_LEVELS.forEach(level => {
+    SCALE_LEVELS.forEach((level, i) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.textContent = level;
+      b.type = 'button'; b.textContent = level + ' (' + SCALE_SCORES_[i] + '점)';
       b.onclick = () => { scaleVals[key] = level; [...el.children].forEach(c => c.classList.remove('sel')); b.classList.add('sel'); };
       el.appendChild(b);
     });
