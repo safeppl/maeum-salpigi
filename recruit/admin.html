@@ -146,6 +146,7 @@ function renderDetail(p) {
     (p.showCoach && p.showActivist ? '<button class="act activist" id="btnBoth">코치+활동가 둘 다 등록</button>' : '') +
     (p.showReject ? '<button class="act rej" id="btnReject">반려</button>' : '') +
     (p.needsTraining ? '<button class="act coach" id="btnTrain">이수확인 · 서류 업로드 링크 발급</button>' : '') +
+    (p.canAcknowledgeDocs ? '<button class="act rej" id="btnAck">기존 서류 제출 인정(재업로드 생략)</button>' : '') +
     '</div>';
   h += '<div class="linkBox" id="linkBox" style="display:none"><textarea id="linkText" readonly></textarea>' +
     '<div class="btns"><button class="act rej" id="btnCopy">문구 복사</button><span class="m" id="copyMsg"></span></div></div>';
@@ -155,6 +156,7 @@ function renderDetail(p) {
   if (p.showCoach && p.showActivist) document.getElementById("btnBoth").addEventListener("click", e => act(p.rowIndex, "adminApproveBoth", e.target, "코치+활동가 등록"));
   if (p.showReject) document.getElementById("btnReject").addEventListener("click", e => act(p.rowIndex, "adminReject", e.target, "반려"));
   if (p.needsTraining) document.getElementById("btnTrain").addEventListener("click", e => trainBtn(p.rowIndex, e.target));
+  if (p.canAcknowledgeDocs) document.getElementById("btnAck").addEventListener("click", e => act(p.rowIndex, "adminAcknowledgeDocs", e.target, "서류 제출 인정"));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
 }
 
