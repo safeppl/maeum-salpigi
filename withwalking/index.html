@@ -18,6 +18,9 @@
   .row2 > * { flex:1; }
   button { width:100%; margin-top:20px; background:var(--teal); color:#fff; font-size:16px; font-weight:700; padding:14px; border:0; border-radius:10px; cursor:pointer; }
   button:disabled { opacity:.5; }
+  .infoBtn { width:auto; display:inline-block; padding:2px 7px; margin:0 0 0 4px; font-size:13px; font-weight:700; border-radius:50%; background:var(--bg); color:var(--teal); border:1px solid var(--border); cursor:pointer; vertical-align:middle; }
+  .rubric { background:var(--bg); border-radius:8px; padding:8px 10px; margin-top:6px; }
+  .rubric p { margin:4px 0; font-size:12.5px; color:var(--muted); font-weight:400; }
   .scale { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .scale button { flex:1 1 47%; margin:0; padding:10px 4px; background:#fff; color:var(--text); border:1px solid var(--border); font-size:12.5px; font-weight:500; }
   .scale button.sel { background:var(--orange); color:#fff; border-color:var(--orange); }
@@ -115,6 +118,24 @@ const SCALE_ITEMS = [
   ['타인소통', '타인과 마주치거나 소통하는 것이 원할한가?']
 ];
 const SCALE_LEVELS = ['매우 그렇다', '그렇다', '그렇지 않다', '매우 그렇지 않다'];
+// 동행활동가 양성과정 교안("4. 보고서작성요령.pptx")의 문항별 1~4점 행동기준표를 그대로 옮김(참고용 느낌표 안내).
+const RUBRIC_ = {
+  시선자세: ['시선회피/고개숙임', '필요시에만 시선마주침', '50% 이상 자연스러운 시선', '편안한 시선+반응확인'],
+  시간준수: ['노쇼/직전취소', '매회지각/무연락', '정시도착노력+사전알림', '항상정시/5분전도착'],
+  의사표현: ['자발적주제제안+논리적의견', '명확히표현', '최소문장답변', '단답/끄덕임만'],
+  수면리듬: ['낮밤뒤바뀜지속', '주1-2회기상시도', '규칙적기상+자기점검', '규칙적기상취침+생산활동'],
+  위생외모: ['불쾌체취/지저분', '외출복부분미흡', '기본청결유지', '깔끔단정'],
+  활동반경: ['방밖안나옴', '거실등공용공간', '카페공원등외부', '장소제안+낯선환경편안'],
+  욕구표현: ['무욕구상태', '수동적답변', '희망활동구체화', '자발적미션제안'],
+  자기가치: ['미래희망없음', '강점탐색하나타인의존', '긍정적언급', '가치이해+다양성존중'],
+  자신감: ['시도두려움/회피', '수월한미션완수', '성공후자신감표현', '성취축적+자발목표'],
+  정서불안: ['논리적설명/여유', '불안거의없음', '지지로일시안정', '무기력/우울/불안관찰됨'],
+  감정조절: ['완벽조절', '인지+적극성', '수시변화하나자기검열', '감정기복심함/무반응'],
+  소통왜곡: ['피드백을보상으로인식', '공감+이성적수용', '일시적불만', '부정적/공격적해석'],
+  신뢰관계: ['불신', '최소소통', '정서적교감+신뢰형성', '안전기지로내면화'],
+  가족관계: ['갈등/단절', '제안을압박으로느낌', '경청+차분한표현', '대화증가+신뢰회복'],
+  타인소통: ['타인접촉전혀없음', '생존용최소소통', '타인과소통증가', '집단활동자발참여']
+};
 const scaleVals = {};
 SCALE_ITEMS.forEach(([key]) => { scaleVals[key] = null; });
 
@@ -152,12 +173,24 @@ function post(body) {
   return fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
 }
 
+function rubricHtml_(key) {
+  const r = RUBRIC_[key];
+  if (!r) return '';
+  return '<div class="rubric" id="rubric_' + key + '" style="display:none">' +
+    r.map((t, i) => '<p>' + (i + 1) + '점 — ' + t + '</p>').join('') + '</div>';
+}
 function buildScaleItems() {
   const wrap = document.getElementById('scaleItems');
   wrap.innerHTML = SCALE_ITEMS.map(([key, q]) =>
-    '<label>' + q + '</label><div class="scale" data-for="' + key + '"></div>' +
+    '<label>' + q + ' <button type="button" class="infoBtn" data-key="' + key + '">ⓘ</button></label>' +
+    rubricHtml_(key) +
+    '<div class="scale" data-for="' + key + '"></div>' +
     '<textarea id="' + key + '_evidence" rows="2" placeholder="판단 근거(구체적 행동)"></textarea>'
   ).join('');
+  wrap.querySelectorAll('.infoBtn').forEach(btn => btn.addEventListener('click', () => {
+    const el = document.getElementById('rubric_' + btn.dataset.key);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }));
   SCALE_ITEMS.forEach(([key]) => {
     const el = wrap.querySelector('.scale[data-for="' + key + '"]');
     SCALE_LEVELS.forEach(level => {
