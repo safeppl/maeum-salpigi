@@ -38,6 +38,7 @@
   .lv1 { color: #C0392B; } .lv2 { color: #B9790F; } .lv3 { color: #2C6765; } .lv4 { color: #1E6B5C; }
   .evidence { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
   details { margin-top: 10px; } summary { cursor: pointer; font-size: 12.5px; color: var(--teal); font-weight: 600; }
+  .linkBtn { font: inherit; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--teal); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -95,9 +96,15 @@ function renderDashboard() {
     '<div class="card"><b>' + ongoing + '</b><span>진행중 참여자</span></div>' +
     '<div class="card"><b>' + ended + '</b><span>종료</span></div>' +
     '<div class="card"><b>' + DATA.reports.length + '</b><span>누적 보고서</span></div></div>';
-  h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th></tr>' +
-    DATA.activists.map(a => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td></tr>').join("") +
+  h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
+    DATA.activists.map((a, i) => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
+      '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button></td></tr>').join("") +
     '</table>';
+  document.querySelectorAll(".linkBtn").forEach(btn => btn.addEventListener("click", () => {
+    const a = DATA.activists[Number(btn.dataset.i)];
+    const link = "https://safeppl.github.io/maeum-salpigi/withwalking/?t=" + a.token;
+    navigator.clipboard.writeText(link).then(() => { btn.textContent = "복사됨"; setTimeout(() => btn.textContent = "링크 복사", 1500); });
+  }));
   h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
     DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
     '</table>';
