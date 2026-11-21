@@ -100,15 +100,15 @@ function renderDashboard() {
     DATA.activists.map((a, i) => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
       '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button></td></tr>').join("") +
     '</table>';
+  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
+    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
+    '</table>';
+  document.getElementById("main").innerHTML = h;
   document.querySelectorAll(".linkBtn").forEach(btn => btn.addEventListener("click", () => {
     const a = DATA.activists[Number(btn.dataset.i)];
     const link = "https://safeppl.github.io/maeum-salpigi/withwalking/?t=" + a.token;
     navigator.clipboard.writeText(link).then(() => { btn.textContent = "복사됨"; setTimeout(() => btn.textContent = "링크 복사", 1500); });
   }));
-  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
-    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
-    '</table>';
-  document.getElementById("main").innerHTML = h;
 }
 
 const SCALE_LEVELS_ = ["매우 그렇다", "그렇다", "그렇지 않다", "매우 그렇지 않다"];
