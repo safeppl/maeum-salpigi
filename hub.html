@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>안전한더유스 · 통합 관리자 허브</title>
+<style>
+  :root {
+    --bg: #FDF6EA; --surface: #FFFDF8; --ink: #241508; --muted: #6B5540; --line: #EAD9BE; --accent: #2C6765;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: "Apple SD Gothic Neo","Malgun Gothic",sans-serif; background: var(--bg); color: var(--ink); display: flex; flex-direction: column; }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); flex: none; }
+  header b { font-size: 15px; }
+  #tabs { display: none; align-items: center; gap: 6px; padding: 8px 16px 0; background: var(--surface); border-bottom: 1px solid var(--line); flex: none; }
+  #tabs button { font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px 8px 0 0; border: 1px solid var(--line); border-bottom: none; background: var(--bg); color: var(--muted); cursor: pointer; }
+  #tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #resetBtn { margin-left: auto; background: transparent !important; border: none !important; color: var(--muted); font-size: 12px; font-weight: 400 !important; padding: 8px 4px !important; }
+  #frames { display: none; flex: 1; position: relative; }
+  #frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: #fff; }
+  #frames iframe.on { display: block; }
+  #setup { display: none; max-width: 440px; margin: 48px auto; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  #setup .hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  #setup label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 4px; }
+  #setup input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  #setup button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<header><b>안전한더유스 · 통합 관리자 허브</b></header>
+
+<div id="setup">
+  <div class="hint">최초 1회만 각 시스템의 토큰(기존 관리자 링크에서 <code>t=</code> 뒤의 값)을 입력해 주세요. 이 브라우저에 저장되어, 다음부터는 이 페이지 주소(<code>hub.html</code>)만으로 바로 열립니다.</div>
+  <label>나의 마음살피기 토큰</label>
+  <input id="t-maeum" placeholder="기존 admin.html 링크의 t= 뒤 값">
+  <label>인력풀 관리 토큰</label>
+  <input id="t-recruit" placeholder="기존 recruit/admin.html 링크의 t= 뒤 값">
+  <label>위드워킹 보고서 토큰</label>
+  <input id="t-withwalking" placeholder="기존 withwalking/admin.html 링크의 t= 뒤 값">
+  <button id="saveBtn">저장하고 열기</button>
+</div>
+
+<div id="tabs"></div>
+<div id="frames"></div>
+
+<script>
+(function () {
+  var CONF = {
+    maeum: { label: '나의 마음살피기', path: 'admin.html' },
+    recruit: { label: '인력풀 관리', path: 'recruit/admin.html' },
+    withwalking: { label: '위드워킹 보고서', path: 'withwalking/admin.html' }
+  };
+  var keys = Object.keys(CONF);
+  var qs = new URLSearchParams(location.search);
+  var tokens = {};
+
+  // 1) 쿼리로 들어온 토큰은 이 브라우저에 저장해 둠(다음부터는 짧은 주소로 접근 가능)
+  keys.forEach(function (k) {
+    var v = qs.get(k);
+    if (v) localStorage.setItem('hub_t_' + k, v);
+  });
+
+  // 2) 저장된 값 기준으로 모읍니다
+  keys.forEach(function (k) {
+    var v = localStorage.getItem('hub_t_' + k);
+    if (v) tokens[k] = v;
+  });
+
+  var missing = keys.filter(function (k) { return !tokens[k]; });
+  if (missing.length) {
+    showSetup();
+  } else {
+    renderTabs();
+  }
+
+  function showSetup() {
+    document.getElementById('setup').style.display = 'block';
+    document.getElementById('saveBtn').onclick = function () {
+      keys.forEach(function (k) {
+        var el = document.getElementById('t-' + k);
+        var v = el && el.value.trim();
+        if (v) localStorage.setItem('hub_t_' + k, v);
+      });
+      location.href = location.pathname;
+    };
+  }
+
+  function renderTabs() {
+    var tabsEl = document.getElementById('tabs');
+    var framesEl = document.getElementById('frames');
+    tabsEl.style.display = 'flex';
+    framesEl.style.display = 'block';
+
+    keys.forEach(function (k, i) {
+      var btn = document.createElement('button');
+      btn.textContent = CONF[k].label;
+      btn.dataset.k = k;
+      if (i === 0) btn.className = 'on';
+      btn.onclick = function () { selectTab(k); };
+      tabsEl.appendChild(btn);
+
+      var f = document.createElement('iframe');
+      f.id = 'frame-' + k;
+      if (i === 0) f.className = 'on';
+      framesEl.appendChild(f);
+    });
+
+    var reset = document.createElement('button');
+    reset.id = 'resetBtn';
+    reset.textContent = '토큰 재설정';
+    reset.onclick = function () {
+      keys.forEach(function (k) { localStorage.removeItem('hub_t_' + k); });
+      location.href = location.pathname;
+    };
+    tabsEl.appendChild(reset);
+
+    selectTab(keys[0]);
+  }
+
+  function selectTab(k) {
+    document.querySelectorAll('#tabs button[data-k]').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.k === k);
+    });
+    document.querySelectorAll('#frames iframe').forEach(function (f) {
+      f.classList.toggle('on', f.id === 'frame-' + k);
+    });
+    var f = document.getElementById('frame-' + k);
+    if (!f.src) f.src = CONF[k].path + '?t=' + encodeURIComponent(tokens[k]);
+  }
+})();
+</script>
+</body>
+</html>
