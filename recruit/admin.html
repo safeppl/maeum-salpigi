@@ -141,6 +141,7 @@ function renderDetail(p) {
   h += '<div class="btns">' +
     (p.showCoach ? '<button class="act coach" id="btnCoach">코치로 등록</button>' : '') +
     (p.showActivist ? '<button class="act activist" id="btnActivist">활동가로 등록</button>' : '') +
+    (p.showCoach && p.showActivist ? '<button class="act activist" id="btnBoth">코치+활동가 둘 다 등록</button>' : '') +
     (p.showReject ? '<button class="act rej" id="btnReject">반려</button>' : '') +
     (p.needsTraining ? '<button class="act coach" id="btnTrain">이수확인 · 서류 업로드 링크 발급</button>' : '') +
     '</div>';
@@ -149,6 +150,7 @@ function renderDetail(p) {
   document.getElementById("main").innerHTML = h;
   if (p.showCoach) document.getElementById("btnCoach").addEventListener("click", e => act(p.rowIndex, "adminApproveCoach", e.target, "코치 등록"));
   if (p.showActivist) document.getElementById("btnActivist").addEventListener("click", e => act(p.rowIndex, "adminApproveActivist", e.target, "활동가 등록"));
+  if (p.showCoach && p.showActivist) document.getElementById("btnBoth").addEventListener("click", e => act(p.rowIndex, "adminApproveBoth", e.target, "코치+활동가 등록"));
   if (p.showReject) document.getElementById("btnReject").addEventListener("click", e => act(p.rowIndex, "adminReject", e.target, "반려"));
   if (p.needsTraining) document.getElementById("btnTrain").addEventListener("click", e => trainBtn(p.rowIndex, e.target));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
