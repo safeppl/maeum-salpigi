@@ -40,9 +40,58 @@
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
-      planChip(p.planStatus) +
+      planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
       '</div>';
   }
+
+  // 2026-11-23: 관리자가 이 화면에서 바로 계획서 승인/반려와 출퇴근 기록 인증을 할 수 있어요
+  function planBlock(p) {
+    const pl = p.plan;
+    if (!pl) return "";
+    let h = '<details class="plan-block"' + (pl.status === "대기" ? " open" : "") + '><summary>계획서 보기</summary>' +
+      '<div class="coach-meta">목표: ' + e(pl.goal) + '</div>' +
+      '<div class="coach-meta">기간: ' + e(pl.startDate) + ' ~ ' + e(pl.endDate) + ' · 주 ' + e(pl.weeklyHours) + '시간 · 장소: ' + e(pl.location) + '</div>' +
+      '<div class="coach-meta">활동 내용: ' + e(pl.content) + '</div>' +
+      (pl.comment ? '<div class="coach-meta">코멘트: ' + e(pl.comment) + '</div>' : '');
+    if (pl.status === "대기" || pl.status === "반려") {
+      h += '<textarea id="cm-' + e(p.code) + '" placeholder="코멘트(반려할 때는 사유를 꼭 적어 주세요)"></textarea>' +
+        '<div style="display:flex;gap:6px;margin-top:6px">' +
+        '<button class="btn btn-primary btn-sm" data-plan="승인" data-code="' + e(p.code) + '">계획서 승인</button>' +
+        '<button class="btn btn-ghost btn-sm" data-plan="반려" data-code="' + e(p.code) + '">반려</button></div>';
+    }
+    return h + '</details>';
+  }
+  function pendingBlock(p) {
+    if (!p.pending || !p.pending.length) return "";
+    return '<details class="plan-block" open><summary>출퇴근 기록 인증 대기 ' + p.pending.length + '건</summary>' +
+      p.pending.map(c => '<div class="coach-meta" style="border-top:1px solid var(--line);padding-top:6px;margin-top:6px">' +
+        '<b>' + e(c.date) + '</b> ' + e(c.type) + ' · ' + e(c.timeIn) + '~' + e(c.timeOut) + ' (' + e(c.hours) + '시간)' +
+        (c.place ? ' · ' + e(c.place) : '') + (c.mood ? ' · 기분: ' + e(c.mood) : '') +
+        (c.job ? '<br>직무: ' + e(c.job) : '') + (c.note ? '<br>소감: ' + e(c.note) : '') +
+        (c.photo ? '<br><a href="' + e(c.photo) + '" target="_blank" rel="noopener">사진 보기</a>' : '') +
+        '<br><button class="btn btn-primary btn-sm" style="margin-top:4px" data-checkin="' + c.rowIndex + '" data-code="' + e(p.code) + '" data-date="' + e(c.date) + '">인증</button></div>').join("") +
+      '</details>';
+  }
+  const ERR_ = { missing_comment: "반려할 때는 사유를 적어 주세요.", no_plan: "계획서를 찾지 못했어요.", changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요.", forbidden: "관리자 토큰이 맞지 않아요." };
+  app.addEventListener("click", async ev => {
+    const b = ev.target.closest("button[data-plan], button[data-checkin]");
+    if (!b) return;
+    const code = b.dataset.code;
+    let payload;
+    if (b.dataset.plan) {
+      const cm = document.getElementById("cm-" + code);
+      if (b.dataset.plan === "승인" && !confirm(code + " 계획서를 승인할까요? 승인하면 단계가 '일경험 진행'으로 넘어가요.")) return;
+      payload = { action: "adminReviewPlan", token, code: code, decision: b.dataset.plan, comment: cm ? cm.value : "" };
+    } else {
+      payload = { action: "adminApproveCheckin", token, code: code, rowIndex: Number(b.dataset.checkin), date: b.dataset.date };
+    }
+    b.disabled = true; const label = b.textContent; b.textContent = "처리 중…";
+    try {
+      const r = await api(payload);
+      if (!r.ok) { alert(ERR_[r.error] || ("처리하지 못했어요: " + r.error)); b.disabled = false; b.textContent = label; return; }
+      await load(); // 최신 상태로 다시 그려요
+    } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); b.disabled = false; b.textContent = label; }
+  });
 
   function dashboard() {
     const d = S.data;
