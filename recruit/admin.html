@@ -53,6 +53,9 @@ const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 let DATA = null, activeRow = null;
 
+// 2026-11-23: 시트에 저장되는 값(코치/활동가)은 그대로 두고 화면에서만 정식 명칭으로 보여줘요
+const ROLE_NAME = { "코치": "일경험 코치", "활동가": "동행활동가" };
+const roleNames = rs => rs.map(r => ROLE_NAME[r] || r).join(", ");
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 async function callAdmin(action, extra) {
@@ -84,7 +87,7 @@ function renderList() {
   document.getElementById("list").innerHTML = rows.map(p =>
     '<div class="p-item' + (p.rowIndex === activeRow ? " on" : "") + '" data-row="' + p.rowIndex + '">' +
       '<b>' + esc(p.name) + '</b>' +
-      '<span class="p-meta">' + esc(p.status) + ' · ' + esc(p.roles.join(", ")) + '</span></div>'
+      '<span class="p-meta">' + esc(p.status) + ' · ' + esc(roleNames(p.roles)) + '</span></div>'
   ).join("") || '<div class="msg">해당하는 신청자가 없어요.</div>';
   document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
     activeRow = Number(el.dataset.row); renderList(); renderDetail(DATA.applicants.find(p => p.rowIndex === activeRow));
@@ -97,7 +100,7 @@ function renderDashboard() {
     Object.keys(DATA.byStatus).map(s => '<div class="card"><b>' + DATA.byStatus[s] + '</b><span>' + esc(s) + '</span></div>').join("") +
     '</div>';
   h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>접수일</th></tr>' +
-    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(p.roles.join(", ")) + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.appliedAt) + '</td></tr>').join("") +
+    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.appliedAt) + '</td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
 }
@@ -134,7 +137,7 @@ function renderDetail(p) {
   if (!p) return;
   let h = '<p class="m"><b>' + esc(p.name) + ' · ' + esc(p.phone) + '</b> · ' + esc(p.status) + '</p>';
   h += '<p class="m">' + esc(p.sido) + ' ' + esc(p.sigungu) + ' · ' + esc(p.age) + '세 ' + esc(p.sex) + ' · 소속: ' + esc(p.org || "—") + '</p>';
-  h += '<p class="m">희망역할: ' + esc(p.roles.join(", ")) + '</p>';
+  h += '<p class="m">희망역할: ' + esc(roleNames(p.roles)) + '</p>';
   h += '<p class="m">활동경력: ' + esc(p.exp || "—") + '</p>';
   h += '<p class="m">참여동기: ' + esc(p.motive || "—") + '</p>';
   if (p.done.length) h += '<p class="m">이미 처리됨: ' + esc(p.done.join(", ")) + '</p>';
@@ -144,21 +147,21 @@ function renderDetail(p) {
   const isComplete = p.showReject && !p.showCoach && !p.showActivist && !p.needsTraining && p.docSubmittedAt;
   if (isComplete) h += '<p class="m" style="color:#2C6765;font-weight:700">✅ 등록 완료 — 희망한 역할 등록, 양성교육 이수확인, 서류 제출까지 모두 끝났어요.</p>';
   h += '<div class="btns">' +
-    (p.showCoach ? '<button class="act coach" id="btnCoach">코치로 등록</button>' : '') +
-    (p.showActivist ? '<button class="act activist" id="btnActivist">활동가로 등록</button>' : '') +
-    (p.showCoach && p.showActivist ? '<button class="act activist" id="btnBoth">코치+활동가 둘 다 등록</button>' : '') +
+    (p.showCoach ? '<button class="act coach" id="btnCoach">일경험 코치로 등록</button>' : '') +
+    (p.showActivist ? '<button class="act activist" id="btnActivist">동행활동가로 등록</button>' : '') +
+    (p.showCoach && p.showActivist ? '<button class="act activist" id="btnBoth">동행활동가+일경험 코치 둘 다 등록</button>' : '') +
     (p.showReject ? '<button class="act rej" id="btnReject">반려</button>' : '') +
     (p.needsTraining ? '<button class="act coach" id="btnTrain">' + (p.docSubmittedAt ? '이수확인(서류는 이미 제출·인정됨)' : '이수확인 · 서류 업로드 링크 발급') + '</button>' : '') +
     (p.canAcknowledgeDocs ? '<button class="act rej" id="btnAck">기존 서류 제출 인정(재업로드 생략)</button>' : '') +
     (p.docsAcknowledged ? '<button class="act rej" id="btnUnack">서류 인정 취소</button>' : '') +
-    (p.addableRoles || []).map(r => '<button class="act ' + (r === "코치" ? "coach" : "activist") + ' addRole" data-role="' + r + '">' + r + ' 역할 추가 등록</button>').join("") +
+    (p.addableRoles || []).map(r => '<button class="act ' + (r === "코치" ? "coach" : "activist") + ' addRole" data-role="' + r + '">' + ROLE_NAME[r] + ' 역할 추가 등록</button>').join("") +
     '</div>';
   h += '<div class="linkBox" id="linkBox" style="display:none"><textarea id="linkText" readonly></textarea>' +
     '<div class="btns"><button class="act rej" id="btnCopy">문구 복사</button><span class="m" id="copyMsg"></span></div></div>';
   document.getElementById("main").innerHTML = h;
-  if (p.showCoach) document.getElementById("btnCoach").addEventListener("click", e => act(p.rowIndex, "adminApproveCoach", e.target, "코치 등록"));
-  if (p.showActivist) document.getElementById("btnActivist").addEventListener("click", e => act(p.rowIndex, "adminApproveActivist", e.target, "활동가 등록"));
-  if (p.showCoach && p.showActivist) document.getElementById("btnBoth").addEventListener("click", e => act(p.rowIndex, "adminApproveBoth", e.target, "코치+활동가 등록"));
+  if (p.showCoach) document.getElementById("btnCoach").addEventListener("click", e => act(p.rowIndex, "adminApproveCoach", e.target, "일경험 코치 등록"));
+  if (p.showActivist) document.getElementById("btnActivist").addEventListener("click", e => act(p.rowIndex, "adminApproveActivist", e.target, "동행활동가 등록"));
+  if (p.showCoach && p.showActivist) document.getElementById("btnBoth").addEventListener("click", e => act(p.rowIndex, "adminApproveBoth", e.target, "동행활동가+일경험 코치 등록"));
   if (p.showReject) document.getElementById("btnReject").addEventListener("click", e => act(p.rowIndex, "adminReject", e.target, "반려"));
   if (p.needsTraining) document.getElementById("btnTrain").addEventListener("click", e => trainBtn(p.rowIndex, e.target));
   if (p.canAcknowledgeDocs) document.getElementById("btnAck").addEventListener("click", e => act(p.rowIndex, "adminAcknowledgeDocs", e.target, "서류 제출 인정"));
@@ -166,7 +169,7 @@ function renderDetail(p) {
   // 한 역할로만 신청한 사람에게 다른 역할을 재신청 없이 추가하고 바로 등록해요(희망역할에도 기록됨)
   document.querySelectorAll(".addRole").forEach(b => b.addEventListener("click", e => {
     const role = b.dataset.role;
-    if (confirm(p.name + "님을 " + role + "로도 등록할까요? 희망역할에 " + role + "가 추가되고 바로 등록돼요.")) act(p.rowIndex, "adminAddRole", e.target, role + " 역할 추가 등록", { role: role });
+    if (confirm(p.name + "님을 " + ROLE_NAME[role] + "(으)로도 등록할까요? 희망역할에 추가되고 바로 등록돼요.")) act(p.rowIndex, "adminAddRole", e.target, ROLE_NAME[role] + " 역할 추가 등록", { role: role });
   }));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
 }

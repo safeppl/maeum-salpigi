@@ -48,9 +48,9 @@
   }
 
   function formScreen() {
-    return '<div class="brand"><b>코치·활동가 신청</b><span>안전한더유스</span></div>' +
+    return '<div class="brand"><b>동행활동가·일경험 코치 신청</b><span>안전한더유스</span></div>' +
       '<div class="sec-intro"><p class="eyebrow">상시 접수</p><h2>함께해 주실 분을 찾아요</h2>' +
-      '<p class="muted">코치는 자기주도적 일경험 참여자를, 활동가는 1:1 일상회복 동행 참여자를 만나요. 둘 다 지원하셔도 돼요.</p></div>' +
+      '<p class="muted"><b>동행활동가</b>는 청년과 1:1로 동행하며 정서를 지원해요(미래내일일경험 사업에서는 <b>동행코치</b>로 불러요). <b>일경험 코치</b>는 도봉·용인 등 지역사업의 자기주도 일경험 참여자를 멘토링하고 주 10시간 이상 활동을 인증해요. 둘 다 지원하셔도 돼요.</p></div>' +
       '<div class="form">' +
       '<div class="field"><label>이름</label><input type="text" id="f-name"></div>' +
       '<div class="field"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>' +
@@ -62,7 +62,7 @@
       '<div class="field"><label>나이</label><input type="number" id="f-age" min="14" max="100"></div>' +
       '<div class="field"><label>소속 <span class="hint">(학교·직장·단체 등, 없으면 없음)</span></label><input type="text" id="f-org"></div>' +
       '<div class="field"><label>희망 역할 <span class="hint">(중복 선택 가능)</span></label><div class="choices">' +
-      ["코치", "활동가"].map(v => '<label><input type="checkbox" class="f-role" value="' + v + '">' + v + '</label>').join("") + '</div></div>' +
+      [["활동가", "동행활동가 (미래내일일경험: 동행코치)"], ["코치", "일경험 코치"]].map(([v, label]) => '<label><input type="checkbox" class="f-role" value="' + v + '">' + label + '</label>').join("") + '</div></div>' +
       '<div class="field"><label>활동 경력<span class="hint">(진로코칭2년, 청소년 봉사 3년, 사회복지사3년 등으로 표기, 없으면 없음)</span></label><textarea id="f-exp" placeholder="관련 활동이나 경력이 있다면 적어주세요"></textarea></div>' +
       '<div class="field"><label>참여 동기</label><textarea id="f-motive" placeholder="지원 동기를 적어주세요"></textarea></div>' +
       '<label class="consent"><input type="checkbox" id="f-agree"><span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 연락처, 거주지역, 성별, 나이, 소속을 신청서 검토와 연락 목적으로만 쓰고, 모집 종료 후 파기해요.</span></span></label>' +
@@ -72,7 +72,7 @@
   }
 
   function doneScreen() {
-    return '<div class="sec-intro"><p class="eyebrow">코치·활동가 신청</p><h2>신청이 접수됐어요</h2>' +
+    return '<div class="sec-intro"><p class="eyebrow">동행활동가·일경험 코치 신청</p><h2>신청이 접수됐어요</h2>' +
       '<p class="muted">검토 후 담당자가 연락드릴게요. 함께해 주셔서 고마워요.</p></div>' + contacts();
   }
 
