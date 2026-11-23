@@ -294,9 +294,12 @@ function renderDetail(p) {
   h += '<div class="statusRow">사업: <select id="bizSelect">' + bizOptions + '</select>' +
     '<button id="bizBtn">변경</button><span id="bizMsg" class="m"></span></div>';
   const activistOptions = '<option value="">미배정</option>' + (DATA.activistList || [])
-    .map(name => '<option value="' + esc(name) + '"' + (name === p.activist ? " selected" : "") + '>' + esc(name) + '</option>').join("");
+    .map(name => {
+      const role = (DATA.activistRoles || {})[name] || ""; // 2026-11-23: 코치는 이름 옆에 (코치)로 구분
+      return '<option value="' + esc(name) + '"' + (name === p.activist ? " selected" : "") + '>' + esc(name) + (role && role !== "활동가" ? " (" + esc(role) + ")" : "") + '</option>';
+    }).join("");
   const trackOptions = ["15", "10"].map(t => '<option value="' + t + '"' + (String(p.track || "15") === t ? " selected" : "") + '>' + t + '회 종결</option>').join("");
-  h += '<div class="statusRow">담당활동가: <select id="activistSelect">' + activistOptions + '</select>' +
+  h += '<div class="statusRow">담당활동가·코치: <select id="activistSelect">' + activistOptions + '</select>' +
     '트랙: <select id="trackSelect">' + trackOptions + '</select>' +
     '<button id="activistBtn">지정</button><span id="activistMsg" class="m"></span></div>';
   h += '<p class="m">참여 단계: ' +
