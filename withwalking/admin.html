@@ -65,8 +65,12 @@ let DATA = null, activeCode = null;
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 async function fetchData() {
-  const res = await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN));
-  const json = await res.json();
+  // Apps Script가 가끔(한동안 쉬다가 첫 요청 등) 응답을 못 줘서 "Failed to fetch"가 나요 — 접속 실패일 때만 최대 3번 다시 시도
+  let json;
+  for (let attempt = 1; ; attempt++) {
+    try { json = await (await fetch(SCRIPT_URL + "?action=adminOverview&token=" + encodeURIComponent(TOKEN))).json(); break; }
+    catch (err) { if (attempt >= 3) throw err; await new Promise(r => setTimeout(r, 1500 * attempt)); }
+  }
   if (!json.ok) throw new Error(json.error || "오류");
   DATA = json;
   renderFilters();
