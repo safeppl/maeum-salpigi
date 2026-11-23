@@ -102,6 +102,9 @@
       tokenKeys.forEach(function (k) {
         var el = document.getElementById('t-' + k);
         var v = el && el.value.trim();
+        // 링크 전체(…admin.html?t=값)를 붙여넣어도 t= 뒤의 값만 꺼내 저장해요
+        var m = v && v.match(/[?&]t=([^&#\s]+)/);
+        if (m) v = decodeURIComponent(m[1]);
         if (v) localStorage.setItem('hub_t_' + k, v);
       });
       location.href = location.pathname;

@@ -70,7 +70,9 @@
       }
       S.screen = "ready"; render();
     } catch (err) {
-      S.err = "불러오지 못했어요."; S.screen = "error"; render();
+      S.err = err.message === "forbidden"
+        ? "관리자 토큰이 맞지 않아요. 시트 메뉴 [일경험 관리 → 관리자 대시보드 링크 보기]의 t= 뒤 값을 다시 넣어 주세요."
+        : "불러오지 못했어요. 잠시 뒤 다시 시도해 주세요."; S.screen = "error"; render();
     }
   }
 
