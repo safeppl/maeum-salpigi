@@ -38,6 +38,8 @@
   <input id="t-recruit" placeholder="기존 recruit/admin.html 링크의 t= 뒤 값">
   <label>위드워킹 보고서 토큰</label>
   <input id="t-withwalking" placeholder="기존 withwalking/admin.html 링크의 t= 뒤 값">
+  <label>자기주도 일경험 토큰</label>
+  <input id="t-ilgyeongheom" placeholder="일경험 시트 메뉴 [일경험 관리 → 관리자 대시보드 링크 보기]의 t= 뒤 값">
   <button id="saveBtn">저장하고 열기</button>
   <button id="cancelBtn" style="display:none;background:transparent;color:var(--muted);box-shadow:none;">취소</button>
 </div>
@@ -50,7 +52,8 @@
   var CONF = {
     maeum: { label: '나의 마음살피기', path: 'admin.html' },
     recruit: { label: '인력풀 관리', path: 'recruit/admin.html' },
-    withwalking: { label: '위드워킹 보고서', path: 'withwalking/admin.html' }
+    withwalking: { label: '위드워킹 보고서', path: 'withwalking/admin.html' },
+    ilgyeongheom: { label: '자기주도 일경험', path: 'ilgyeongheom/admin.html' }
   };
   var keys = Object.keys(CONF);
   var qs = new URLSearchParams(location.search);
