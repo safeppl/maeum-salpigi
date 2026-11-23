@@ -47,6 +47,10 @@
     </div>
     <label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(10회 또는 15회 활동인지 확인 후 체크할 것! 체크하면 참여자와 동행활동이 종료 처리되니 유의하세요!)</label>
 
+    <label>대면 시 활동 내용<span class="sub">대상자와 활동한 내용들을 모두 체크해 주세요!</span></label>
+    <div id="faceActs"></div>
+    <input id="faceActEtc" placeholder="기타(직접 입력, 없으면 비워두세요)">
+
     <label>대면활동 — 날짜</label>
     <input id="faceDate" type="date">
     <p class="sub" id="faceDayHint" style="margin-top:2px"></p>
@@ -88,6 +92,17 @@
     <textarea id="nextFace" rows="2"></textarea>
     <label>이후 활동계획 — 비대면</label>
     <textarea id="nextRemote" rows="2"></textarea>
+    <div id="schedBox">
+      <label>다음 일정 등록<span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차)). 정해지지 않았으면 비워두세요.</span></label>
+      <div class="row2">
+        <div><label style="margin-top:0">다음 대면 — 날짜</label><input id="nextFaceDate" type="date"></div>
+        <div><label style="margin-top:0">시간</label><select id="nextFaceTime"></select></div>
+      </div>
+      <div class="row2">
+        <div><label style="margin-top:0">다음 비대면 — 날짜</label><input id="nextRemoteDate" type="date"></div>
+        <div><label style="margin-top:0">시간</label><select id="nextRemoteTime"></select></div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -170,7 +185,13 @@ function bindDateHint_(dateId, hintId) {
   const dateEl = document.getElementById(dateId), hintEl = document.getElementById(hintId);
   dateEl.addEventListener('change', () => { hintEl.textContent = dayOf(dateEl.value); });
 }
-['faceTime', 'remote1Time', 'remote2Time'].forEach(fillTimeSelect_);
+['faceTime', 'remote1Time', 'remote2Time', 'nextFaceTime', 'nextRemoteTime'].forEach(fillTimeSelect_);
+
+// 원본 구글폼 "대면 시 활동 내용" 보기와 같아야 해요(서버 Code.gs의 FACE_ACTIVITIES).
+const FACE_ACTIVITIES = ['초기 면접 과정을 숙지하고 상황을 이해했음', '원하는 장소로 이동했음', '자주 찾거나 익숙한 장소에서 대화했음',
+  '이야기를 최대한 경청했음', '조언을 해주었음', '고민 해결을 위해 노력했음', '집까지 배웅 또는 가는 것을 끝까지 지켜봐 주었음'];
+document.getElementById('faceActs').innerHTML = FACE_ACTIVITIES.map((a, i) =>
+  '<label style="font-weight:400;margin-top:6px"><input type="checkbox" class="faceAct" value="' + a + '" style="width:auto;display:inline-block;margin-right:6px">' + a + '</label>').join('');
 bindDateHint_('faceDate', 'faceDayHint');
 bindDateHint_('remote1Date', 'remote1DayHint');
 bindDateHint_('remote2Date', 'remote2DayHint');
@@ -260,13 +281,36 @@ let editing = null; // {code, round} — 수정 모드일 때만 값이 들어�
 function renderMyReports(list) {
   const wrap = document.getElementById('myReports');
   if (!list.length) { wrap.innerHTML = '<p class="muted">아직 제출한 보고서가 없어요.</p>'; return; }
-  wrap.innerHTML = list.map((r, i) =>
+  // 참여자별 누적 보고서(초기면접지 포함)를 PDF로 보기만 해요 — 원본 문서는 공유하지 않아서 고칠 수 없어요.
+  const people = [];
+  list.forEach(r => { if (!people.some(p => p.code === r.code)) people.push({ code: r.code, name: r.name }); });
+  const viewHtml = '<p class="muted" style="margin:0 0 6px"><b>보고서 전체 보기(PDF, 초기면접지 포함)</b></p>' +
+    people.map(p => '<button type="button" class="viewBtn" data-code="' + p.code + '" style="width:auto;display:inline-block;padding:6px 10px;margin:0 6px 6px 0;font-size:13px">' + p.name + '</button>').join('') +
+    '<p class="muted" id="viewMsg" style="margin:2px 0 10px"></p><p class="muted" style="margin:0"><b>제출한 보고서</b></p>';
+  wrap.innerHTML = viewHtml + list.map((r, i) =>
     '<p class="muted" style="margin:8px 0">' + r.name + ' · ' + r.round + '회차 · ' + r.writtenAt +
-    (r.doc ? ' <a href="' + r.doc + '" target="_blank" style="color:var(--teal)">문서 보기</a>' : '') +
     (r.editable ? ' <button type="button" class="editBtn" data-i="' + i + '" style="width:auto;display:inline;padding:4px 8px;margin:0;font-size:12px">수정하기</button>'
       : ' <span style="color:var(--muted)">(수정 불가)</span>') + '</p>'
   ).join('');
   wrap.querySelectorAll('.editBtn').forEach(btn => btn.addEventListener('click', () => loadForEdit(list[Number(btn.dataset.i)])));
+  wrap.querySelectorAll('.viewBtn').forEach(btn => btn.addEventListener('click', () => viewDoc(btn.dataset.code)));
+}
+
+async function viewDoc(code) {
+  const msg = document.getElementById('viewMsg');
+  const win = window.open('', '_blank'); // 휴대폰 팝업 차단을 피하려고 누르는 순간 창부터 열어둬요
+  if (win) win.document.write('<p style="font-family:sans-serif;padding:20px">보고서를 불러오는 중이에요… (사진이 많으면 10초쯤 걸려요)</p>');
+  msg.textContent = '불러오는 중이에요…';
+  const res = await post({ action: 'viewMyDoc', token, code }).catch(() => ({ ok: false }));
+  if (!res.ok) {
+    msg.textContent = res.error === 'no_doc' ? '아직 만들어진 보고서 문서가 없어요.' : '불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+    if (win) win.close();
+    return;
+  }
+  const bytes = Uint8Array.from(atob(res.pdf), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  if (win) { win.location.href = url; msg.textContent = ''; }
+  else { msg.innerHTML = '<a href="' + url + '" target="_blank" style="color:var(--teal)">' + res.name + ' 보고서 열기</a>'; }
 }
 
 document.getElementById('myReportsBtn').addEventListener('click', async () => {
@@ -296,6 +340,11 @@ async function loadForEdit(item) {
   set('remote1Date', r['비대면1_날짜']); set('remote1Time', r['비대면1_시간']); set('remote1How', r['비대면1_수단']); set('remote1Talk', r['비대면1_내용']);
   set('remote2Date', r['비대면2_날짜']); set('remote2Time', r['비대면2_시간']); set('remote2How', r['비대면2_수단']); set('remote2Talk', r['비대면2_내용']);
   set('nextFace', r['다음계획_대면']); set('nextRemote', r['다음계획_비대면']);
+  const acts = String(r['대면_활동내용'] || '').split(', ');
+  document.querySelectorAll('.faceAct').forEach(cb => { cb.checked = acts.indexOf(cb.value) >= 0; });
+  const etc = acts.find(a => a.indexOf('기타: ') === 0);
+  set('faceActEtc', etc ? etc.slice(4) : '');
+  document.getElementById('schedBox').style.display = 'none'; // 일정은 수정 때 다시 적지 않아요(스케줄표에서 직접 고쳐 주세요)
   document.getElementById('faceDayHint').textContent = r['대면_요일'] || '';
   document.getElementById('remote1DayHint').textContent = r['비대면1_요일'] || '';
   document.getElementById('remote2DayHint').textContent = r['비대면2_요일'] || '';
@@ -337,14 +386,25 @@ document.getElementById('submit').onclick = async () => {
     remote2Talk: document.getElementById('remote2Talk').value,
     nextFace: document.getElementById('nextFace').value,
     nextRemote: document.getElementById('nextRemote').value,
-    finalize: document.getElementById('finalize').checked
+    finalize: document.getElementById('finalize').checked,
+    faceActs: [...document.querySelectorAll('.faceAct:checked')].map(cb => cb.value),
+    faceActEtc: document.getElementById('faceActEtc').value.trim(),
+    nextFaceDate: document.getElementById('nextFaceDate').value,
+    nextFaceTime: document.getElementById('nextFaceTime').value,
+    nextRemoteDate: document.getElementById('nextRemoteDate').value,
+    nextRemoteTime: document.getElementById('nextRemoteTime').value
   };
   SCALE_ITEMS.forEach(([key]) => {
     form[key] = scaleVals[key];
     form[key + '_근거'] = document.getElementById(key + '_evidence').value;
   });
   const res = await post({ action: editing ? 'editReport' : 'report', token, form });
-  if (res.ok) { document.getElementById('app').style.display = 'none'; document.getElementById('done').style.display = 'block'; }
+  if (res.ok) {
+    document.getElementById('app').style.display = 'none';
+    const done = document.getElementById('done');
+    done.style.display = 'block';
+    if (res.notes && res.notes.length) done.innerHTML += '<br><br>' + res.notes.map(n => n.replace(/</g, '&lt;')).join('<br>');
+  }
   else { msg.textContent = '제출하지 못했어요: ' + res.error; btn.disabled = false; }
 };
 </script>

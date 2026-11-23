@@ -14,6 +14,7 @@
   #side header { padding: 14px; border-bottom: 1px solid var(--border); }
   #side header b { font-size: 15px; } #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 12.5px; }
+  .sideSel { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--text); width: calc(100% - 24px); }
   #dashBtn { margin: 0 12px 10px; padding: 9px; border: 0; border-radius: 8px; background: var(--teal); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
   #list { flex: 1; overflow-y: auto; padding: 4px 8px; }
   .p-item { padding: 8px 9px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; font-size: 12.5px; }
@@ -46,6 +47,9 @@
   <div id="side">
     <header><b>안전한더유스</b><span>위드워킹 관리자 화면</span></header>
     <input id="search" placeholder="이름·참여번호 검색">
+    <select id="personFilter" class="sideSel"></select>
+    <select id="bizFilter" class="sideSel"></select>
+    <select id="yearFilter" class="sideSel"></select>
     <button id="dashBtn">대시보드</button>
     <div id="list"></div>
   </div>
@@ -65,6 +69,7 @@ async function fetchData() {
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "오류");
   DATA = json;
+  renderFilters();
   renderList();
 }
 
@@ -74,13 +79,34 @@ async function load() {
   catch (err) { document.getElementById("main").innerHTML = '<div class="msg">불러오지 못했어요: ' + esc(err.message) + '</div>'; }
 }
 
+// 사이드바 드롭다운(담당 활동가·코치 / 사업 / 연도) — 실제 데이터에 있는 값만 골라 채워요.
+const yearOf = p => (p.assignedAt || "").slice(0, 4);
+function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(label) + '</option>'; }
+function renderFilters() {
+  const keep = id => document.getElementById(id).value || "";
+  const person = keep("personFilter"), biz = keep("bizFilter"), year = keep("yearFilter");
+  const group = role => DATA.activists.filter(a => (a.role || "활동가").indexOf(role) >= 0).map(a => a.name);
+  const og = (label, names) => names.length ? '<optgroup label="' + label + '">' + names.map(n => opt(n, n, person)).join("") + '</optgroup>' : "";
+  document.getElementById("personFilter").innerHTML = opt("", "전체 활동가·코치", person) + og("활동가", group("활동가")) + og("코치", group("코치")) + opt("미배정", "미배정", person);
+  const bizs = Array.from(new Set(DATA.participants.map(p => p.biz).filter(Boolean))).sort();
+  document.getElementById("bizFilter").innerHTML = opt("", "전체 사업", biz) + bizs.map(b => opt(b, b, biz)).join("");
+  const years = Array.from(new Set(DATA.participants.map(yearOf).filter(Boolean))).sort().reverse();
+  document.getElementById("yearFilter").innerHTML = opt("", "전체 연도", year) + years.map(y => opt(y, y + "년", year)).join("");
+}
+function matches(p, q) {
+  const person = document.getElementById("personFilter").value, biz = document.getElementById("bizFilter").value, year = document.getElementById("yearFilter").value;
+  return (!q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0) &&
+    (!person || (person === "미배정" ? !p.activistName : p.activistName === person)) &&
+    (!biz || p.biz === biz) && (!year || yearOf(p) === year);
+}
+
 function renderList() {
   const q = document.getElementById("search").value.trim();
-  const rows = DATA.participants.filter(p => !q || p.name.indexOf(q) >= 0 || p.code.indexOf(q) >= 0);
+  const rows = DATA.participants.filter(p => matches(p, q));
   document.getElementById("list").innerHTML = rows.map(p =>
     '<div class="p-item' + (p.code === activeCode ? " on" : "") + '" data-code="' + esc(p.code) + '">' +
       '<b>' + esc(p.code) + '</b> ' + esc(p.name) +
-      '<span class="p-meta">' + esc(p.status) + (p.activistName ? " · 활동가 " + esc(p.activistName) : " · 미배정") + " · 보고서 " + p.reportCount + "건" + '</span></div>'
+      '<span class="p-meta">' + esc(p.status) + (p.biz ? " · " + esc(p.biz) : "") + (p.activistName ? " · 활동가 " + esc(p.activistName) : " · 미배정") + " · 보고서 " + p.reportCount + "건" + '</span></div>'
   ).join("") || '<div class="msg">해당하는 참여자가 없어요.</div>';
   document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
     activeCode = el.dataset.code; renderList(); renderDetail(DATA.participants.find(p => p.code === activeCode));
@@ -92,12 +118,12 @@ function renderDashboard() {
   const ongoing = DATA.participants.filter(p => p.status !== "종료").length;
   const ended = DATA.participants.length - ongoing;
   let h = '<div class="cards">' +
-    '<div class="card"><b>' + DATA.activists.length + '</b><span>활동가</span></div>' +
+    '<div class="card"><b>' + DATA.activists.length + '</b><span>활동가·코치</span></div>' +
     '<div class="card"><b>' + ongoing + '</b><span>진행중 참여자</span></div>' +
     '<div class="card"><b>' + ended + '</b><span>종료</span></div>' +
     '<div class="card"><b>' + DATA.reports.length + '</b><span>누적 보고서</span></div></div>';
-  h += '<h2>활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
-    DATA.activists.map((a, i) => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
+  h += '<h2>활동가·코치 (' + DATA.activists.length + '명)</h2><table><tr><th>역할</th><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
+    DATA.activists.map((a, i) => '<tr><td>' + esc(a.role || "활동가") + '</td><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
       '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button> <span class="m linkMsg" data-i="' + i + '"></span></td></tr>').join("") +
     '</table>';
   h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
@@ -152,12 +178,14 @@ function renderDetail(p) {
   h += reports.map(r => {
     let c = '<div class="report"><h3>' + esc(r.round || "") + '회차 · ' + esc(r.writtenAt) + '</h3>';
     const faceLine = [r.faceDate, r.faceDay, r.faceTime].filter(Boolean).map(esc).join(" ");
+    if (r.faceActs) c += '<p class="m"><b>대면 활동 내용</b> — ' + esc(r.faceActs) + '</p>';
     c += '<p class="m"><b>대면</b> — ' + (faceLine || "—") + (r.facePlace ? " · " + esc(r.facePlace) : "") + '</p><p>' + esc(r.faceTalk || "").replace(/\n/g, "<br>") + '</p>';
     if (r.facePhoto) c += '<p class="m"><a href="' + esc(r.facePhoto) + '" target="_blank">활동 사진 보기</a></p>';
     if (r.faceNote) c += '<p class="m">특이사항: ' + esc(r.faceNote) + '</p>';
     const remoteHtml = [r.remote1, r.remote2].filter(x => x[0] || x[4]).map(remoteLine).join("<br>");
     if (remoteHtml) c += '<p class="m"><b>비대면 연락</b></p><p>' + remoteHtml + '</p>';
     if (r.nextFace || r.nextRemote) c += '<p class="m"><b>다음 계획</b></p><p>' + esc(r.nextFace || "") + (r.nextRemote ? '<br>' + esc(r.nextRemote) : '') + '</p>';
+    if (r.nextFaceSched || r.nextRemoteSched) c += '<p class="m"><b>다음 일정(스케줄표 등록)</b> — ' + [r.nextFaceSched && "대면 " + esc(r.nextFaceSched), r.nextRemoteSched && "비대면 " + esc(r.nextRemoteSched)].filter(Boolean).join(" · ") + '</p>';
     if (r.doc) c += '<p class="m"><a href="' + esc(r.doc) + '" target="_blank">제출용 문서 보기</a></p>';
     c += '<details><summary>참여자 반응 변화 체크(15문항) 보기</summary>' + r.scale.map(scaleRowHtml).join("") + '</details>';
     c += '</div>';
@@ -168,6 +196,7 @@ function renderDetail(p) {
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
 document.getElementById("search").addEventListener("input", renderList);
+["personFilter", "bizFilter", "yearFilter"].forEach(id => document.getElementById(id).addEventListener("change", renderList));
 load();
 </script>
 </body>
