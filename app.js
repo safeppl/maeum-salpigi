@@ -195,11 +195,12 @@
   function eligibility() {
     const a = S.apply, y = parseInt(a.year, 10);
     if (!a.sigungu || !(y > 1900 && y <= YEAR)) return null;
-    const age = YEAR - y, max = isDobong(a) ? 45 : 39;
-    return { ok: age >= 19 && age <= max, max };
+    const future = a.specialBiz === "future"; // 미래내일일경험은 지역과 상관없이 만 15~34세
+    const age = YEAR - y, min = future ? 15 : 19, max = future ? 34 : isDobong(a) ? 45 : 39;
+    return { ok: age >= min && age <= max, min, max };
   }
   const eligHtml = el => el.ok ? `<p class="elig yes">신청할 수 있는 나이예요.</p>`
-    : `<p class="elig no">이 사업은 만 19~${el.max}세 청년을 대상으로 해요. 다른 도움이 필요하면 아래 연락처로 물어봐 주세요.</p>`;
+    : `<p class="elig no">이 사업은 만 ${el.min}~${el.max}세 청년을 대상으로 해요. 다른 도움이 필요하면 아래 연락처로 물어봐 주세요.</p>`;
   function addrHtml() {
     const a = S.apply, sgg = a.sido ? REGIONS[a.sido].split(" ") : [];
     const opt = (list, cur, ph) => `<option value="">${ph}</option>` + list.map(x => `<option ${x === cur ? "selected" : ""}>${x}</option>`).join("");
@@ -229,7 +230,7 @@
       <fieldset class="field"><legend>성별</legend><div class="choices">${radio("sex", [["m", "남성"], ["f", "여성"]])}</div>${er("sex", "성별을 골라주세요.")}</fieldset>
       <div class="field"><label for="year">태어난 해</label>
         <input type="number" id="year" name="year" inputmode="numeric" placeholder="예: 1998" value="${esc(a.year || "")}">
-        <span class="hint">도봉구는 만 19~45세, 그 외 지역은 만 19~39세 청년이 신청할 수 있어요.</span>${er("year", "태어난 해를 네 자리 숫자로 적어주세요.")}</div>
+        <span class="hint">도봉구는 만 19~45세, 그 외 지역은 만 19~39세, 미래내일일경험은 만 15~34세 청년이 신청할 수 있어요.</span>${er("year", "태어난 해를 네 자리 숫자로 적어주세요.")}</div>
       <fieldset class="field"><legend>사는 곳</legend><div id="addr">${addrHtml()}</div>
         ${er("addr", "시/도와 시/군/구를 고르고, 동을 적어주세요.")}<div id="elig">${el ? eligHtml(el) : ""}</div></fieldset>
       <fieldset class="field"><legend>미래내일일경험·갭이어 신청자만 선택</legend>
@@ -639,7 +640,7 @@
         f.querySelector("#wantChoices").innerHTML = wantChoicesHtml(a);
       }
       if (["contact", "house", "route"].includes(t.name)) { const w = f.querySelector("#" + t.name + "-etc-wrap"); w.hidden = t.value !== "etc"; if (t.value === "etc") w.querySelector("input").focus(); }
-      if (["sido", "sigungu", "year"].includes(t.name)) { const el = eligibility(); f.querySelector("#elig").innerHTML = el ? eligHtml(el) : ""; }
+      if (["sido", "sigungu", "year", "specialBiz"].includes(t.name)) { const el = eligibility(); f.querySelector("#elig").innerHTML = el ? eligHtml(el) : ""; }
     } else if (f.id === "sat-form") {
       const M = S.satMeta;
       if (t.name === "satStage") {
