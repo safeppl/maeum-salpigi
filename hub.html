@@ -53,25 +53,28 @@
     maeum: { label: '나의 마음살피기', path: 'admin.html' },
     recruit: { label: '인력풀 관리', path: 'recruit/admin.html' },
     withwalking: { label: '위드워킹 보고서', path: 'withwalking/admin.html' },
-    ilgyeongheom: { label: '자기주도 일경험', path: 'ilgyeongheom/admin.html' }
+    ilgyeongheom: { label: '자기주도 일경험', path: 'ilgyeongheom/admin.html' },
+    // 바로가기 탭: 위드워킹 관리자 화면을 미래내일일경험으로 걸러 요약부터 보여줘요(토큰은 위드워킹 것을 같이 씀)
+    mirae: { label: '미래내일일경험', path: 'withwalking/admin.html?biz=' + encodeURIComponent('미래내일일경험'), tokenOf: 'withwalking' }
   };
   var keys = Object.keys(CONF);
+  var tokenKeys = keys.filter(function (k) { return !CONF[k].tokenOf; }); // 토큰 입력칸이 있는 탭만(바로가기 탭 제외)
   var qs = new URLSearchParams(location.search);
   var tokens = {};
 
   // 1) 쿼리로 들어온 토큰은 이 브라우저에 저장해 둠(다음부터는 짧은 주소로 접근 가능)
-  keys.forEach(function (k) {
+  tokenKeys.forEach(function (k) {
     var v = qs.get(k);
     if (v) localStorage.setItem('hub_t_' + k, v);
   });
 
   // 2) 저장된 값 기준으로 모읍니다
-  keys.forEach(function (k) {
+  tokenKeys.forEach(function (k) {
     var v = localStorage.getItem('hub_t_' + k);
     if (v) tokens[k] = v;
   });
 
-  var missing = keys.filter(function (k) { return !tokens[k]; });
+  var missing = tokenKeys.filter(function (k) { return !tokens[k]; });
   if (missing.length) {
     showSetup();
   } else {
@@ -85,7 +88,7 @@
 
     // 기존에 저장된 값이 있으면 미리 채워둬서, 틀린 것 하나만 고치면 되게 함
     var hasAll = true;
-    keys.forEach(function (k) {
+    tokenKeys.forEach(function (k) {
       var el = document.getElementById('t-' + k);
       var cur = localStorage.getItem('hub_t_' + k);
       if (cur) el.value = cur; else hasAll = false;
@@ -96,7 +99,7 @@
     cancelBtn.onclick = function () { location.href = location.pathname; };
 
     document.getElementById('saveBtn').onclick = function () {
-      keys.forEach(function (k) {
+      tokenKeys.forEach(function (k) {
         var el = document.getElementById('t-' + k);
         var v = el && el.value.trim();
         if (v) localStorage.setItem('hub_t_' + k, v);
@@ -142,7 +145,8 @@
       f.classList.toggle('on', f.id === 'frame-' + k);
     });
     var f = document.getElementById('frame-' + k);
-    if (!f.src) f.src = CONF[k].path + '?t=' + encodeURIComponent(tokens[k]);
+    var tok = tokens[CONF[k].tokenOf || k];
+    if (!f.src) f.src = CONF[k].path + (CONF[k].path.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(tok);
   }
 })();
 </script>

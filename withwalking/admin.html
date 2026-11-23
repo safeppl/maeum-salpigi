@@ -84,7 +84,10 @@ const yearOf = p => (p.assignedAt || "").slice(0, 4);
 function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(label) + '</option>'; }
 function renderFilters() {
   const keep = id => document.getElementById(id).value || "";
-  const person = keep("personFilter"), biz = keep("bizFilter"), year = keep("yearFilter");
+  const person = keep("personFilter"), year = keep("yearFilter");
+  // 허브의 "미래내일일경험" 탭처럼 주소에 ?biz=가 붙어 오면 처음 한 번 그 사업으로 걸러서 열어요
+  const biz = keep("bizFilter") || (INIT_BIZ_ && !initBizUsed_ ? INIT_BIZ_ : "");
+  initBizUsed_ = true;
   // 2026-11-23: 모두 '동행활동가'(미래내일일경험 담당일 땐 동행코치로 불림) — 역할로 나누지 않고 이름만 나열해요
   document.getElementById("personFilter").innerHTML = opt("", "전체 동행활동가", person) + DATA.activists.map(a => opt(a.name, a.name, person)).join("") + opt("미배정", "미배정", person);
   const bizs = Array.from(new Set(DATA.participants.map(p => p.biz).filter(Boolean))).sort();
@@ -117,26 +120,64 @@ function bizOfActivist(name) {
   const bizs = Array.from(new Set(DATA.participants.filter(p => p.activistName === name).map(p => p.biz).filter(Boolean)));
   return bizs.map(b => b === "미래내일일경험" ? b + "(동행코치)" : b).join(", ") || "—";
 }
+const INIT_BIZ_ = params.get("biz") || "";
+let initBizUsed_ = false;
+
+// 사업 요약(2026-11-23, 허브 "미래내일일경험" 탭용): 진행 회차·최근 제출·다음 일정·장기 미제출을 한눈에.
+// shortcut: 14일 기준은 고정값 — 사업마다 다르게 보고 싶으면 STALE_DAYS_를 사업별로 나누면 돼요.
+const STALE_DAYS_ = 14;
+function bizSummaryHtml(biz) {
+  const who = biz === "미래내일일경험" ? "동행코치" : "동행활동가";
+  const ps = DATA.participants.filter(p => p.biz === biz);
+  const ongoing = ps.filter(p => p.status !== "종료");
+  const latest = {};
+  DATA.reports.forEach(r => { if (!latest[r.code] || (r.writtenAt || "") > (latest[r.code].writtenAt || "")) latest[r.code] = r; });
+  const daysSince = w => w ? Math.floor((Date.now() - new Date(w.replace(" ", "T") + ":00+09:00").getTime()) / 86400000) : null;
+  const rows = ongoing.map(p => {
+    const r = latest[p.code], d = r ? daysSince(r.writtenAt) : null;
+    const next = r ? [r.nextFaceSched && "대면 " + r.nextFaceSched, r.nextRemoteSched && "비대면 " + r.nextRemoteSched].filter(Boolean).join(" / ") : "";
+    return { p: p, r: r, d: d, next: next, noNext: !next, stale: d === null || d >= STALE_DAYS_ };
+  }).sort((a, b) => (a.p.activistName || "").localeCompare(b.p.activistName || "") || a.p.name.localeCompare(b.p.name));
+  let h = '<h2>' + esc(biz) + ' 요약</h2><div class="cards">' +
+    '<div class="card"><b>' + ongoing.length + '</b><span>진행중 참여자</span></div>' +
+    '<div class="card"><b>' + (ps.length - ongoing.length) + '</b><span>종결</span></div>' +
+    '<div class="card"><b>' + rows.filter(x => x.noNext).length + '</b><span>다음 일정 없음</span></div>' +
+    '<div class="card"><b>' + rows.filter(x => x.stale).length + '</b><span>' + STALE_DAYS_ + '일 이상 보고서 없음</span></div></div>';
+  h += '<table><tr><th>' + who + '</th><th>참여자</th><th>진행</th><th>최근 제출</th><th>다음 일정</th><th>확인 필요</th></tr>' +
+    rows.map(x => '<tr><td>' + esc(x.p.activistName || "미배정") + '</td><td>' + esc(x.p.name) + '</td><td>' + x.p.reportCount + ' / ' + esc(x.p.track) + '회</td>' +
+      '<td>' + (x.r ? esc(x.r.writtenAt) + ' <span class="m">(' + x.d + '일 전)</span>' : '<span class="m">없음</span>') + '</td>' +
+      '<td>' + (x.next ? esc(x.next) : '<span class="m">없음</span>') + '</td>' +
+      '<td style="color:#C0392B">' + [x.noNext && "다음 일정 없음", x.stale && (x.r ? STALE_DAYS_ + "일 이상 미제출" : "보고서 없음")].filter(Boolean).join(", ") + '</td></tr>').join("") +
+    '</table>';
+  return h;
+}
+
 function renderDashboard() {
   activeCode = null; renderList();
-  const ongoing = DATA.participants.filter(p => p.status !== "종료").length;
-  const ended = DATA.participants.length - ongoing;
+  const bizSel = document.getElementById("bizFilter").value;
+  const view = bizSel ? Object.assign({}, DATA, {
+    participants: DATA.participants.filter(p => p.biz === bizSel),
+    activists: DATA.activists.filter(a => DATA.participants.some(p => p.biz === bizSel && p.activistName === a.name))
+  }) : DATA;
+  const ongoing = view.participants.filter(p => p.status !== "종료").length;
+  const ended = view.participants.length - ongoing;
   let h = '<div class="cards">' +
-    '<div class="card"><b>' + DATA.activists.length + '</b><span>동행활동가</span></div>' +
+    '<div class="card"><b>' + view.activists.length + '</b><span>동행활동가</span></div>' +
     '<div class="card"><b>' + ongoing + '</b><span>진행중 참여자</span></div>' +
     '<div class="card"><b>' + ended + '</b><span>종료</span></div>' +
-    '<div class="card"><b>' + DATA.reports.length + '</b><span>누적 보고서</span></div></div>';
-  h += '<h2>동행활동가 (' + DATA.activists.length + '명)</h2><table><tr><th>담당 사업</th><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
-    DATA.activists.map((a, i) => '<tr><td>' + esc(bizOfActivist(a.name)) + '</td><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
+    '<div class="card"><b>' + DATA.reports.filter(r => view.participants.some(p => p.code === r.code)).length + '</b><span>누적 보고서</span></div></div>';
+  if (bizSel) h = bizSummaryHtml(bizSel) + '<h2>전체 현황</h2>' + h;
+  h += '<h2>동행활동가 (' + view.activists.length + '명)</h2><table><tr><th>담당 사업</th><th>이름</th><th>연락처</th><th>담당(진행중)</th><th>등록일</th><th>활동가 화면 링크</th></tr>' +
+    view.activists.map((a, i) => '<tr><td>' + esc(bizOfActivist(a.name)) + '</td><td>' + esc(a.name) + '</td><td>' + esc(a.phone) + '</td><td>' + a.activeCount + '명</td><td>' + esc(a.registeredAt) + '</td>' +
       '<td><button class="linkBtn" data-i="' + i + '">링크 복사</button> <span class="m linkMsg" data-i="' + i + '"></span></td></tr>').join("") +
     '</table>';
-  h += '<h2>참여자 (' + DATA.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
-    DATA.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
+  h += '<h2>참여자 (' + view.participants.length + '명)</h2><table><tr><th>참여번호</th><th>이름</th><th>활동가</th><th>트랙</th><th>상태</th><th>배정일</th><th>보고서</th></tr>' +
+    view.participants.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.activistName || "미배정") + '</td><td>' + esc(p.track || "15") + '회</td><td>' + esc(p.status) + '</td><td>' + esc(p.assignedAt) + '</td><td>' + p.reportCount + '건</td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
   document.querySelectorAll(".linkBtn").forEach(btn => btn.addEventListener("click", () => {
     const i = Number(btn.dataset.i);
-    const a = DATA.activists[i];
+    const a = view.activists[i];
     const link = "https://safeppl.github.io/maeum-salpigi/withwalking/?t=" + a.token;
     const msgEl = document.querySelector('.linkMsg[data-i="' + i + '"]');
     copyToClipboard_(link, msgEl);
@@ -200,7 +241,7 @@ function renderDetail(p) {
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
 document.getElementById("search").addEventListener("input", renderList);
-["personFilter", "bizFilter", "yearFilter"].forEach(id => document.getElementById(id).addEventListener("change", renderList));
+["personFilter", "bizFilter", "yearFilter"].forEach(id => document.getElementById(id).addEventListener("change", () => { if (activeCode === null) renderDashboard(); else renderList(); }));
 load();
 </script>
 </body>
