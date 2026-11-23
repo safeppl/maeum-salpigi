@@ -283,13 +283,13 @@ document.getElementById('myReportsBtn').addEventListener('click', async () => {
 async function loadForEdit(item) {
   const msg = document.getElementById('msg');
   const res = await post({ action: 'getReport', token, code: item.code, round: item.round });
-  if (!res.ok) { msg.textContent = res.error === 'edit_window_closed' ? '수정 기간(24시간)이 지났어요.' : '불러오지 못했어요.'; return; }
+  if (!res.ok) { msg.textContent = res.error === 'edit_window_closed' ? '수정은 제출한 날 당일에만 할 수 있어요.' : '불러오지 못했어요.'; return; }
   const r = res.report;
   editing = { code: item.code, round: item.round };
   document.getElementById('myReports').style.display = 'none';
   document.getElementById('pickerFields').style.display = 'none';
   const hint = document.getElementById('editingHint');
-  hint.style.display = 'block'; hint.textContent = '✏️ ' + item.name + ' · ' + item.round + '회차 수정 중(24시간 이내만 가능)';
+  hint.style.display = 'block'; hint.textContent = '✏️ ' + item.name + ' · ' + item.round + '회차 수정 중(제출 당일만 가능, 사진은 새로 올릴 때만 바뀌어요)';
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
   set('faceDate', r['대면_날짜']); set('faceTime', r['대면_시간']); set('facePlace', r['대면_장소']);
   set('faceTalk', r['대면_소통내용']); set('faceNote', r['대면_특이사항']);
