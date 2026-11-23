@@ -93,7 +93,7 @@
     <label>이후 활동계획 — 비대면</label>
     <textarea id="nextRemote" rows="2"></textarea>
     <div id="schedBox">
-      <label>다음 일정 등록<span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차), 비) 홍길동-아무개 19시(2회차 1차)). 정해지지 않았으면 비워두세요.</span></label>
+      <label>다음 일정 등록<span class="sub" id="schedHint" style="display:block;color:var(--orange)"></span><span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차), 비) 홍길동-아무개 19시(2회차 1차)). 정해지지 않았으면 비워두세요.</span></label>
       <div class="row2">
         <div><label style="margin-top:0">다음 대면 — 날짜</label><input id="nextFaceDate" type="date"></div>
         <div><label style="margin-top:0">시간</label><select id="nextFaceTime"></select></div>
@@ -348,7 +348,15 @@ async function loadForEdit(item) {
   document.querySelectorAll('.faceAct').forEach(cb => { cb.checked = acts.indexOf(cb.value) >= 0; });
   const etc = acts.find(a => a.indexOf('기타: ') === 0);
   set('faceActEtc', etc ? etc.slice(4) : '');
-  document.getElementById('schedBox').style.display = 'none'; // 일정은 수정 때 다시 적지 않아요(스케줄표에서 직접 고쳐 주세요)
+  // 다음 일정도 불러와 고칠 수 있어요 — 바꾸면 서버가 스케줄표의 예전 줄을 지우고 새로 적어요(중복 없음)
+  const slot = v => { const m = String(v || '').match(/(\d{4}-\d{2}-\d{2})\s*(\d{1,2}:\d{2})?/); return m ? [m[1], m[2] || ''] : ['', '']; };
+  const remoteParts = String(r['다음일정_비대면'] || '').split(' / ');
+  const r1 = slot(remoteParts.find(x => x.trim() && x.trim().indexOf('2차') !== 0));
+  const r2 = slot(remoteParts.find(x => x.trim().indexOf('2차') === 0));
+  const f = slot(r['다음일정_대면']);
+  const setSlot = (dId, tId, v) => { set(dId, v[0]); if (v[1]) set(tId, v[1]); };
+  setSlot('nextFaceDate', 'nextFaceTime', f); setSlot('nextRemote1Date', 'nextRemote1Time', r1); setSlot('nextRemote2Date', 'nextRemote2Time', r2);
+  document.getElementById('schedHint').textContent = '수정 중: 날짜·시간을 바꾸거나 지우면 스케줄표의 예전 일정은 자동으로 지우고 새로 적어요.';
   document.getElementById('faceDayHint').textContent = r['대면_요일'] || '';
   document.getElementById('remote1DayHint').textContent = r['비대면1_요일'] || '';
   document.getElementById('remote2DayHint').textContent = r['비대면2_요일'] || '';
