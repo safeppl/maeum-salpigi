@@ -93,14 +93,18 @@
     <label>이후 활동계획 — 비대면</label>
     <textarea id="nextRemote" rows="2"></textarea>
     <div id="schedBox">
-      <label>다음 일정 등록<span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차)). 정해지지 않았으면 비워두세요.</span></label>
+      <label>다음 일정 등록<span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차), 비) 홍길동-아무개 19시(2회차 1차)). 정해지지 않았으면 비워두세요.</span></label>
       <div class="row2">
         <div><label style="margin-top:0">다음 대면 — 날짜</label><input id="nextFaceDate" type="date"></div>
         <div><label style="margin-top:0">시간</label><select id="nextFaceTime"></select></div>
       </div>
       <div class="row2">
-        <div><label style="margin-top:0">다음 비대면 — 날짜</label><input id="nextRemoteDate" type="date"></div>
-        <div><label style="margin-top:0">시간</label><select id="nextRemoteTime"></select></div>
+        <div><label style="margin-top:0">비대면 1차(대면 전) — 날짜</label><input id="nextRemote1Date" type="date"></div>
+        <div><label style="margin-top:0">시간</label><select id="nextRemote1Time"></select></div>
+      </div>
+      <div class="row2">
+        <div><label style="margin-top:0">비대면 2차(대면 후) — 날짜</label><input id="nextRemote2Date" type="date"></div>
+        <div><label style="margin-top:0">시간</label><select id="nextRemote2Time"></select></div>
       </div>
     </div>
   </div>
@@ -185,7 +189,7 @@ function bindDateHint_(dateId, hintId) {
   const dateEl = document.getElementById(dateId), hintEl = document.getElementById(hintId);
   dateEl.addEventListener('change', () => { hintEl.textContent = dayOf(dateEl.value); });
 }
-['faceTime', 'remote1Time', 'remote2Time', 'nextFaceTime', 'nextRemoteTime'].forEach(fillTimeSelect_);
+['faceTime', 'remote1Time', 'remote2Time', 'nextFaceTime', 'nextRemote1Time', 'nextRemote2Time'].forEach(fillTimeSelect_);
 
 // 원본 구글폼 "대면 시 활동 내용" 보기와 같아야 해요(서버 Code.gs의 FACE_ACTIVITIES).
 const FACE_ACTIVITIES = ['초기 면접 과정을 숙지하고 상황을 이해했음', '원하는 장소로 이동했음', '자주 찾거나 익숙한 장소에서 대화했음',
@@ -391,8 +395,10 @@ document.getElementById('submit').onclick = async () => {
     faceActEtc: document.getElementById('faceActEtc').value.trim(),
     nextFaceDate: document.getElementById('nextFaceDate').value,
     nextFaceTime: document.getElementById('nextFaceTime').value,
-    nextRemoteDate: document.getElementById('nextRemoteDate').value,
-    nextRemoteTime: document.getElementById('nextRemoteTime').value
+    nextRemote1Date: document.getElementById('nextRemote1Date').value,
+    nextRemote1Time: document.getElementById('nextRemote1Time').value,
+    nextRemote2Date: document.getElementById('nextRemote2Date').value,
+    nextRemote2Time: document.getElementById('nextRemote2Time').value
   };
   SCALE_ITEMS.forEach(([key]) => {
     form[key] = scaleVals[key];
