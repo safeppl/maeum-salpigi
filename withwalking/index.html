@@ -272,6 +272,7 @@ post({ action: 'myInfo', token }).then(res => {
   const sel = document.getElementById('code');
   const roundSel = document.getElementById('round');
   roundSel.innerHTML = Array.from({ length: 15 }, (_, i) => i + 1).map(n => '<option value="' + n + '">' + n + '회차</option>').join('');
+  MY_PARTS = res.participants.map(p => ({ code: p.code, name: p.name }));
   res.participants.forEach(p => {
     const o = document.createElement('option');
     o.value = p.code; o.textContent = p.name;
@@ -289,17 +290,19 @@ post({ action: 'myInfo', token }).then(res => {
   if (!res.participants.length) { document.getElementById('msg').textContent = '아직 배정된 참여자가 없어요.'; document.getElementById('submit').disabled = true; }
 });
 
+let MY_PARTS = []; // 지금 맡은 참여자(보고서를 아직 안 냈어도 초기면접지를 볼 수 있게)
 let editing = null; // {code, round} — 수정 모드일 때만 값이 들어있어요
 
 function renderMyReports(list) {
   const wrap = document.getElementById('myReports');
-  if (!list.length) { wrap.innerHTML = '<p class="muted">아직 제출한 보고서가 없어요.</p>'; return; }
   // 참여자별 누적 보고서(초기면접지 포함)를 PDF로 보기만 해요 — 원본 문서는 공유하지 않아서 고칠 수 없어요.
-  const people = [];
+  // 맡은 참여자 전원 + 예전에 보고서를 냈던 참여자(종결 등) — 보고서가 없어도 초기면접지는 볼 수 있어요
+  const people = MY_PARTS.slice();
   list.forEach(r => { if (!people.some(p => p.code === r.code)) people.push({ code: r.code, name: r.name }); });
   const viewHtml = '<p class="muted" style="margin:0 0 6px"><b>보고서 전체 보기(PDF, 초기면접지 포함)</b></p>' +
     people.map(p => '<button type="button" class="viewBtn" data-code="' + p.code + '" style="width:auto;display:inline-block;padding:6px 10px;margin:0 6px 6px 0;font-size:13px">' + p.name + '</button>').join('') +
-    '<p class="muted" id="viewMsg" style="margin:2px 0 10px"></p><p class="muted" style="margin:0"><b>제출한 보고서</b></p>';
+    '<p class="muted" id="viewMsg" style="margin:2px 0 10px"></p><p class="muted" style="margin:0"><b>제출한 보고서</b></p>' +
+    (list.length ? '' : '<p class="muted">아직 제출한 보고서가 없어요.</p>');
   wrap.innerHTML = viewHtml + list.map((r, i) =>
     '<p class="muted" style="margin:8px 0">' + r.name + ' · ' + r.round + '회차 · ' + r.writtenAt +
     (r.editable ? ' <button type="button" class="editBtn" data-i="' + i + '" style="width:auto;display:inline;padding:4px 8px;margin:0;font-size:12px">수정하기</button>'
@@ -316,7 +319,7 @@ async function viewDoc(code) {
   msg.textContent = '불러오는 중이에요…';
   const res = await post({ action: 'viewMyDoc', token, code }).catch(() => ({ ok: false }));
   if (!res.ok) {
-    msg.textContent = res.error === 'no_doc' ? '아직 만들어진 보고서 문서가 없어요.' : '불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+    msg.textContent = res.error === 'no_doc' ? '아직 초기면접지·보고서 문서가 없어요(첫 보고서를 제출하면 만들어져요).' : '불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
     if (win) win.close();
     return;
   }
