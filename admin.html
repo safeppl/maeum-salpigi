@@ -231,9 +231,20 @@ async function runAction(act) {
   const json = await callAdmin(map[act]);
   if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
   if (act === "dup") {
-    out.innerHTML = !json.duplicates.length ? "중복 신청이 없어요." :
-      json.duplicates.length + "명이 두 번 이상 등록돼 있어요(같은 사업 또는 여러 사업): " +
-      json.duplicates.map(g => g.map(x => esc(x.code) + " " + esc(x.name) + "(" + esc(x.biz) + ")").join(", ")).join(" / ");
+    // 2026-11-24: 중복 목록에서 바로 지울 수 있게 줄마다 [삭제] 버튼(상세 화면 삭제와 같은 확인 창·휴지통 탭 이동)
+    if (!json.duplicates.length) { out.textContent = "중복 신청이 없어요."; return; }
+    const pOf = code => DATA.participants.find(x => x.code === code);
+    out.innerHTML = json.duplicates.length + "명이 두 번 이상 등록돼 있어요(같은 사업 또는 여러 사업). 남길 신청을 확인하고 나머지를 지우세요." +
+      json.duplicates.map(g => '<table style="margin-top:8px"><tr><th>참여번호</th><th>이름</th><th>사업</th><th>신청일</th><th>상태</th><th>담당 활동가</th><th></th></tr>' +
+        g.map(x => { const p = pOf(x.code) || {};
+          return '<tr><td>' + esc(x.code) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.biz) + '</td><td>' + esc(p.applied || "") + '</td><td>' + esc(p.status || "") + '</td><td>' + esc(p.activist || "—") + '</td>' +
+            '<td><button class="danger dupDel" data-code="' + esc(x.code) + '" style="padding:4px 10px;font-size:12px">🗑 삭제</button></td></tr>'; }).join("") +
+        '</table>').join("");
+    out.querySelectorAll(".dupDel").forEach(b => b.addEventListener("click", () => {
+      const p = pOf(b.dataset.code);
+      if (!p) { b.textContent = "새로고침 후 다시"; return; }
+      deleteApplicant(p, b, out);
+    }));
   } else if (act === "analysis") {
     out.textContent = "[분석용] 탭을 새로 만들었어요 (" + json.count + "명).";
   } else if (act === "backfill") {
@@ -335,14 +346,14 @@ function folderLink(p) {
 }
 
 // 2026-11-24: 잘못 제출된 신청을 지워요. 시트의 [삭제된 신청] 탭으로 옮겨지는 거라 거기서 되살릴 수 있어요.
-async function deleteApplicant(p) {
+async function deleteApplicant(p, btn, msg) {
   let warn = p.code + " " + p.name + "님의 신청을 삭제할까요?\n\n목록에서 사라지고 시트의 [삭제된 신청] 탭으로 옮겨져요. 잘못 지웠으면 그 탭에서 되살릴 수 있어요.";
   if (p.status !== "검토 대기" || p.activist) {
     warn += "\n\n⚠️ 이미 진행 중인 사람이에요 (상태: " + p.status + (p.activist ? ", 담당 활동가: " + p.activist : "") + ").\n위드워킹 보고서·초기면접지 문서는 지워지지 않고 그대로 남아요.";
   }
   if (!confirm(warn)) return;
-  const btn = document.getElementById("deleteBtn");
-  const msg = document.getElementById("statusMsg");
+  btn = btn || document.getElementById("deleteBtn");   // 상세 화면 버튼, 또는 중복 목록의 버튼
+  msg = msg || document.getElementById("statusMsg");
   btn.disabled = true;
   msg.textContent = "삭제 중...";
   try {
