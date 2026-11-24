@@ -61,6 +61,10 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwj4uAvLD50QYSEvq2qV
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 let DATA = null, activeCode = null;
+// 2026-11-24: 사업 드롭다운에 데이터가 없는 사업도 다 보이게, 마음살피기 [사업목록](허브 [사업 관리])을 같이 받아와요
+const MAEUM_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec";
+let BIZ_ALL = ["도봉구", "용인시", "미래내일일경험", "갭이어"];
+fetch(MAEUM_URL + "?action=bizList").then(r => r.json()).then(j => { if (j.ok && j.list.length) { BIZ_ALL = j.list; if (DATA) renderFilters(); } }).catch(() => {});
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
@@ -94,7 +98,7 @@ function renderFilters() {
   initBizUsed_ = true;
   // 2026-11-23: 모두 '동행활동가'(미래내일일경험 담당일 땐 동행코치로 불림) — 역할로 나누지 않고 이름만 나열해요
   document.getElementById("personFilter").innerHTML = opt("", "전체 동행활동가", person) + DATA.activists.map(a => opt(a.name, a.name, person)).join("") + opt("미배정", "미배정", person);
-  const bizs = Array.from(new Set(DATA.participants.map(p => p.biz).filter(Boolean))).sort();
+  const bizs = Array.from(new Set(BIZ_ALL.concat(DATA.participants.map(p => p.biz).filter(Boolean))));
   document.getElementById("bizFilter").innerHTML = opt("", "전체 사업", biz) + bizs.map(b => opt(b, b, biz)).join("");
   const years = Array.from(new Set(DATA.participants.map(yearOf).filter(Boolean))).sort().reverse();
   document.getElementById("yearFilter").innerHTML = opt("", "전체 연도", year) + years.map(y => opt(y, y + "년", year)).join("");

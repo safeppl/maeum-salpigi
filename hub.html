@@ -16,11 +16,15 @@
   #tabs { display: none; align-items: center; gap: 6px; padding: 8px 16px 0; background: var(--surface); border-bottom: 1px solid var(--line); flex: none; }
   #tabs button { font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px 8px 0 0; border: 1px solid var(--line); border-bottom: none; background: var(--bg); color: var(--muted); cursor: pointer; }
   #tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-  #refreshBtn { margin-left: auto; } #refreshBtn + #resetBtn { margin-left: 0; }
+  #refreshBtn { margin-left: auto; } #refreshBtn ~ #resetBtn { margin-left: 0; }
   #resetBtn { margin-left: auto; background: transparent !important; border: none !important; color: var(--muted); font-size: 12px; font-weight: 400 !important; padding: 8px 4px !important; }
   #frames { display: none; flex: 1; position: relative; }
   #frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: #fff; }
   #frames iframe.on { display: block; }
+  #bizBox { display: none; position: fixed; top: 56px; right: 16px; z-index: 10; width: 300px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.12); font-size: 13px; }
+  #bizBox ul { margin: 8px 0; padding-left: 18px; } #bizBox input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; box-sizing: border-box; }
+  #bizBox button { margin-top: 8px; padding: 7px 12px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  #bizBox .close { background: transparent; color: var(--muted); float: right; margin: -6px -6px 0 0; }
   #setup { display: none; max-width: 440px; margin: 48px auto; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
   #setup .hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
   #setup label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 4px; }
@@ -46,6 +50,15 @@
 </div>
 
 <div id="tabs"></div>
+<div id="bizBox">
+  <button class="close" id="bizClose">✕</button>
+  <b>사업 관리</b>
+  <p style="color:var(--muted);margin:6px 0 0">여기서 추가한 사업은 모든 탭의 사업 목록에 함께 나와요.</p>
+  <ul id="bizItems"><li>불러오는 중…</li></ul>
+  <input id="bizName" placeholder="새 사업 이름 (예: 노원구)" maxlength="30">
+  <button id="bizAdd">사업 추가</button>
+  <p id="bizMsg" style="color:var(--muted);margin:6px 0 0"></p>
+</div>
 <div id="frames"></div>
 
 <script>
@@ -139,6 +152,13 @@
     refresh.onclick = function () { var on = document.querySelector('#tabs button.on'); if (on) selectTab(on.dataset.k); };
     tabsEl.appendChild(refresh);
 
+    // 2026-11-24: 사업 관리 — 목록은 마음살피기 시트 [사업목록] 탭에 저장돼요(마음살피기 토큰으로 추가)
+    var bizBtn = document.createElement('button');
+    bizBtn.id = 'bizBtn';
+    bizBtn.textContent = '사업 관리';
+    bizBtn.onclick = openBiz;
+    tabsEl.appendChild(bizBtn);
+
     var reset = document.createElement('button');
     reset.id = 'resetBtn';
     reset.textContent = '토큰 수정';
@@ -146,6 +166,35 @@
     tabsEl.appendChild(reset);
 
     selectTab(keys[0]);
+  }
+
+  var MAEUM_URL = 'https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec';
+  function showBizList(list) {
+    document.getElementById('bizItems').innerHTML = list.map(function (b) { return '<li>' + b.replace(/[&<>"]/g, '') + '</li>'; }).join('');
+  }
+  function openBiz() {
+    var box = document.getElementById('bizBox');
+    box.style.display = 'block';
+    document.getElementById('bizMsg').textContent = '';
+    fetch(MAEUM_URL + '?action=bizList').then(function (r) { return r.json(); }).then(function (j) {
+      if (j.ok) showBizList(j.list); else document.getElementById('bizItems').innerHTML = '<li>목록을 못 불러왔어요</li>';
+    }).catch(function () { document.getElementById('bizItems').innerHTML = '<li>목록을 못 불러왔어요</li>'; });
+    document.getElementById('bizClose').onclick = function () { box.style.display = 'none'; };
+    document.getElementById('bizAdd').onclick = function () {
+      var name = document.getElementById('bizName').value.trim();
+      var msg = document.getElementById('bizMsg');
+      if (!name) { msg.textContent = '사업 이름을 적어 주세요.'; return; }
+      if (!confirm('"' + name + '" 사업을 추가할까요? 추가한 뒤에는 시트의 [사업목록] 탭에서만 지울 수 있어요.')) return;
+      msg.textContent = '추가하는 중…';
+      fetch(MAEUM_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'adminAddBiz', token: tokens.maeum, name: name }) })
+        .then(function (r) { return r.json(); }).then(function (j) {
+          if (!j.ok) { msg.textContent = j.error === 'duplicate' ? '이미 있는 사업이에요.' : j.error === 'bad_name' ? '이름은 30자 이내, 쉼표 없이 적어 주세요.' : '추가하지 못했어요: ' + j.error; return; }
+          showBizList(j.list);
+          document.getElementById('bizName').value = '';
+          msg.textContent = '추가했어요. 지금 탭을 새로 불러올게요.';
+          var on = document.querySelector('#tabs button.on'); if (on) selectTab(on.dataset.k);
+        }).catch(function () { msg.textContent = '추가하지 못했어요. 잠시 뒤 다시 해주세요.'; });
+    };
   }
 
   function selectTab(k) {

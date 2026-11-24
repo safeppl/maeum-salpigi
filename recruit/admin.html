@@ -41,6 +41,7 @@
   <div id="side">
     <header><b>안전한더유스</b><span>인력풀 관리자 화면</span></header>
     <input id="search" placeholder="이름 검색">
+    <select id="bizFilter" style="margin:0 12px 8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:12.5px;width:calc(100% - 24px)"></select>
     <button id="dashBtn">대시보드</button>
     <div id="list"></div>
   </div>
@@ -52,6 +53,16 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMM5tEf9X_rOPmpwlOg
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 let DATA = null, activeRow = null;
+// 2026-11-24: 담당사업(3-2) — 사업 목록은 마음살피기 [사업목록](허브 [사업 관리])을 따라가요
+const MAEUM_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec";
+const ASSIGN_ROLES = ["동행활동가", "동행코치", "일경험 코치"];
+let BIZ_ALL = ["도봉구", "용인시", "미래내일일경험", "갭이어"];
+function renderBizFilter() {
+  const sel = document.getElementById("bizFilter"), cur = sel.value;
+  sel.innerHTML = '<option value="">전체 사업</option>' + BIZ_ALL.map(b => '<option value="' + esc(b) + '"' + (b === cur ? " selected" : "") + '>' + esc(b) + '</option>').join("");
+}
+const assignText = p => (p.assignments || []).map(a => a.biz + "(" + a.role + ")").join(", ");
+fetch(MAEUM_URL + "?action=bizList").then(r => r.json()).then(j => { if (j.ok && j.list.length) { BIZ_ALL = j.list; renderBizFilter(); } }).catch(() => {});
 
 // 2026-11-23: 시트에 저장되는 값(코치/활동가)은 그대로 두고 화면에서만 정식 명칭으로 보여줘요
 const ROLE_NAME = { "코치": "일경험 코치", "활동가": "동행활동가" };
@@ -83,11 +94,12 @@ async function load() {
 
 function renderList() {
   const q = document.getElementById("search").value.trim();
-  const rows = DATA.applicants.filter(p => !q || p.name.indexOf(q) >= 0);
+  const biz = document.getElementById("bizFilter").value;
+  const rows = DATA.applicants.filter(p => (!q || p.name.indexOf(q) >= 0) && (!biz || (p.assignments || []).some(a => a.biz === biz)));
   document.getElementById("list").innerHTML = rows.map(p =>
     '<div class="p-item' + (p.rowIndex === activeRow ? " on" : "") + '" data-row="' + p.rowIndex + '">' +
       '<b>' + esc(p.name) + '</b>' +
-      '<span class="p-meta">' + esc(p.status) + ' · ' + esc(roleNames(p.roles)) + '</span></div>'
+      '<span class="p-meta">' + esc(p.status) + ' · ' + esc(roleNames(p.roles)) + (p.assignments && p.assignments.length ? ' · ' + esc(assignText(p)) : '') + '</span></div>'
   ).join("") || '<div class="msg">해당하는 신청자가 없어요.</div>';
   document.querySelectorAll(".p-item").forEach(el => el.addEventListener("click", () => {
     activeRow = Number(el.dataset.row); renderList(); renderDetail(DATA.applicants.find(p => p.rowIndex === activeRow));
@@ -99,8 +111,8 @@ function renderDashboard() {
   let h = '<div class="cards">' +
     Object.keys(DATA.byStatus).map(s => '<div class="card"><b>' + DATA.byStatus[s] + '</b><span>' + esc(s) + '</span></div>').join("") +
     '</div>';
-  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>접수일</th><th></th></tr>' +
-    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.appliedAt) + '</td>' +
+  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>담당사업</th><th>접수일</th><th></th></tr>' +
+    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(assignText(p) || "—") + '</td><td>' + esc(p.appliedAt) + '</td>' +
       '<td><button class="act rowDel" data-row="' + p.rowIndex + '" style="background:#B3261E;color:#fff;padding:4px 10px;font-size:12px">🗑 삭제</button></td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
@@ -142,6 +154,10 @@ function renderDetail(p) {
   h += '<p class="m">희망역할: ' + esc(roleNames(p.roles)) + '</p>';
   h += '<p class="m">활동경력: ' + esc(p.exp || "—") + '</p>';
   h += '<p class="m">참여동기: ' + esc(p.motive || "—") + '</p>';
+  // 2026-11-24: 담당사업 — 사업마다 역할을 골라 여러 줄로 지정해요(예: 도봉구-일경험 코치, 미래내일일경험-동행코치)
+  h += '<div style="margin:10px 0;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px">' +
+    '<b style="font-size:13px">담당사업</b><div id="assignRows"></div>' +
+    '<div class="btns"><button class="act rej" id="assignAdd">+ 사업 추가</button><button class="act coach" id="assignSave">담당사업 저장</button><span class="m" id="assignMsg"></span></div></div>';
   if (p.done.length) h += '<p class="m">이미 처리됨: ' + esc(p.done.join(", ")) + '</p>';
   // 2026-11-23: 이수·서류 상태를 항상 보여줘요(예전엔 이수확인 전이면 서류 상태가 안 보여서, 이미 "기존 서류 인정"된 사람인지 알 수 없었음)
   if (p.done.length && p.showReject) h += '<p class="m">양성교육: ' + (p.trainedAt ? "이수확인 " + esc(p.trainedAt) : "이수확인 전") +
@@ -177,6 +193,36 @@ function renderDetail(p) {
   }));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
   document.getElementById("btnDelete").addEventListener("click", e => deleteApplicant(p, e.target));
+  bindAssignments(p);
+}
+
+function assignRowHtml(a) {
+  const bizs = BIZ_ALL.indexOf(a.biz) >= 0 || !a.biz ? BIZ_ALL : BIZ_ALL.concat([a.biz]);
+  const sel = (list, cur, cls) => '<select class="' + cls + '" style="font:inherit;padding:5px;border:1px solid var(--border);border-radius:6px;margin-right:6px">' +
+    list.map(v => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(v) + '</option>').join("") + '</select>';
+  return '<div class="aRow" style="margin-top:6px">' + sel(bizs, a.biz, "aBiz") + sel(ASSIGN_ROLES, a.role, "aRole") +
+    '<button class="act rej aDel" style="padding:4px 10px">빼기</button></div>';
+}
+function bindAssignments(p) {
+  const box = document.getElementById("assignRows");
+  box.innerHTML = (p.assignments || []).map(assignRowHtml).join("") || '<p class="m aEmpty">아직 지정된 사업이 없어요.</p>';
+  box.addEventListener("click", e => { if (e.target.classList.contains("aDel")) e.target.closest(".aRow").remove(); });
+  document.getElementById("assignAdd").onclick = () => {
+    const empty = box.querySelector(".aEmpty"); if (empty) empty.remove();
+    box.insertAdjacentHTML("beforeend", assignRowHtml({ biz: BIZ_ALL[0], role: ASSIGN_ROLES[0] }));
+  };
+  document.getElementById("assignSave").onclick = async e => {
+    const btn = e.target, msg = document.getElementById("assignMsg");
+    const list = [...box.querySelectorAll(".aRow")].map(r => ({ biz: r.querySelector(".aBiz").value, role: r.querySelector(".aRole").value }));
+    btn.disabled = true; msg.textContent = "저장 중...";
+    try {
+      const json = await callAdmin("adminSetAssignments", { rowIndex: p.rowIndex, name: p.name, assignments: list });
+      if (!json.ok) { msg.textContent = "실패: " + json.error; btn.disabled = false; return; }
+      await fetchData();
+      renderDetail(DATA.applicants.find(x => x.rowIndex === p.rowIndex));
+      document.getElementById("assignMsg").textContent = "저장했어요.";
+    } catch (err) { msg.textContent = "실패: " + err.message; btn.disabled = false; }
+  };
 }
 
 // 2026-11-24: 잘못 제출된 신청을 지워요. 시트의 [삭제된 신청] 탭으로 옮겨지는 거라 거기서 되살릴 수 있어요.
@@ -192,6 +238,8 @@ function deleteApplicant(p, btn) {
 }
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
+document.getElementById("bizFilter").addEventListener("change", renderList);
+renderBizFilter();
 document.getElementById("search").addEventListener("input", renderList);
 load();
 </script>

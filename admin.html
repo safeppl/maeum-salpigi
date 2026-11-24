@@ -84,7 +84,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmV
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 const STATUS_LIST = ["검토 대기", "선정·서비스 중", "미선정", "서비스 완료", "사후 완료"];
-const BIZ_LIST = ["도봉구", "용인시", "미래내일일경험", "갭이어", "미분류"];
+let BIZ_LIST = ["도봉구", "용인시", "미래내일일경험", "갭이어", "미분류"]; // 2026-11-24: 서버 [사업목록]을 받으면 그걸로 바꿔요(허브 [사업 관리]에서 추가)
 
 const ONGOING_STATUSES = ["검토 대기", "선정·서비스 중"];
 
@@ -112,6 +112,11 @@ async function fetchData() {
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "오류");
   DATA = json;
+  if (Array.isArray(json.bizList) && json.bizList.length) {
+    BIZ_LIST = json.bizList.concat(["미분류"]);
+    const sel = document.getElementById("bizFilter");
+    sel.innerHTML = ["전체"].concat(BIZ_LIST).map(b => '<option value="' + esc(b) + '"' + (b === activeBiz ? " selected" : "") + '>' + esc(b) + '</option>').join("");
+  }
   renderFilters();
   renderYearFilter();
   renderList();

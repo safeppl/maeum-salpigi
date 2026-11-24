@@ -38,7 +38,7 @@
     return '<div class="coach-card">' +
       '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b>' +
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
-      '<div class="coach-meta">코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
+      '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
       '</div>';
@@ -99,11 +99,18 @@
     } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); b.disabled = false; b.textContent = label; }
   });
 
+  // 2026-11-24: 사업별로 걸러 보기 — 목록은 마음살피기 [사업목록](허브 [사업 관리])을 따라가요
   function dashboard() {
     const d = S.data;
-    const rows = d.participants.length ? d.participants.map(participantRow).join("") : '<p class="empty">진행중인 참여자가 없어요.</p>';
-    return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + rows;
+    const bizs = Array.from(new Set((d.bizList && d.bizList.length ? d.bizList : ["도봉구", "용인시", "미래내일일경험", "갭이어"]).concat(d.participants.map(p => p.biz).filter(Boolean))));
+    const cur = S.biz || "";
+    const shown = d.participants.filter(p => !cur || p.biz === cur);
+    const sel = '<select id="bizSel" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);margin:0 0 12px">' +
+      ['<option value="">전체 사업</option>'].concat(bizs.map(b => '<option value="' + e(b) + '"' + (b === cur ? " selected" : "") + '>' + e(b) + '</option>')).join("") + '</select>';
+    const rows = shown.length ? shown.map(participantRow).join("") : '<p class="empty">진행중인 참여자가 없어요.</p>';
+    return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + sel + rows;
   }
+  app.addEventListener("change", ev => { if (ev.target.id === "bizSel") { S.biz = ev.target.value; render(); } });
 
   function render() {
     let body;
