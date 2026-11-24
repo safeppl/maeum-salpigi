@@ -187,6 +187,7 @@
           .withSuccessHandler((정보) => {
             const 사용자 = 정보.사용자;
             결재자인가 = 사용자.역할 !== '기안자';
+            내역할 = 사용자.역할;
             document.getElementById('목록관리').hidden = !(사용자.역할 === '검토자' || 사용자.역할 === '관리자');
             document.getElementById('인사').textContent = `안녕하세요, ${사용자.이름}님`;
             document.getElementById('안내').textContent = `역할: ${사용자.역할}${사용자.기관 ? ` (${사용자.기관})` : ''}`;
@@ -201,6 +202,7 @@
       }
 
       let 화면준비됨 = false;
+      let 내역할 = '';
       let 결재자인가 = false; // 검토자·최종결재자·관리자는 결재할 문서가 없어도 그 칸을 늘 보여 준다
       let 오늘 = '';
       function 화면준비(정보) {
@@ -395,6 +397,29 @@
         if (문서.결재이력.length) {
           카드.append(요소('div', 문서.결재이력.map((r) => `${r.일시} ${r.이름} ${r.동작}${r.사유 ? ` (${r.사유})` : ''}`).join('\n'), '확인'));
           카드.lastChild.style.whiteSpace = 'pre-line';
+        }
+
+        if (문서.저장폴더) {
+          if (/^https:\/\//.test(문서.저장폴더)) {
+            const 링크 = 요소('a', '저장된 폴더 열기');
+            링크.href = 문서.저장폴더; 링크.target = '_blank'; 링크.rel = 'noopener';
+            const 줄 = 요소('div', '', '확인'); 줄.append(링크); 카드.append(줄);
+          } else {
+            카드.append(요소('div', 문서.저장폴더, '반려'));
+          }
+        }
+        if (문서.상태 === '승인' && 내역할 === '검토자') {
+          const 저장버튼 = 요소('button', '폴더에 다시 저장');
+          저장버튼.type = 'button';
+          저장버튼.onclick = () => {
+            if (!confirm(`${문서.문서번호} 품의서를 규칙에 맞는 폴더에 다시 저장할까요? (같은 이름이 있으면 _2가 붙습니다)`)) return;
+            저장버튼.disabled = true; 저장버튼.textContent = '저장 중…';
+            서버실행()
+              .withSuccessHandler((결과) => { alert(/^https/.test(결과) ? '저장했습니다.' : 결과); 결재함새로고침(); })
+              .withFailureHandler((e) => { 저장버튼.disabled = false; 저장버튼.textContent = '폴더에 다시 저장'; alert(e.message); })
+              .폴더에다시저장(문서.문서번호);
+          };
+          카드.append(저장버튼);
         }
 
         const 출력버튼 = 요소('button', '출력(엑셀·PDF)');
