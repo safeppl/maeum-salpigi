@@ -28,6 +28,18 @@
       .문서 .반려 { color: #a00; }
       .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
       .문서 table { margin-top: 6px; }
+      details.문서 { padding: 0; }
+      details.문서 > summary { list-style: none; cursor: pointer; padding: 10px 12px; display: grid; grid-template-columns: 78px 1fr auto auto 10px; gap: 6px; align-items: center; font-size: 14px; }
+      details.문서 > summary::-webkit-details-marker { display: none; }
+      details.문서 > summary::after { content: '▾'; color: #888; }
+      details.문서[open] > summary::after { content: '▴'; }
+      details.문서 > summary .내용 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      details.문서 > .본문 { padding: 0 12px 10px; border-top: 1px solid #eee; }
+      .배지 { font-size: 12px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+      .배지.대기 { background: #fff4e5; color: #8a4b00; }
+      .배지.완료 { background: #e8f5e9; color: #1b5e20; }
+      .배지.반려 { background: #fdecea; color: #a00; }
+      .배지.임시 { background: #eee; color: #555; }
       #서명창 { max-width: 420px; width: calc(100% - 32px); border: 1px solid #ccc; border-radius: 8px; }
       #서명창 canvas { width: 100%; height: 160px; border: 1px dashed #999; border-radius: 6px; background: #fff; touch-action: none; display: block; }
       #서명창 img { max-width: 100%; max-height: 90px; border: 1px solid #eee; display: block; margin: 6px 0; }
@@ -333,8 +345,30 @@
         return 문서.결재선.map((s) => `${s.직함} ${s.이름}`).join(' → ');
       }
 
-      function 문서카드(문서) {
-        const 카드 = 요소('div', undefined, '문서');
+      /** 화면에 보이는 상태 이름: 검토대기·최종결재대기 → 결재 대기, 승인 → 결재 완료 */
+      function 상태표시(상태) {
+        if (상태 === '검토대기') return ['결재 대기(사무국장)', '대기'];
+        if (상태 === '최종결재대기') return ['결재 대기(최종)', '대기'];
+        if (상태 === '승인') return ['결재 완료', '완료'];
+        if (상태 === '반려') return ['반려', '반려'];
+        return [상태, '임시'];
+      }
+
+      /** 한 줄 요약(품의일자 · 내용 · 금액 · 상태)을 누르면 자세한 내용이 펼쳐진다. */
+      function 문서카드(문서, 펼침) {
+        const 접이 = 요소('details', undefined, '문서');
+        접이.open = !!펼침;
+        const 요약 = 요소('summary');
+        const 첫항목 = 문서.내역[0] ? 문서.내역[0].계정 + (문서.내역.length > 1 ? ` 외 ${문서.내역.length - 1}건` : '') : '';
+        const [상태글, 상태종류] = 상태표시(문서.상태);
+        요약.append(
+          요소('span', 문서.품의일자, '확인'),
+          요소('span', `${문서.사업명} · ${첫항목}`, '내용'),
+          요소('span', 원(문서.합계)),
+          요소('span', 상태글, '배지 ' + 상태종류),
+        );
+        const 카드 = 요소('div', undefined, '본문');
+        접이.append(요약, 카드);
         const 머리 = 요소('div', undefined, '머리');
         머리.append(
           요소('span', 문서.상태, '상태'),
@@ -373,7 +407,7 @@
           버튼.onclick = () => (동작 === '수정' ? 수정하기(문서) : 처리(문서, 동작, 버튼));
           카드.append(버튼);
         });
-        return 카드;
+        return 접이;
       }
 
       async function 처리(문서, 동작, 버튼) {
@@ -478,15 +512,15 @@
           .품의서출력(문서.문서번호);
       }
 
-      function 목록그리기(칸, 문서들, 빈글) {
-        칸.replaceChildren(...(문서들.length ? 문서들.map(문서카드) : [요소('p', 빈글, '확인')]));
+      function 목록그리기(칸, 문서들, 빈글, 펼침) {
+        칸.replaceChildren(...(문서들.length ? 문서들.map((d) => 문서카드(d, 펼침)) : [요소('p', 빈글, '확인')]));
       }
 
       function 결재함새로고침() {
         서버실행()
           .withSuccessHandler((결과) => {
             document.getElementById('결재할영역').hidden = !결재자인가 && 결과.결재할문서.length === 0;
-            목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.');
+            목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.', true);
             document.getElementById('결재한영역').hidden = !결재자인가 && 결과.결재한문서.length === 0;
             목록그리기(document.getElementById('결재한목록'), 결과.결재한문서, '아직 결재한 문서가 없습니다.');
             목록그리기(document.getElementById('내목록'), 결과.내문서, '작성한 문서가 없습니다.');
