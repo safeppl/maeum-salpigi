@@ -70,6 +70,7 @@
     <dialog id="증빙창">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
         <strong id="증빙창제목" style="flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></strong>
+        <span id="증빙창받기"></span>
         <button type="button" id="증빙창이전" style="margin:0">◀</button>
         <button type="button" id="증빙창다음" style="margin:0">▶</button>
         <button type="button" onclick="document.getElementById('증빙창').close()" style="margin:0">닫기</button>
@@ -516,7 +517,7 @@
           카드.append(삭제버튼);
         }
 
-        const 출력버튼 = 요소('button', '출력(엑셀·PDF)');
+        const 출력버튼 = 요소('button', '출력 보기');
         출력버튼.type = 'button';
         출력버튼.onclick = () => 출력(문서, 출력버튼);
         카드.append(출력버튼);
@@ -559,6 +560,7 @@
         const 증 = 목록[번호];
         const 창 = document.getElementById('증빙창');
         const 내용 = document.getElementById('증빙창내용');
+        document.getElementById('증빙창받기').replaceChildren();
         document.getElementById('증빙창제목').textContent = `(${번호 + 1}/${목록.length}) ${[증.종류, 증.날짜, 증.계정, 증.내용].filter(Boolean).join(' · ')} — ${증.이름}`;
         document.getElementById('증빙창이전').hidden = document.getElementById('증빙창다음').hidden = 목록.length < 2;
         내용.replaceChildren(요소('span', 미리보기캐시[증.파일] ? '' : '불러오는 중…', '확인'));
@@ -794,21 +796,33 @@
         return 링크;
       }
 
+      /** 출력물을 같은 화면 큰 창에 PDF로 보여 준다. 파일이 필요하면 창 위의 [PDF 받기]·[엑셀 받기]로 내려받는다. */
+      const 출력캐시 = {};
+      function 출력보기(파일) {
+        크게보기상태 = null;
+        const 창 = document.getElementById('증빙창');
+        document.getElementById('증빙창제목').textContent = 파일.이름;
+        document.getElementById('증빙창이전').hidden = document.getElementById('증빙창다음').hidden = true;
+        const 바이트 = Uint8Array.from(atob(파일.pdf), (c) => c.charCodeAt(0));
+        const 보기 = 요소('iframe');
+        보기.src = URL.createObjectURL(new Blob([바이트], { type: 'application/pdf' }));
+        document.getElementById('증빙창내용').replaceChildren(보기);
+        document.getElementById('증빙창받기').replaceChildren(
+          받기링크(파일.pdf, 파일.이름 + '.pdf', 'application/pdf', 'PDF 받기'),
+          받기링크(파일.xlsx, 파일.이름 + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '엑셀 받기'),
+        );
+        if (!창.open) 창.showModal();
+      }
+
       function 출력(문서, 버튼) {
+        // 같은 상태의 문서를 다시 누르면 다시 만들지 않고 바로 보여 준다(만드는 데 10초 안팎)
+        const 열쇠 = 문서.문서번호 + '|' + 문서.수정일시 + '|' + 문서.상태;
+        if (출력캐시[열쇠]) return 출력보기(출력캐시[열쇠]);
         버튼.disabled = true;
         버튼.textContent = '만드는 중…';
-        const 끝 = () => { 버튼.disabled = false; 버튼.textContent = '출력(엑셀·PDF)'; };
+        const 끝 = () => { 버튼.disabled = false; 버튼.textContent = '출력 보기'; };
         서버실행()
-          .withSuccessHandler((파일) => {
-            버튼.nextElementSibling?.classList.contains('받기') && 버튼.nextElementSibling.remove();
-            const 묶음 = 요소('span', '', '받기');
-            묶음.append(
-              받기링크(파일.xlsx, 파일.이름 + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '엑셀 받기'),
-              받기링크(파일.pdf, 파일.이름 + '.pdf', 'application/pdf', 'PDF 받기'),
-            );
-            버튼.after(묶음);
-            끝();
-          })
+          .withSuccessHandler((파일) => { 출력캐시[열쇠] = 파일; 끝(); 출력보기(파일); })
           .withFailureHandler((e) => { 끝(); alert(e.message); })
           .품의서출력(문서.문서번호);
       }
