@@ -422,6 +422,23 @@
           카드.append(저장버튼);
         }
 
+        if (문서.삭제가능) {
+          const 삭제버튼 = 요소('button', '삭제');
+          삭제버튼.type = 'button';
+          삭제버튼.style.color = '#a00';
+          삭제버튼.onclick = () => {
+            const 사유 = prompt(`${문서.문서번호}(${문서.사업명} ${원(문서.합계)})을(를) 삭제합니다.\n삭제 사유를 입력하세요. (DB의 휴지통 탭에 보관되고, 드라이브에 이미 저장된 파일은 그대로 남습니다)`);
+            if (사유 === null) return;
+            if (!사유.trim()) return alert('삭제 사유를 입력하세요.');
+            삭제버튼.disabled = true;
+            서버실행()
+              .withSuccessHandler(() => { alert(`${문서.문서번호}을(를) 삭제했습니다.`); 결재함새로고침(); })
+              .withFailureHandler((e) => { 삭제버튼.disabled = false; alert(e.message); })
+              .문서삭제(문서.문서번호, 사유.trim());
+          };
+          카드.append(삭제버튼);
+        }
+
         const 출력버튼 = 요소('button', '출력(엑셀·PDF)');
         출력버튼.type = 'button';
         출력버튼.onclick = () => 출력(문서, 출력버튼);
