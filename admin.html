@@ -309,12 +309,37 @@ function renderDetail(p) {
     '<div class="noticeBtns"><button id="noticeCopyBtn">문구 복사</button>' +
     '<button id="noticeSendBtn">문자 보내기</button><span id="noticeMsg" class="m"></span></div></div>';
   h += p.intake || '<p class="msg">신청서 내용을 못 불러왔어요.</p>';
+  h += '<div class="statusRow" style="margin-top:24px;padding-top:12px;border-top:1px solid var(--line)">' +
+    '<button id="deleteBtn" class="danger">🗑 잘못 제출된 신청 삭제</button><span id="deleteMsg" class="m"></span></div>';
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
   document.getElementById("bizBtn").addEventListener("click", () => changeBiz(p.code));
   document.getElementById("activistBtn").addEventListener("click", () => assignActivist(p.code));
+  document.getElementById("deleteBtn").addEventListener("click", () => deleteApplicant(p));
   bindNotice(p);
+}
+
+// 2026-11-24: 잘못 제출된 신청을 지워요. 시트의 [삭제된 신청] 탭으로 옮겨지는 거라 거기서 되살릴 수 있어요.
+async function deleteApplicant(p) {
+  let warn = p.code + " " + p.name + "님의 신청을 삭제할까요?\n\n목록에서 사라지고 시트의 [삭제된 신청] 탭으로 옮겨져요. 잘못 지웠으면 그 탭에서 되살릴 수 있어요.";
+  if (p.status !== "검토 대기" || p.activist) {
+    warn += "\n\n⚠️ 이미 진행 중인 사람이에요 (상태: " + p.status + (p.activist ? ", 담당 활동가: " + p.activist : "") + ").\n위드워킹 보고서·초기면접지 문서는 지워지지 않고 그대로 남아요.";
+  }
+  if (!confirm(warn)) return;
+  const btn = document.getElementById("deleteBtn");
+  const msg = document.getElementById("deleteMsg");
+  btn.disabled = true;
+  msg.textContent = "삭제 중...";
+  try {
+    const json = await callAdmin("adminDelete", { code: p.code });
+    if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); btn.disabled = false; return; }
+    await fetchData();
+    renderDashboard();
+  } catch (err) {
+    msg.textContent = "실패: " + err.message;
+    btn.disabled = false;
+  }
 }
 
 // 거주지 기준 자동분류("[1회] 사업 일괄 채우기")와 다르게 실제 참여 사업을 지정해야 하는 예외를 여기서 바로 고쳐요.

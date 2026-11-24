@@ -156,6 +156,8 @@ function renderDetail(p) {
     (p.docsAcknowledged ? '<button class="act rej" id="btnUnack">서류 인정 취소</button>' : '') +
     (p.addableRoles || []).map(r => '<button class="act ' + (r === "코치" ? "coach" : "activist") + ' addRole" data-role="' + r + '">' + ROLE_NAME[r] + ' 역할 추가 등록</button>').join("") +
     '</div>';
+  h += '<div class="btns" style="margin-top:24px;padding-top:12px;border-top:1px solid var(--border)">' +
+    '<button class="act" id="btnDelete" style="background:#B3261E;color:#fff">🗑 잘못 제출된 신청 삭제</button></div>';
   h += '<div class="linkBox" id="linkBox" style="display:none"><textarea id="linkText" readonly></textarea>' +
     '<div class="btns"><button class="act rej" id="btnCopy">문구 복사</button><span class="m" id="copyMsg"></span></div></div>';
   document.getElementById("main").innerHTML = h;
@@ -172,6 +174,19 @@ function renderDetail(p) {
     if (confirm(p.name + "님을 " + ROLE_NAME[role] + "(으)로도 등록할까요? 희망역할에 추가되고 바로 등록돼요.")) act(p.rowIndex, "adminAddRole", e.target, ROLE_NAME[role] + " 역할 추가 등록", { role: role });
   }));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
+  document.getElementById("btnDelete").addEventListener("click", e => deleteApplicant(p, e.target));
+}
+
+// 2026-11-24: 잘못 제출된 신청을 지워요. 시트의 [삭제된 신청] 탭으로 옮겨지는 거라 거기서 되살릴 수 있어요.
+function deleteApplicant(p, btn) {
+  let warn = p.name + "님(" + p.appliedAt + " 접수)의 신청을 삭제할까요?\n\n목록에서 사라지고 시트의 [삭제된 신청] 탭으로 옮겨져요. 잘못 지웠으면 그 탭에서 되살릴 수 있어요.";
+  if (p.done.length) warn += "\n\n⚠️ 이미 처리된 사람이에요 (" + p.done.join(", ") + ").\n마음살피기·위드워킹·일경험 쪽에 등록된 기록은 지워지지 않고 그대로 남아요.";
+  if (!confirm(warn)) return;
+  btn.disabled = true; btn.textContent = "삭제 중...";
+  callAdmin("adminDelete", { rowIndex: p.rowIndex, name: p.name }).then(json => {
+    if (!json.ok) { btn.textContent = "실패: " + json.error; btn.disabled = false; return; }
+    fetchData().then(renderDashboard);
+  }).catch(err => { btn.textContent = "실패: " + err.message; btn.disabled = false; });
 }
 
 document.getElementById("dashBtn").addEventListener("click", renderDashboard);
