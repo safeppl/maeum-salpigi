@@ -29,6 +29,9 @@
       .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
       .문서 table { margin-top: 6px; }
       details.문서 { padding: 0; }
+      .나눔 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .나눔 h3 { font-size: 15px; margin: 8px 0 0; color: #555; }
+      @media (max-width: 720px) { .나눔 { grid-template-columns: 1fr; } }
       details.문서 > summary { list-style: none; cursor: pointer; padding: 10px 12px; display: grid; grid-template-columns: 78px 1fr auto auto 10px; gap: 6px; align-items: center; font-size: 14px; }
       details.문서 > summary::-webkit-details-marker { display: none; }
       details.문서 > summary::after { content: '▾'; color: #888; }
@@ -81,7 +84,10 @@
     </section>
 
     <h2>내 문서</h2>
-    <div id="내목록"><p class="확인">불러오는 중…</p></div>
+    <div class="나눔">
+      <div><h3>품의서</h3><div id="내목록"><p class="확인">불러오는 중…</p></div></div>
+      <div><h3>지출결의서</h3><div id="내지출목록"></div></div>
+    </div>
 
     <h2 id="폼제목">품의서 작성 — 구매 및 집행</h2>
     <form id="품의서" onsubmit="저장(event)">
@@ -417,6 +423,7 @@
           카드.lastChild.style.whiteSpace = 'pre-line';
         }
 
+        if (문서.상태 === '승인' && !문서.저장폴더) 카드.append(요소('div', '폴더에 저장 중이거나 아직 저장되지 않았습니다.', '확인'));
         if (문서.저장폴더) {
           if (/^https:\/\//.test(문서.저장폴더)) {
             const 링크 = 요소('a', '저장된 폴더 열기');
@@ -488,7 +495,15 @@
         }
         버튼.disabled = true;
         서버실행()
-          .withSuccessHandler((상태) => { alert(`${문서.문서번호}: ${상태}`); 결재함새로고침(); })
+          .withSuccessHandler((결과) => {
+            결재함그리기(결과.결재함); // 바뀐 목록이 응답에 같이 와서 다시 부르지 않는다
+            alert(`${문서.문서번호}: ${상태표시(결과.상태)[0]}${결과.저장필요 ? '\n(엑셀·PDF를 폴더에 저장하는 중입니다. 잠시 뒤 자동으로 표시됩니다)' : ''}`);
+            if (결과.저장필요) {
+              서버보내기('승인문서저장', [문서.문서번호])
+                .then(() => 결재함새로고침())
+                .catch((e) => { alert(`${문서.문서번호} 폴더 저장 실패: ${e.message}\n박덕명 사무국장 화면의 [폴더에 다시 저장]으로 다시 저장할 수 있습니다.`); 결재함새로고침(); });
+            }
+          })
           .withFailureHandler((e) => { 버튼.disabled = false; alert(e.message); })
           .문서처리(문서.문서번호, 동작, 사유, 서명);
       }
@@ -577,15 +592,19 @@
         칸.replaceChildren(...(문서들.length ? 문서들.map((d) => 문서카드(d, 펼침)) : [요소('p', 빈글, '확인')]));
       }
 
+      function 결재함그리기(결과) {
+        document.getElementById('결재할영역').hidden = !결재자인가 && 결과.결재할문서.length === 0;
+        목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.', true);
+        document.getElementById('결재한영역').hidden = !결재자인가 && 결과.결재한문서.length === 0;
+        목록그리기(document.getElementById('결재한목록'), 결과.결재한문서, '아직 결재한 문서가 없습니다.');
+        // 내 문서는 품의서와 지출결의서를 나눠 보여 준다(PC는 좌우, 휴대폰은 위아래)
+        목록그리기(document.getElementById('내목록'), 결과.내문서.filter((d) => d.구분 !== '지출결의서'), '작성한 품의서가 없습니다.');
+        목록그리기(document.getElementById('내지출목록'), 결과.내문서.filter((d) => d.구분 === '지출결의서'), '작성한 지출결의서가 없습니다. 결재 완료된 품의에서 [지출결의서 작성]을 누르세요.');
+      }
+
       function 결재함새로고침() {
         서버실행()
-          .withSuccessHandler((결과) => {
-            document.getElementById('결재할영역').hidden = !결재자인가 && 결과.결재할문서.length === 0;
-            목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.', true);
-            document.getElementById('결재한영역').hidden = !결재자인가 && 결과.결재한문서.length === 0;
-            목록그리기(document.getElementById('결재한목록'), 결과.결재한문서, '아직 결재한 문서가 없습니다.');
-            목록그리기(document.getElementById('내목록'), 결과.내문서, '작성한 문서가 없습니다.');
-          })
+          .withSuccessHandler(결재함그리기)
           .withFailureHandler((e) => { document.getElementById('내목록').replaceChildren(요소('p', e.message, '반려')); })
           .결재함조회();
       }
