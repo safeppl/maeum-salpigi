@@ -29,6 +29,9 @@
       .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
       .문서 table { margin-top: 6px; }
       details.문서 { padding: 0; }
+      .증빙줄 { border: 1px solid #eee; border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 13px; }
+      .증빙줄 .칸들 { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 4px 8px; margin-top: 4px; }
+      .증빙줄 .칸들 select, .증빙줄 .칸들 input { width: 100%; font-size: 13px; }
       .나눔 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .나눔 h3 { font-size: 15px; margin: 8px 0 0; color: #555; }
       @media (max-width: 720px) { .나눔 { grid-template-columns: 1fr; } }
@@ -224,7 +227,9 @@
       }
 
       /** 사업명 추천 목록과 항목(계정) 선택지를 바꾼다. 이미 고른 값은 목록에서 빠졌어도 그대로 둔다. */
+      let 계정목록현재 = [];
       function 목록적용(목록) {
+        계정목록현재 = 목록.계정목록;
         document.getElementById('사업목록').replaceChildren(...목록.사업목록.map((v) => new Option(v)));
         const 계정칸들 = [document.getElementById('줄양식').content.querySelector('[data-칸="계정"]'), ...표.querySelectorAll('[data-칸="계정"]')];
         계정칸들.forEach((칸) => {
@@ -398,6 +403,7 @@
         카드.append(머리, 요소('div', '결재선: ' + 결재선글(문서), '확인'));
         if (문서.원문서) 카드.append(요소('div', `지출결의서 · 근거 품의: ${문서.원문서}`, '확인'));
         if (문서.지출결의서번호) 카드.append(요소('div', `지출결의서: ${문서.지출결의서번호}`, '확인'));
+        if (문서.구분 === '지출결의서') 카드.append(증빙칸(문서));
         if (문서.지출전환가능) {
           const 전환버튼 = 요소('button', '지출결의서 작성');
           전환버튼.type = 'button';
@@ -475,6 +481,83 @@
           카드.append(버튼);
         });
         return 접이;
+      }
+
+      // ── 증빙 ── 지출결의서에 영수증·이체확인증을 올리면 파일 이름으로 종류·날짜·계정을 추천하고, 기안자가 확정한다.
+      const 증빙종류 = ['영수증', '이체확인증', '카드전표', '세금계산서', '거래명세서', '견적서', '기타'];
+
+      function 증빙칸(문서) {
+        const 칸 = 요소('div');
+        칸.style.marginTop = '8px';
+        const 목록 = 문서.증빙 || [];
+        칸.append(요소('div', `증빙 ${목록.length}건${문서.증빙편집 && 목록.length ? ' — 파일 이름으로 추천한 값입니다. 확인·수정 후 [증빙 정보 저장]' : ''}`, '확인'));
+        if (!목록.length && !문서.증빙편집) return 칸;
+        const 표증빙 = 요소('div');
+        목록.forEach((증) => {
+          const tr = 요소('div', undefined, '증빙줄');
+          tr.dataset.파일 = 증.파일;
+          tr.append(요소('div', 증.이름));
+          if (!문서.증빙편집) {
+            tr.append(요소('div', [증.종류, 증.날짜, 증.계정, 증.내용].filter(Boolean).join(' · '), '확인'));
+          } else {
+            const 선택칸 = (값들, 현재, 이름) => { const sel = 요소('select'); sel.dataset.칸 = 이름; 옵션채우기(sel, 값들); sel.value = 현재; return sel; };
+            const 날짜칸 = 요소('input'); 날짜칸.type = 'date'; 날짜칸.value = 증.날짜 || ''; 날짜칸.dataset.칸 = '날짜';
+            const 내용칸 = 요소('input'); 내용칸.maxLength = 50; 내용칸.value = 증.내용 || ''; 내용칸.dataset.칸 = '내용';
+            const 계정칸 = 선택칸(['미분류'].concat(계정목록현재), 증.계정, '계정');
+            if (증.계정 === '미분류') 계정칸.style.borderColor = '#a00';
+            const 칸들 = 요소('div', undefined, '칸들');
+            [['종류', 선택칸(증빙종류, 증.종류, '종류')], ['날짜', 날짜칸], ['항목(계정)', 계정칸], ['내용', 내용칸]].forEach(([글, el]) => { const l = 요소('label', 글); l.style.margin = '0'; l.append(el); 칸들.append(l); });
+            tr.append(칸들);
+            const 빼기 = 요소('button', '삭제'); 빼기.type = 'button';
+            빼기.onclick = () => {
+              if (!confirm(`${증.이름}을(를) 증빙에서 뺄까요?`)) return;
+              빼기.disabled = true;
+              서버실행().withSuccessHandler(() => 결재함새로고침()).withFailureHandler((e) => { 빼기.disabled = false; alert(e.message); }).증빙삭제(문서.문서번호, 증.파일);
+            };
+            빼기.style.marginTop = '4px';
+            tr.append(빼기);
+          }
+          표증빙.append(tr);
+        });
+        if (목록.length) 칸.append(표증빙);
+        if (!문서.증빙편집) return 칸;
+
+        const 줄 = 요소('div');
+        const 파일칸 = 요소('input'); 파일칸.type = 'file'; 파일칸.multiple = true; 파일칸.accept = 'image/jpeg,image/png,application/pdf';
+        const 올리기 = 요소('button', '증빙 올리기'); 올리기.type = 'button';
+        const 알림칸 = 요소('span', '', '확인');
+        올리기.onclick = async () => {
+          const 파일들 = [...파일칸.files];
+          if (!파일들.length) return alert('올릴 파일을 고르세요.');
+          올리기.disabled = true;
+          for (let i = 0; i < 파일들.length; i++) {
+            const f = 파일들[i];
+            알림칸.textContent = ` 올리는 중 ${i + 1}/${파일들.length}: ${f.name}`;
+            if (f.size > 10 * 1024 * 1024) { alert(`${f.name}: 10MB를 넘어 건너뜁니다.`); continue; }
+            try {
+              const 데이터 = await new Promise((끝, 실패) => { const r = new FileReader(); r.onload = () => 끝(String(r.result).split(',')[1]); r.onerror = 실패; r.readAsDataURL(f); });
+              await 서버보내기('증빙추가', [문서.문서번호, { 이름: f.name, 형식: f.type, 데이터 }]);
+            } catch (e) { alert(`${f.name}: ${e.message}`); }
+          }
+          결재함새로고침();
+        };
+        줄.append(파일칸, 올리기, 알림칸);
+        칸.append(줄);
+        if (목록.length) {
+          const 저장 = 요소('button', '증빙 정보 저장'); 저장.type = 'button';
+          저장.onclick = () => {
+            const 고친것 = [...표증빙.querySelectorAll('[data-파일]')].map((tr) => {
+              const 값 = { 파일: tr.dataset.파일 };
+              tr.querySelectorAll('[data-칸]').forEach((el) => { 값[el.dataset.칸] = el.value; });
+              return 값;
+            });
+            저장.disabled = true;
+            서버실행().withSuccessHandler(() => { alert('증빙 정보를 저장했습니다.'); 결재함새로고침(); })
+              .withFailureHandler((e) => { 저장.disabled = false; alert(e.message); }).증빙정보저장(문서.문서번호, 고친것);
+          };
+          칸.append(저장);
+        }
+        return 칸;
       }
 
       async function 처리(문서, 동작, 버튼) {
