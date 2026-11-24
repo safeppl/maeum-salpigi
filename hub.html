@@ -45,8 +45,6 @@
   <input id="t-withwalking" placeholder="기존 withwalking/admin.html 링크의 t= 뒤 값">
   <label>자기주도 일경험 토큰</label>
   <input id="t-ilgyeongheom" placeholder="일경험 시트 메뉴 [일경험 관리 → 관리자 대시보드 링크 보기]의 t= 뒤 값">
-  <label>품의·지출결의 (박덕명 사무국장 전용 링크)</label>
-  <input id="t-pumui" placeholder="품의서앱 DB 사용자 시트 F열의 박덕명 전용 링크를 통째로 붙여넣어도 돼요">
   <button id="saveBtn">저장하고 열기</button>
   <button id="cancelBtn" style="display:none;background:transparent;color:var(--muted);box-shadow:none;">취소</button>
 </div>
@@ -73,9 +71,7 @@
     // 바로가기 탭: 위드워킹 관리자 화면을 미래내일일경험으로 걸러 요약부터 보여줘요(토큰은 위드워킹 것을 같이 씀)
     mirae: { label: '미래내일일경험', path: 'withwalking/admin.html?biz=' + encodeURIComponent('미래내일일경험'), tokenOf: 'withwalking' },
     // 2026-11-24: 사업별 활동상황판 자동점검 요약(마음살피기 토큰으로 읽어요)
-    board: { label: '활동상황판', path: 'board.html', tokenOf: 'maeum' },
-    // 2026-11-24: 품의서·지출결의서 앱(사무국장 전용 링크로 열림 — 이 허브는 사무국장만 쓴다는 전제)
-    pumui: { label: '품의·지출결의', path: 'pumui/index.html' }
+    board: { label: '활동상황판', path: 'board.html', tokenOf: 'maeum' }
   };
   var keys = Object.keys(CONF);
   var tokenKeys = keys.filter(function (k) { return !CONF[k].tokenOf; }); // 토큰 입력칸이 있는 탭만(바로가기 탭 제외)
