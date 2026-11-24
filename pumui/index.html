@@ -73,14 +73,13 @@
     </dialog>
 
     <div id="앱" hidden>
-    <section id="결재할영역" hidden>
-      <h2>결재할 문서</h2>
-      <div id="결재할목록"></div>
-    </section>
-
-    <section id="결재한영역" hidden>
-      <h2>내가 결재한 문서</h2>
-      <div id="결재한목록"></div>
+    <section id="결재함영역" hidden>
+      <h2 id="결재함제목">결재함</h2>
+      <p class="확인" style="margin:0">결재할 문서가 위에 펼쳐져 있고, 그 아래는 내가 이미 결재한 문서입니다.</p>
+      <div class="나눔">
+        <div><h3>품의서</h3><div id="결재품의목록"></div></div>
+        <div><h3>지출결의서</h3><div id="결재지출목록"></div></div>
+      </div>
     </section>
 
     <h2>내 문서</h2>
@@ -593,10 +592,12 @@
       }
 
       function 결재함그리기(결과) {
-        document.getElementById('결재할영역').hidden = !결재자인가 && 결과.결재할문서.length === 0;
-        목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.', true);
-        document.getElementById('결재한영역').hidden = !결재자인가 && 결과.결재한문서.length === 0;
-        목록그리기(document.getElementById('결재한목록'), 결과.결재한문서, '아직 결재한 문서가 없습니다.');
+        // 결재함: 결재할 문서(펼침) 다음에 내가 결재한 문서(접힘), 품의서·지출결의서로 나눔
+        const 결재함 = 결과.결재할문서.concat(결과.결재한문서);
+        document.getElementById('결재함영역').hidden = !결재자인가 && 결재함.length === 0;
+        document.getElementById('결재함제목').textContent = `결재함 · 결재할 문서 ${결과.결재할문서.length}건`;
+        목록그리기(document.getElementById('결재품의목록'), 결재함.filter((d) => d.구분 !== '지출결의서'), '품의서가 없습니다.');
+        목록그리기(document.getElementById('결재지출목록'), 결재함.filter((d) => d.구분 === '지출결의서'), '지출결의서가 없습니다.');
         // 내 문서는 품의서와 지출결의서를 나눠 보여 준다(PC는 좌우, 휴대폰은 위아래)
         목록그리기(document.getElementById('내목록'), 결과.내문서.filter((d) => d.구분 !== '지출결의서'), '작성한 품의서가 없습니다.');
         목록그리기(document.getElementById('내지출목록'), 결과.내문서.filter((d) => d.구분 === '지출결의서'), '작성한 지출결의서가 없습니다. 결재 완료된 품의에서 [지출결의서 작성]을 누르세요.');
