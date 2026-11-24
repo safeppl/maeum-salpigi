@@ -28,11 +28,34 @@
       .문서 .반려 { color: #a00; }
       .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
       .문서 table { margin-top: 6px; }
+      #서명창 { max-width: 420px; width: calc(100% - 32px); border: 1px solid #ccc; border-radius: 8px; }
+      #서명창 canvas { width: 100%; height: 160px; border: 1px dashed #999; border-radius: 6px; background: #fff; touch-action: none; display: block; }
+      #서명창 img { max-width: 100%; max-height: 90px; border: 1px solid #eee; display: block; margin: 6px 0; }
+      #서명창 .버튼줄 { display: flex; flex-wrap: wrap; gap: 8px; }
     </style>
   </head>
   <body>
     <h1 id="인사">품의서·지출결의서 관리</h1>
     <p id="안내" class="확인">불러오는 중…</p>
+    <button type="button" id="내서명버튼" hidden onclick="내서명열기()">내 서명</button>
+
+    <dialog id="서명창">
+      <h3 id="서명제목" style="margin-top:0"></h3>
+      <div id="등록서명칸" hidden>
+        <p class="확인" style="margin:0">등록된 내 서명</p>
+        <img id="등록서명그림" alt="등록된 서명">
+        <button type="button" id="등록서명진행">등록된 서명으로 진행</button>
+        <p class="확인" style="margin:16px 0 0">또는 아래에 새로 그리기</p>
+      </div>
+      <p class="확인" id="그리기안내" style="margin:4px 0">손가락이나 마우스로 서명하세요.</p>
+      <canvas id="서명패드"></canvas>
+      <label id="등록체크줄"><input type="checkbox" id="내서명으로등록" style="width:auto"> 이 서명을 내 서명으로 등록(다음부터 바로 사용)</label>
+      <div class="버튼줄">
+        <button type="button" id="그린서명진행">그린 서명으로 진행</button>
+        <button type="button" onclick="서명패드비우기()">지우기</button>
+        <button type="button" onclick="서명창닫기(null)">취소</button>
+      </div>
+    </dialog>
 
     <div id="앱" hidden>
     <section id="결재할영역" hidden>
@@ -140,6 +163,8 @@
             document.getElementById('인사').textContent = `안녕하세요, ${사용자.이름}님`;
             document.getElementById('안내').textContent = `역할: ${사용자.역할}${사용자.기관 ? ` (${사용자.기관})` : ''}`;
             if (!화면준비됨) 화면준비(정보);
+            document.getElementById('내서명버튼').hidden = false;
+            서버실행().withSuccessHandler((그림) => { 내서명 = 그림; }).내서명조회();
             document.getElementById('앱').hidden = false;
             결재함새로고침();
           })
@@ -310,19 +335,78 @@
         return 카드;
       }
 
-      function 처리(문서, 동작, 버튼) {
+      async function 처리(문서, 동작, 버튼) {
         let 사유 = '';
+        let 서명 = '';
         if (동작 === '반려') {
           사유 = prompt(`${문서.문서번호} 반려 사유를 입력하세요.`);
           if (사유 === null) return;
-        } else if (!confirm(`${문서.문서번호}을(를) ${동작}할까요?`)) {
-          return;
+        } else {
+          // 상신·승인은 결재란에 들어갈 서명을 받는다
+          const 선택 = await 서명받기(`${문서.문서번호} ${동작}`, true);
+          if (!선택) return;
+          서명 = 선택.서명;
+          if (선택.등록) {
+            try { await 서버보내기('내서명저장', [서명]); 내서명 = 서명; } catch (e) { alert('내 서명 등록은 실패했지만 결재는 계속합니다: ' + e.message); }
+          }
         }
         버튼.disabled = true;
         서버실행()
           .withSuccessHandler((상태) => { alert(`${문서.문서번호}: ${상태}`); 결재함새로고침(); })
           .withFailureHandler((e) => { 버튼.disabled = false; alert(e.message); })
-          .문서처리(문서.문서번호, 동작, 사유);
+          .문서처리(문서.문서번호, 동작, 사유, 서명);
+      }
+
+      // ── 서명 ── 내 서명을 한 번 등록해 두고 쓰거나, 결재할 때마다 새로 그린다.
+      let 내서명 = '';
+      let 서명됨 = false;
+      let 서명창결과 = null;
+      const 패드 = document.getElementById('서명패드');
+
+      function 서명패드비우기() {
+        const r = window.devicePixelRatio || 1;
+        패드.width = Math.round(패드.clientWidth * r); 패드.height = Math.round(패드.clientHeight * r);
+        const c = 패드.getContext('2d'); // 투명 바탕: 양식 결재란에 얹을 때 칸 테두리가 가려지지 않게
+        c.lineWidth = 2.5 * r; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#000';
+        서명됨 = false;
+      }
+      (() => {
+        let 그리는중 = false;
+        const 위치 = (e) => { const b = 패드.getBoundingClientRect(), r = 패드.width / b.width; return [(e.clientX - b.left) * r, (e.clientY - b.top) * r]; };
+        패드.addEventListener('pointerdown', (e) => { 그리는중 = true; 패드.setPointerCapture(e.pointerId); const c = 패드.getContext('2d'); c.beginPath(); c.moveTo(...위치(e)); });
+        패드.addEventListener('pointermove', (e) => { if (!그리는중) return; const c = 패드.getContext('2d'); c.lineTo(...위치(e)); c.stroke(); 서명됨 = true; });
+        ['pointerup', 'pointercancel'].forEach((t) => 패드.addEventListener(t, () => { 그리는중 = false; }));
+      })();
+
+      /** 서명 창을 열고 { 서명: '등록서명' | 그림, 등록: true/false } 또는 취소 시 null을 돌려준다. */
+      function 서명받기(제목, 결재용) {
+        const 창 = document.getElementById('서명창');
+        document.getElementById('서명제목').textContent = 제목;
+        document.getElementById('등록서명칸').hidden = !내서명;
+        document.getElementById('등록서명진행').hidden = !결재용;
+        document.getElementById('등록서명그림').src = 내서명 || '';
+        document.getElementById('등록체크줄').hidden = !결재용;
+        document.getElementById('내서명으로등록').checked = !내서명; // 아직 등록 안 했으면 기본으로 등록
+        document.getElementById('그린서명진행').textContent = 결재용 ? '그린 서명으로 진행' : '이 서명을 내 서명으로 저장';
+        창.showModal();
+        서명패드비우기();
+        return new Promise((끝) => { 서명창결과 = 끝; });
+      }
+      function 서명창닫기(값) {
+        document.getElementById('서명창').close();
+        if (서명창결과) { const 끝 = 서명창결과; 서명창결과 = null; 끝(값); }
+      }
+      document.getElementById('서명창').addEventListener('cancel', () => 서명창닫기(null)); // Esc
+      document.getElementById('등록서명진행').onclick = () => 서명창닫기({ 서명: '등록서명', 등록: false });
+      document.getElementById('그린서명진행').onclick = () => {
+        if (!서명됨) return alert('서명을 그려 주세요.');
+        서명창닫기({ 서명: 패드.toDataURL('image/png'), 등록: document.getElementById('내서명으로등록').checked });
+      };
+
+      async function 내서명열기() {
+        const 선택 = await 서명받기(내서명 ? '내 서명 바꾸기' : '내 서명 등록', false);
+        if (!선택) return;
+        try { await 서버보내기('내서명저장', [선택.서명]); 내서명 = 선택.서명; alert('내 서명을 저장했습니다.'); } catch (e) { alert(e.message); }
       }
 
       /** base64 파일을 내려받는 링크를 만든다. 크롬이 자동 연속 다운로드를 막으므로 사용자가 직접 누르게 한다. */
