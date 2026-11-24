@@ -114,6 +114,12 @@
     <div id="scaleItems"></div>
   </div>
 
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px"><span id="signWho">활동가</span> 서명 — 손가락(또는 마우스)으로 서명해 주세요 <button type="button" id="signClear" style="width:auto;padding:2px 10px;margin-left:6px">지우기</button></p>
+    <canvas id="signPad" style="width:100%;height:150px;border:1px dashed #999;border-radius:8px;background:#fff;touch-action:none"></canvas>
+    <label><input type="checkbox" id="signAgree" style="width:auto;display:inline-block;margin-right:6px"> 위 내용이 사실임을 확인합니다</label>
+  </div>
+
   <button id="submit">보고서 제출하기</button>
   <div id="msg"></div>
 </div>
@@ -240,6 +246,7 @@ function applyTerms(biz) {
   const coach = COACH_TITLE_BIZ_.indexOf(biz) >= 0;
   document.getElementById('faceActsSub').textContent = (coach ? '참여자' : '대상자') + '와 활동한 내용들을 모두 체크해 주세요!';
   document.querySelectorAll('.q').forEach(el => { el.textContent = coach ? el.dataset.q.replace(/활동가/g, '코치') : el.dataset.q; });
+  document.getElementById('signWho').textContent = coach ? '코치' : '활동가';
 }
 
 function fileToBase64(file) {
@@ -384,11 +391,34 @@ async function loadForEdit(item) {
   msg.textContent = '';
 }
 
+// 서명 패드: 한 획이라도 그어야 제출돼요. 흰 바탕 JPEG로 보내서 사진과 같은 방식으로 저장해요.
+const signPad = document.getElementById('signPad');
+let signed = false;
+function resetSign() {
+  const r = window.devicePixelRatio || 1;
+  signPad.width = Math.round(signPad.clientWidth * r); signPad.height = Math.round(signPad.clientHeight * r);
+  const c = signPad.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, signPad.width, signPad.height);
+  c.lineWidth = 2.5 * r; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#000';
+  signed = false;
+}
+(() => {
+  let drawing = false;
+  const pos = e => { const b = signPad.getBoundingClientRect(), r = signPad.width / b.width; return [(e.clientX - b.left) * r, (e.clientY - b.top) * r]; };
+  signPad.addEventListener('pointerdown', e => { if (!signed && signPad.width !== Math.round(signPad.clientWidth * (window.devicePixelRatio || 1))) resetSign(); drawing = true; signPad.setPointerCapture(e.pointerId); const c = signPad.getContext('2d'); c.beginPath(); c.moveTo(...pos(e)); });
+  signPad.addEventListener('pointermove', e => { if (!drawing) return; const c = signPad.getContext('2d'); c.lineTo(...pos(e)); c.stroke(); signed = true; });
+  ['pointerup', 'pointercancel'].forEach(t => signPad.addEventListener(t, () => { drawing = false; }));
+  document.getElementById('signClear').onclick = resetSign;
+  resetSign();
+})();
+
 document.getElementById('submit').onclick = async () => {
   const btn = document.getElementById('submit');
   const msg = document.getElementById('msg');
   const sel = document.getElementById('code');
   if (!editing && !sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
+  if (!signed) { msg.textContent = '서명을 해 주세요.'; return; }
+  if (!document.getElementById('signAgree').checked) { msg.textContent = '"위 내용이 사실임을 확인합니다"에 체크해 주세요.'; return; }
   btn.disabled = true; msg.textContent = '제출하는 중이에요…';
   const photoData = await fileToBase64(document.getElementById('facePhoto').files[0]);
   const form = {
@@ -420,7 +450,8 @@ document.getElementById('submit').onclick = async () => {
     nextRemote1Date: document.getElementById('nextRemote1Date').value,
     nextRemote1Time: document.getElementById('nextRemote1Time').value,
     nextRemote2Date: document.getElementById('nextRemote2Date').value,
-    nextRemote2Time: document.getElementById('nextRemote2Time').value
+    nextRemote2Time: document.getElementById('nextRemote2Time').value,
+    signData: signPad.toDataURL('image/jpeg', 0.8)
   };
   SCALE_ITEMS.forEach(([key]) => {
     form[key] = scaleVals[key];
