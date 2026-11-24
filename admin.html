@@ -224,6 +224,36 @@ function renderDashboard() {
   refreshSmsStatus();
 }
 
+// 2026-11-24: 비교 결과를 문장으로 요약해요. 신청자가 적은 내용과 관리용 칸(접수 시각·담당자·문서 링크 등)을 나눠서,
+// 먼저 낸 신청 → 나중 신청 순서로 "'항목': 이전 → 이후"를 보여줘요. 내용이 같으면 "신청 내용 차이 없음".
+const ADMIN_FIELDS_ = new Set(["참여번호", "상태", "접수일시", "담당자", "메모", "사전_응답초", "사전_점검", "참여_1단계", "참여_2단계", "참여_3단계",
+  "서비스완료일", "사후일시", "안내기록", "참여단계_응답", "가장만족프로그램", "가장만족이유", "사후_후속응답", "사후_도움청할사람",
+  "정서확인필요", "담당활동가", "사업", "동행트랙", "초기면접지링크"]);
+const FIELD_LABEL_ = { 집에서있는곳: "집에서 주로 머무는 곳", 함께사는사람: "함께 사는 사람", 경제활동: "경제 활동", 원하는지원: "원하는 지원",
+  알게된경로: "알게 된 경로", 도움청할사람: "도움 청할 사람", 가정어려움: "가정 내 어려움", 외부관계어려움: "외부 관계 어려움",
+  어려움원인: "어려움 원인", 어려움시작시기: "어려움 시작 시기", 어려움기간: "어려움 기간", 극복노력: "극복 노력", 노력도움여부: "노력이 도움 됐는지",
+  연락방법: "연락 방법", 출생년도: "출생 연도", 초기면접지링크: "초기면접지", 담당활동가: "담당 활동가" };
+const fieldName = h => FIELD_LABEL_[h] || h.replace(/^사전_/, "자가진단 ").replace(/^(만족|사후)_/, "$1 ").replace(/_/g, " ");
+function cmpSummary(json) {
+  const at = json.head.indexOf("접수일시");
+  const rows = json.rows.slice().sort((x, y) => String(x[at]).localeCompare(String(y[at])));   // 먼저 낸 신청이 앞
+  const short = v => { v = String(v || "").replace(/\s+/g, " ").trim(); if (/^https?:\/\//.test(v)) return "있음";   // 문서 링크는 있음/없음만
+    return v ? (v.length > 30 ? v.slice(0, 30) + "…" : v) : "(빈칸)"; };
+  const diffs = json.head.map((h, i) => ({ h: h, vals: rows.map(r => r[i]) })).filter(x => new Set(x.vals).size > 1 && x.h !== "참여번호");
+  const line = x => rows.length === 2
+    ? "'" + fieldName(x.h) + "': " + short(x.vals[0]) + " → " + short(x.vals[1])
+    : "'" + fieldName(x.h) + "': " + x.vals.map((v, k) => rows[k][0] + " " + short(v)).join(" / ");
+  const content = diffs.filter(x => !ADMIN_FIELDS_.has(x.h)), admin = diffs.filter(x => ADMIN_FIELDS_.has(x.h));
+  const order = rows.map(r => r[0]).join(" → ");
+  let h = '<div style="margin:6px 0;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px">' +
+    '<div class="m" style="margin-bottom:4px">신청 순서: ' + esc(order) + '</div>';
+  h += content.length
+    ? '<b>신청 내용 차이 ' + content.length + '개</b><ul style="margin:4px 0 0 18px;padding:0">' + content.map(x => '<li>' + esc(line(x)) + '</li>').join("") + '</ul>'
+    : '<b>신청 내용 차이 없음</b>' + (admin.length ? ' (아래 관리 정보만 달라요)' : '');
+  if (admin.length) h += '<div class="m" style="margin-top:4px">관리 정보: ' + admin.map(x => esc(line(x))).join(" · ") + '</div>';
+  return h + '</div>';
+}
+
 // 2026-11-24: 중복 신청서를 나란히 놓고 값이 다른 칸만 색칠해서 보여줘요. [같은 항목도 보기]로 전체를 펼칠 수 있어요.
 async function showCompare(codes, box) {
   box.textContent = "불러오는 중...";
@@ -236,7 +266,7 @@ async function showCompare(codes, box) {
   const table = showAll => '<table style="margin-top:6px;font-size:12.5px"><tr><th>항목</th>' + json.rows.map(r => '<th>' + esc(r[0]) + '</th>').join("") + '</tr>' +
     rows.filter(x => showAll || diff(x)).map(x => '<tr' + (diff(x) ? ' style="background:#FFF3C4"' : '') + '><td><b>' + esc(x.h) + '</b></td>' +
       x.vals.map(v => '<td style="white-space:pre-wrap">' + esc(v || "—") + '</td>').join("") + '</tr>').join("") + '</table>';
-  box.innerHTML = '<p class="m" style="margin:6px 0">다른 항목 <b>' + nDiff + '개</b>(노란색) · <label><input type="checkbox" class="cmpAll"> 같은 항목도 보기</label></p><div class="cmpTbl">' + table(false) + '</div>';
+  box.innerHTML = cmpSummary(json) + '<p class="m" style="margin:6px 0">다른 항목 <b>' + nDiff + '개</b>(노란색) · <label><input type="checkbox" class="cmpAll"> 같은 항목도 보기</label></p><div class="cmpTbl">' + table(false) + '</div>';
   box.querySelector(".cmpAll").addEventListener("change", e => { box.querySelector(".cmpTbl").innerHTML = table(e.target.checked); });
 }
 
