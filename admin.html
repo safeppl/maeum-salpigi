@@ -190,12 +190,16 @@ function renderDashboard() {
   activeCode = null;
   const counts = DATA.byStatus || {};
   const cards = STATUS_LIST.map(s => '<div class="card"><b>' + (counts[s] || 0) + '</b><span>' + esc(s) + '</span></div>').join("");
-  const flagged = DATA.participants.filter(p => p.flag);
+  // 2026-11-24: 정서확인필요뿐 아니라 유형별 고위험·정신과 진료/약물 언급이 있는 사람도 함께 보여줘요
+  const flagged = DATA.participants.filter(p => p.flag || (p.highTypes && p.highTypes.length) || p.med);
   let h = '<div class="cards">' + cards + '</div>';
-  h += '<h2>지금 살펴볼 사람 (정서확인필요 표시 · ' + flagged.length + '명)</h2>';
+  h += '<h2>지금 살펴볼 사람 (정서확인필요 · 유형별 고위험 · 정신과 진료/약물 · ' + flagged.length + '명)</h2>';
   h += flagged.length
-    ? '<table><tr><th>참여번호</th><th>이름</th><th>상태</th><th>표시</th></tr>' +
-      flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.status) + '</td><td class="care">' + esc(p.flag) + '</td></tr>').join("") +
+    ? '<table><tr><th>참여번호</th><th>이름</th><th>상태</th><th>고위험 유형</th><th>정신과 진료·약물</th><th>표시</th></tr>' +
+      flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.status) + '</td>' +
+        '<td class="care">' + esc((p.highTypes || []).map(t => t + "형").join(", ") || "—") + '</td>' +
+        '<td' + (p.med ? ' class="care" title="신청서 \'극복 노력\' 답에서 찾은 낱말이에요. 실제 진료 여부는 신청서를 열어 확인하세요."' : '') + '>' + esc(p.med ? "언급 있음(" + p.med + ")" : "—") + '</td>' +
+        '<td class="care">' + esc(p.flag || "—") + '</td></tr>').join("") +
       '</table>'
     : '<p class="msg" style="padding:16px 0">지금 표시된 사람이 없어요.</p>';
 
