@@ -588,7 +588,7 @@
       S.ans[it.id] = v;
       if (needsFollow(it, v)) { store.set(); render(); return; }
       if (it.follow) delete S.follow[it.id];
-      S.lock = true; render(); setTimeout(advance, 260); return;
+      S.lock = true; render(); setTimeout(advance, 1000); return; // 2026-11-24: 고른 답을 확인할 수 있게 1초 뒤 넘어가요
     }
     if (act === "retry") { submit(); return; }
     if (act === "reload") { location.reload(); return; }
