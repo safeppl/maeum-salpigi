@@ -69,12 +69,13 @@
         (c.place ? ' · ' + e(c.place) : '') + (c.mood ? ' · 기분: ' + e(c.mood) : '') +
         (c.job ? '<br>직무: ' + e(c.job) : '') + (c.note ? '<br>소감: ' + e(c.note) : '') +
         (c.photo ? '<br><a href="' + e(c.photo) + '" target="_blank" rel="noopener">사진 보기</a>' : '') +
-        '<br><button class="btn btn-primary btn-sm" style="margin-top:4px" data-checkin="' + c.rowIndex + '" data-code="' + e(p.code) + '" data-date="' + e(c.date) + '">인증</button></div>').join("") +
+        '<br><button class="btn btn-primary btn-sm" style="margin-top:4px" data-checkin="' + c.rowIndex + '" data-code="' + e(p.code) + '" data-date="' + e(c.date) + '">인증</button>' +
+        ' <button class="btn btn-ghost btn-sm" style="margin-top:4px" data-reject="' + c.rowIndex + '" data-code="' + e(p.code) + '" data-date="' + e(c.date) + '">반려</button></div>').join("") +
       '</details>';
   }
   const ERR_ = { missing_comment: "반려할 때는 사유를 적어 주세요.", no_plan: "계획서를 찾지 못했어요.", changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요.", forbidden: "관리자 토큰이 맞지 않아요." };
   app.addEventListener("click", async ev => {
-    const b = ev.target.closest("button[data-plan], button[data-checkin]");
+    const b = ev.target.closest("button[data-plan], button[data-checkin], button[data-reject]");
     if (!b) return;
     const code = b.dataset.code;
     let payload;
@@ -82,6 +83,11 @@
       const cm = document.getElementById("cm-" + code);
       if (b.dataset.plan === "승인" && !confirm(code + " 계획서를 승인할까요? 승인하면 단계가 '일경험 진행'으로 넘어가요.")) return;
       payload = { action: "adminReviewPlan", token, code: code, decision: b.dataset.plan, comment: cm ? cm.value : "" };
+    } else if (b.dataset.reject) {
+      // 반려 사유는 참여자 앱에 그대로 보여요
+      const reason = prompt(code + " " + b.dataset.date + " 기록을 반려할게요. 참여자가 다시 작성할 수 있게 사유를 적어 주세요.");
+      if (reason === null) return;
+      payload = { action: "adminRejectCheckin", token, code: code, rowIndex: Number(b.dataset.reject), date: b.dataset.date, reason: reason };
     } else {
       payload = { action: "adminApproveCheckin", token, code: code, rowIndex: Number(b.dataset.checkin), date: b.dataset.date };
     }

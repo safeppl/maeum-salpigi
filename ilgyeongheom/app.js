@@ -100,8 +100,9 @@
 
   function recentList(st) {
     if (!st.recent.length) return '<div class="panel"><h3>최근 체크인</h3><p class="empty">아직 체크인 기록이 없어요.</p></div>';
-    const rows = st.recent.map(r => '<div class="list-item"><div class="list-top"><b>' + e(r.date) + ' · ' + e(r.type) + ' (' + e(r.hours) + '시간)</b>' +
-      '<span class="chip ' + (r.verified ? "ok" : "muted") + '">' + (r.verified ? "인증됨" : "인증 대기") + '</span></div>' +
+    const rows = st.recent.map((r, i) => '<div class="list-item"><div class="list-top"><b>' + e(r.date) + ' · ' + e(r.type) + ' (' + e(r.hours) + '시간)</b>' +
+      '<span class="chip ' + (r.verified ? "ok" : r.rejectReason ? "care" : "muted") + '">' + (r.verified ? "인증됨" : r.rejectReason ? "반려됨" : "인증 대기") + '</span></div>' +
+      (r.rejectReason ? '<p class="err">반려 사유: ' + e(r.rejectReason) + '</p><button class="btn btn-primary btn-sm" data-redo="' + i + '">이 날짜 다시 작성하기</button>' : '') +
       '<p class="list-note">' + e(r.location || "—") + (r.mood ? " · " + e(r.mood) : "") + '</p>' +
       '<p class="list-note">' + e(r.note || "—") + '</p></div>').join("");
     return '<div class="panel"><h3>최근 체크인</h3>' + rows + '</div>';
@@ -192,6 +193,13 @@
       });
       btn.addEventListener("click", submit);
     }
+    // 2026-11-24: 반려된 기록을 체크인 칸에 불러와요. 같은 날짜로 다시 내면 그 기록을 덮어쓰고 다시 인증 대기가 돼요(사진은 새로 올려야 해요).
+    document.querySelectorAll("button[data-redo]").forEach(b => b.addEventListener("click", () => {
+      const r = S.status.recent[Number(b.dataset.redo)];
+      S.form = { date: r.date, type: r.type || "출근", timeIn: r.timeIn || "", timeOut: r.timeOut || "", location: r.location || "", task: r.task || "", mood: r.mood || "", note: r.note || "" };
+      S.err = ""; render();
+      const d = document.getElementById("f-date"); if (d) d.scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
     const pbtn = document.getElementById("p-submit");
     if (pbtn) pbtn.addEventListener("click", submitPlan);
     const popen = document.getElementById("plan-open");
