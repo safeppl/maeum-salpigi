@@ -289,6 +289,7 @@ function renderDetail(p) {
   h += '<div class="statusRow">' +
     '<select id="statusSelect">' + statusOptions + '</select>' +
     '<button id="statusBtn">상태 변경</button>' +
+    '<button id="folderBtn">📁 폴더 열기</button>' +
     '<span id="statusMsg" class="m"></span></div>';
   const bizOptions = BIZ_LIST.map(b => '<option value="' + esc(b) + '"' + (b === (p.biz || "미분류") ? " selected" : "") + '>' + esc(b) + '</option>').join("");
   h += '<div class="statusRow">사업: <select id="bizSelect">' + bizOptions + '</select>' +
@@ -314,10 +315,28 @@ function renderDetail(p) {
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
+  document.getElementById("folderBtn").addEventListener("click", () => openBizFolder(p));
   document.getElementById("bizBtn").addEventListener("click", () => changeBiz(p.code));
   document.getElementById("activistBtn").addEventListener("click", () => assignActivist(p.code));
   document.getElementById("deleteBtn").addEventListener("click", () => deleteApplicant(p));
   bindNotice(p);
+}
+
+// 2026-11-24: 그 참여자 사업(도봉구·용인시 등)의 활동보고서 폴더를 새 탭으로 열어요.
+// 팝업 차단을 피하려고 빈 탭을 먼저 열고, 주소를 받은 뒤 그 탭을 폴더로 보내요.
+async function openBizFolder(p) {
+  const msg = document.getElementById("statusMsg");
+  const win = window.open("", "_blank");
+  msg.textContent = "폴더 찾는 중...";
+  try {
+    const json = await callAdmin("adminBizFolder", { biz: p.biz || "미분류" });
+    if (!json.ok) throw new Error(json.error || "오류");
+    if (win) win.location.href = json.url; else window.open(json.url, "_blank");
+    msg.textContent = "";
+  } catch (err) {
+    if (win) win.close();
+    msg.textContent = "폴더를 못 열었어요: " + err.message;
+  }
 }
 
 // 2026-11-24: 잘못 제출된 신청을 지워요. 시트의 [삭제된 신청] 탭으로 옮겨지는 거라 거기서 되살릴 수 있어요.
