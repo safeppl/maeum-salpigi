@@ -224,6 +224,22 @@ function renderDashboard() {
   refreshSmsStatus();
 }
 
+// 2026-11-24: 중복 신청서를 나란히 놓고 값이 다른 칸만 색칠해서 보여줘요. [같은 항목도 보기]로 전체를 펼칠 수 있어요.
+async function showCompare(codes, box) {
+  box.textContent = "불러오는 중...";
+  const json = await callAdmin("adminCompare", { codes: codes });
+  if (!json.ok) { box.textContent = "비교 실패: " + (json.error || "오류"); return; }
+  const rows = json.head.map((h, i) => ({ h: h, vals: json.rows.map(r => r[i]) }))
+    .filter(x => x.vals.some(v => v !== ""));                       // 모두 빈 칸인 항목은 빼요
+  const diff = x => new Set(x.vals).size > 1;
+  const nDiff = rows.filter(diff).length;
+  const table = showAll => '<table style="margin-top:6px;font-size:12.5px"><tr><th>항목</th>' + json.rows.map(r => '<th>' + esc(r[0]) + '</th>').join("") + '</tr>' +
+    rows.filter(x => showAll || diff(x)).map(x => '<tr' + (diff(x) ? ' style="background:#FFF3C4"' : '') + '><td><b>' + esc(x.h) + '</b></td>' +
+      x.vals.map(v => '<td style="white-space:pre-wrap">' + esc(v || "—") + '</td>').join("") + '</tr>').join("") + '</table>';
+  box.innerHTML = '<p class="m" style="margin:6px 0">다른 항목 <b>' + nDiff + '개</b>(노란색) · <label><input type="checkbox" class="cmpAll"> 같은 항목도 보기</label></p><div class="cmpTbl">' + table(false) + '</div>';
+  box.querySelector(".cmpAll").addEventListener("change", e => { box.querySelector(".cmpTbl").innerHTML = table(e.target.checked); });
+}
+
 async function runAction(act) {
   const out = document.getElementById("actionResult");
   out.textContent = "처리 중...";
@@ -235,11 +251,13 @@ async function runAction(act) {
     if (!json.duplicates.length) { out.textContent = "중복 신청이 없어요."; return; }
     const pOf = code => DATA.participants.find(x => x.code === code);
     out.innerHTML = json.duplicates.length + "명이 두 번 이상 등록돼 있어요(같은 사업 또는 여러 사업). 남길 신청을 확인하고 나머지를 지우세요." +
-      json.duplicates.map(g => '<table style="margin-top:8px"><tr><th>참여번호</th><th>이름</th><th>사업</th><th>신청일</th><th>상태</th><th>담당 활동가</th><th></th></tr>' +
+      json.duplicates.map(g => '<div style="margin-top:10px"><button class="dupCmp" data-codes="' + esc(g.map(x => x.code).join(",")) + '" style="padding:4px 10px;font-size:12px">🔍 차이 비교</button><div class="cmpBox"></div></div>' +
+        '<table style="margin-top:6px"><tr><th>참여번호</th><th>이름</th><th>사업</th><th>신청일</th><th>상태</th><th>담당 활동가</th><th></th></tr>' +
         g.map(x => { const p = pOf(x.code) || {};
           return '<tr><td>' + esc(x.code) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.biz) + '</td><td>' + esc(p.applied || "") + '</td><td>' + esc(p.status || "") + '</td><td>' + esc(p.activist || "—") + '</td>' +
             '<td><button class="danger dupDel" data-code="' + esc(x.code) + '" style="padding:4px 10px;font-size:12px">🗑 삭제</button></td></tr>'; }).join("") +
         '</table>').join("");
+    out.querySelectorAll(".dupCmp").forEach(b => b.addEventListener("click", () => showCompare(b.dataset.codes.split(","), b.nextElementSibling)));
     out.querySelectorAll(".dupDel").forEach(b => b.addEventListener("click", () => {
       const p = pOf(b.dataset.code);
       if (!p) { b.textContent = "새로고침 후 다시"; return; }
