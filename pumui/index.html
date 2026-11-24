@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>품의서·지출결의서 관리</title>
+    <style>
+      body { font-family: 'Noto Sans KR', sans-serif; max-width: 860px; margin: 32px auto; padding: 0 16px; color: #222; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 18px; margin-top: 32px; }
+      .확인 { color: #666; font-size: 13px; }
+      label { display: block; font-size: 14px; margin-top: 12px; }
+      input, select { font: inherit; padding: 6px; box-sizing: border-box; }
+      .칸 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 16px; }
+      .칸 input, .칸 select { width: 100%; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border: 1px solid #ccc; padding: 4px; text-align: left; font-size: 14px; }
+      td input, td select { width: 100%; }
+      .금액 { text-align: right; }
+      button { font: inherit; padding: 8px 16px; margin-top: 12px; cursor: pointer; }
+      #결재선, #알림 { margin-top: 12px; padding: 8px 12px; background: #f5f5f5; white-space: pre-line; }
+      #알림.오류 { background: #fdecea; color: #a00; }
+      #알림.성공 { background: #e8f5e9; color: #1b5e20; }
+      #알림:empty, #결재선:empty { display: none; }
+      .문서 { border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin-top: 10px; }
+      .문서 .머리 { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+      .문서 .상태 { font-weight: bold; }
+      .문서 .반려 { color: #a00; }
+      .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
+      .문서 table { margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1 id="인사">품의서·지출결의서 관리</h1>
+    <p id="안내" class="확인">불러오는 중…</p>
+
+    <div id="앱" hidden>
+    <section id="결재할영역" hidden>
+      <h2>결재할 문서</h2>
+      <div id="결재할목록"></div>
+    </section>
+
+    <h2>내 문서</h2>
+    <div id="내목록"><p class="확인">불러오는 중…</p></div>
+
+    <h2 id="폼제목">품의서 작성 — 구매 및 집행</h2>
+    <form id="품의서" onsubmit="저장(event)">
+      <div class="칸">
+        <label>기관
+          <select name="기관" required onchange="결재선보기(this.value)">
+            <option value="">선택</option>
+          </select>
+        </label>
+        <label>사업명
+          <input name="사업명" list="사업목록" maxlength="50" required placeholder="목록에서 고르거나 직접 입력">
+          <datalist id="사업목록"></datalist>
+        </label>
+        <label>품의일자 <input type="date" name="품의일자" required></label>
+        <label>지급일자 <input type="date" name="지급일자" required></label>
+        <label>지급기한 <input type="date" name="지급기한" required></label>
+        <label>지급방법
+          <select name="지급방법" required></select>
+        </label>
+        <label>부가세
+          <select name="부가세" required></select>
+        </label>
+      </div>
+      <div id="결재선"></div>
+
+      <table>
+        <thead><tr><th>항목(계정)</th><th>금액(원)</th><th>비고</th><th>재원</th><th></th></tr></thead>
+        <tbody id="내역"></tbody>
+        <tfoot><tr><th>합계</th><th class="금액" id="합계">0</th><th colspan="3"></th></tr></tfoot>
+      </table>
+      <button type="button" onclick="줄추가()">+ 줄 추가</button>
+
+      <div>
+        <button type="submit" id="저장버튼">임시저장</button>
+        <button type="button" id="새로작성버튼" onclick="새로작성()" hidden>수정 취소 · 새로 작성</button>
+      </div>
+      <div id="알림"></div>
+    </form>
+
+    <template id="줄양식">
+      <tr>
+        <td><select data-칸="계정" required><option value="">선택</option></select></td>
+        <td><input data-칸="금액" type="number" min="1" step="1" class="금액" required oninput="합계계산()"></td>
+        <td><input data-칸="비고" maxlength="100" placeholder="거래처/내용"></td>
+        <td><select data-칸="재원" required></select></td>
+        <td><button type="button" onclick="줄삭제(this)" aria-label="줄 삭제">삭제</button></td>
+      </tr>
+    </template>
+
+    </div>
+
+    <script>
+      // ── 서버 연결 ── 화면은 GitHub Pages, 데이터는 Apps Script 웹앱(소유자 권한 실행)이 처리한다.
+      // 사람마다 받은 전용 링크(?t=…)의 토큰을 요청마다 보내고, 서버가 사용자 시트와 맞춰 누구인지 정한다.
+      const 서버주소 = 'https://script.google.com/macros/s/AKfycbxQEvkyT2n7Mu7nUTamBLvIO5k2Ny-DLUCCYPw4FXEvdNqQY33NN4V7v8TSQWelQHTz/exec';
+      const 토큰 = new URLSearchParams(location.search).get('t') || '';
+
+      /** 예전 google.script.run과 같은 모양으로 서버 함수를 부른다: 서버실행().withSuccessHandler(f).withFailureHandler(g).함수(인자…) */
+      function 서버실행() {
+        let 성공 = () => {}, 실패 = () => {};
+        const 호출 = new Proxy({}, {
+          get: (_, 이름) => {
+            if (이름 === 'withSuccessHandler') return (f) => { 성공 = f; return 호출; };
+            if (이름 === 'withFailureHandler') return (f) => { 실패 = f; return 호출; };
+            return (...인자) => 서버보내기(이름, 인자).then(성공, 실패);
+          },
+        });
+        return 호출;
+      }
+
+      async function 서버보내기(함수, 인자, 남은재시도 = 2) {
+        let 결과;
+        try {
+          // text/plain으로 보내야 브라우저가 사전요청(CORS preflight) 없이 바로 보낸다.
+          const 응답 = await fetch(서버주소, { method: 'POST', body: JSON.stringify({ 토큰, 함수, 인자 }) });
+          결과 = await 응답.json();
+        } catch (e) {
+          if (남은재시도 > 0) return 서버보내기(함수, 인자, 남은재시도 - 1); // 첫 요청이 가끔 끊기는 Apps Script 특성
+          throw new Error('서버에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
+        }
+        if (결과.성공) return 결과.값;
+        throw new Error(결과.오류);
+      }
+
+      function 옵션채우기(선택칸, 값들, 기본값) {
+        값들.forEach((v) => { const o = new Option(v, v, v === 기본값, v === 기본값); 선택칸.append(o); });
+      }
+
+      /** 첫 화면을 그린다. */
+      function 시작() {
+        document.getElementById('안내').textContent = '불러오는 중…';
+        서버실행()
+          .withSuccessHandler((정보) => {
+            const 사용자 = 정보.사용자;
+            document.getElementById('인사').textContent = `안녕하세요, ${사용자.이름}님`;
+            document.getElementById('안내').textContent = `역할: ${사용자.역할}${사용자.기관 ? ` (${사용자.기관})` : ''}`;
+            if (!화면준비됨) 화면준비(정보);
+            document.getElementById('앱').hidden = false;
+            결재함새로고침();
+          })
+          .withFailureHandler((e) => { document.getElementById('안내').textContent = e.message; })
+          .초기정보();
+      }
+
+      let 화면준비됨 = false;
+      let 오늘 = '';
+      function 화면준비(정보) {
+        화면준비됨 = true;
+        오늘 = 정보.오늘;
+        const 폼 = document.getElementById('품의서');
+        옵션채우기(폼.elements.기관, 정보.목록.기관);
+        정보.목록.사업목록.forEach((v) => document.getElementById('사업목록').append(new Option(v)));
+        옵션채우기(폼.elements.지급방법, 정보.목록.지급방법목록);
+        옵션채우기(폼.elements.부가세, 정보.목록.부가세목록);
+        const 양식 = document.getElementById('줄양식').content;
+        옵션채우기(양식.querySelector('[data-칸="계정"]'), 정보.목록.계정목록);
+        옵션채우기(양식.querySelector('[data-칸="재원"]'), 정보.목록.재원목록, '자부담');
+        새로작성();
+      }
+
+      if (토큰) 시작();
+      else document.getElementById('안내').textContent = '전용 링크로 접속하세요. 링크가 없으면 관리자에게 요청하세요.';
+
+      const 최대줄 = 12;
+      const 표 = document.getElementById('내역');
+
+      function 줄추가() {
+        if (표.rows.length >= 최대줄) return 알림('지출내역은 최대 12줄입니다.', '오류');
+        표.appendChild(document.getElementById('줄양식').content.cloneNode(true));
+      }
+      function 줄삭제(버튼) {
+        if (표.rows.length > 1) 버튼.closest('tr').remove();
+        합계계산();
+      }
+      function 합계계산() {
+        const 합 = [...표.querySelectorAll('[data-칸="금액"]')].reduce((s, el) => s + (Number(el.value) || 0), 0);
+        document.getElementById('합계').textContent = 합.toLocaleString('ko-KR');
+      }
+      function 알림(글, 종류) {
+        const 칸 = document.getElementById('알림');
+        칸.textContent = 글;
+        칸.className = 종류 || '';
+      }
+      function 결재선보기(기관) {
+        const 칸 = document.getElementById('결재선');
+        칸.textContent = '';
+        if (!기관) return;
+        서버실행()
+          .withSuccessHandler((선) => { 칸.textContent = '결재선: ' + 선.map((s) => `${s.직함} ${s.이름}`).join(' → '); })
+          .withFailureHandler((e) => { 칸.textContent = e.message; })
+          .결재선조회(기관);
+      }
+      let 수정중번호 = '';
+
+      function 저장(이벤트) {
+        이벤트.preventDefault();
+        const 폼 = 이벤트.target;
+        const 입력 = Object.fromEntries(new FormData(폼));
+        입력.내역 = [...표.rows].map((tr) => Object.fromEntries(
+          [...tr.querySelectorAll('[data-칸]')].map((el) => [el.dataset.칸, el.value])));
+        const 버튼 = document.getElementById('저장버튼');
+        버튼.disabled = true;
+        알림('저장 중입니다…');
+        서버실행()
+          .withSuccessHandler((번호) => {
+            버튼.disabled = false;
+            새로작성();
+            알림(`임시저장되었습니다. 문서번호: ${번호}\n'내 문서'에서 상신하세요.`, '성공');
+            결재함새로고침();
+          })
+          .withFailureHandler((e) => { 버튼.disabled = false; 알림(e.message, '오류'); })
+          .품의임시저장(입력, 수정중번호);
+      }
+
+      /** 폼을 비우고 새 문서 작성 상태로 되돌린다. */
+      function 새로작성() {
+        수정중번호 = '';
+        const 폼 = document.getElementById('품의서');
+        폼.reset();
+        ['품의일자', '지급일자', '지급기한'].forEach((칸) => { 폼.elements[칸].value = 오늘; });
+        표.innerHTML = '';
+        줄추가();
+        합계계산();
+        결재선보기('');
+        document.getElementById('폼제목').textContent = '품의서 작성 — 구매 및 집행';
+        document.getElementById('새로작성버튼').hidden = true;
+        알림('');
+      }
+
+      /** 내 문서의 내용을 폼에 채워 고칠 수 있게 한다. */
+      function 수정하기(문서) {
+        새로작성();
+        수정중번호 = 문서.문서번호;
+        const 폼 = document.getElementById('품의서');
+        ['기관', '사업명', '품의일자', '지급일자', '지급기한', '지급방법', '부가세'].forEach((칸) => { 폼.elements[칸].value = 문서[칸]; });
+        표.innerHTML = '';
+        문서.내역.forEach((줄) => {
+          줄추가();
+          const tr = 표.rows[표.rows.length - 1];
+          tr.querySelectorAll('[data-칸]').forEach((el) => { el.value = 줄[el.dataset.칸] === undefined ? '' : 줄[el.dataset.칸]; });
+        });
+        합계계산();
+        결재선보기(문서.기관);
+        document.getElementById('폼제목').textContent = `품의서 수정 — ${문서.문서번호}`;
+        document.getElementById('새로작성버튼').hidden = false;
+        폼.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      /** 태그를 만든다. 사용자가 입력한 글자는 textContent로만 넣어 화면에 코드가 끼어들지 못하게 한다. */
+      function 요소(태그, 글자, 클래스) {
+        const el = document.createElement(태그);
+        if (글자 !== undefined) el.textContent = 글자;
+        if (클래스) el.className = 클래스;
+        return el;
+      }
+
+      const 원 = (n) => Number(n).toLocaleString('ko-KR') + '원';
+
+      function 결재선글(문서) {
+        if (!문서.결재선) return '결재선 없음(기관 확인 필요)';
+        return 문서.결재선.map((s) => `${s.직함} ${s.이름}`).join(' → ');
+      }
+
+      function 문서카드(문서) {
+        const 카드 = 요소('div', undefined, '문서');
+        const 머리 = 요소('div', undefined, '머리');
+        머리.append(
+          요소('span', 문서.상태, '상태'),
+          요소('span', 문서.문서번호),
+          요소('span', `${문서.기관} · ${문서.사업명}`),
+          요소('span', 원(문서.합계)),
+          요소('span', `기안 ${문서.기안자이름} · 품의일자 ${문서.품의일자}`, '확인'),
+        );
+        카드.append(머리, 요소('div', '결재선: ' + 결재선글(문서), '확인'));
+        if (문서.상태 === '반려' && 문서.반려사유) 카드.append(요소('div', '반려 사유: ' + 문서.반려사유, '반려'));
+
+        const 표내역 = 요소('table');
+        const 머리줄 = 요소('tr');
+        ['항목', '금액', '비고', '재원'].forEach((h) => 머리줄.append(요소('th', h)));
+        표내역.append(머리줄);
+        문서.내역.forEach((줄) => {
+          const tr = 요소('tr');
+          tr.append(요소('td', 줄.계정), 요소('td', 원(줄.금액), '금액'), 요소('td', 줄.비고 || ''), 요소('td', 줄.재원));
+          표내역.append(tr);
+        });
+        카드.append(표내역);
+
+        if (문서.결재이력.length) {
+          카드.append(요소('div', 문서.결재이력.map((r) => `${r.일시} ${r.이름} ${r.동작}${r.사유 ? ` (${r.사유})` : ''}`).join('\n'), '확인'));
+          카드.lastChild.style.whiteSpace = 'pre-line';
+        }
+
+        const 출력버튼 = 요소('button', '출력(엑셀·PDF)');
+        출력버튼.type = 'button';
+        출력버튼.onclick = () => 출력(문서, 출력버튼);
+        카드.append(출력버튼);
+
+        문서.가능동작.forEach((동작) => {
+          const 버튼 = 요소('button', 동작);
+          버튼.type = 'button';
+          버튼.onclick = () => (동작 === '수정' ? 수정하기(문서) : 처리(문서, 동작, 버튼));
+          카드.append(버튼);
+        });
+        return 카드;
+      }
+
+      function 처리(문서, 동작, 버튼) {
+        let 사유 = '';
+        if (동작 === '반려') {
+          사유 = prompt(`${문서.문서번호} 반려 사유를 입력하세요.`);
+          if (사유 === null) return;
+        } else if (!confirm(`${문서.문서번호}을(를) ${동작}할까요?`)) {
+          return;
+        }
+        버튼.disabled = true;
+        서버실행()
+          .withSuccessHandler((상태) => { alert(`${문서.문서번호}: ${상태}`); 결재함새로고침(); })
+          .withFailureHandler((e) => { 버튼.disabled = false; alert(e.message); })
+          .문서처리(문서.문서번호, 동작, 사유);
+      }
+
+      /** base64 파일을 내려받는 링크를 만든다. 크롬이 자동 연속 다운로드를 막으므로 사용자가 직접 누르게 한다. */
+      function 받기링크(base64, 파일이름, 형식, 글) {
+        const 링크 = 요소('a', 글);
+        링크.href = `data:${형식};base64,${base64}`;
+        링크.download = 파일이름;
+        링크.style.marginLeft = '8px';
+        return 링크;
+      }
+
+      function 출력(문서, 버튼) {
+        버튼.disabled = true;
+        버튼.textContent = '만드는 중…';
+        const 끝 = () => { 버튼.disabled = false; 버튼.textContent = '출력(엑셀·PDF)'; };
+        서버실행()
+          .withSuccessHandler((파일) => {
+            버튼.nextElementSibling?.classList.contains('받기') && 버튼.nextElementSibling.remove();
+            const 묶음 = 요소('span', '', '받기');
+            묶음.append(
+              받기링크(파일.xlsx, 파일.이름 + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '엑셀 받기'),
+              받기링크(파일.pdf, 파일.이름 + '.pdf', 'application/pdf', 'PDF 받기'),
+            );
+            버튼.after(묶음);
+            끝();
+          })
+          .withFailureHandler((e) => { 끝(); alert(e.message); })
+          .품의서출력(문서.문서번호);
+      }
+
+      function 목록그리기(칸, 문서들, 빈글) {
+        칸.replaceChildren(...(문서들.length ? 문서들.map(문서카드) : [요소('p', 빈글, '확인')]));
+      }
+
+      function 결재함새로고침() {
+        서버실행()
+          .withSuccessHandler((결과) => {
+            document.getElementById('결재할영역').hidden = 결과.결재할문서.length === 0;
+            목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '');
+            목록그리기(document.getElementById('내목록'), 결과.내문서, '작성한 문서가 없습니다.');
+          })
+          .withFailureHandler((e) => { document.getElementById('내목록').replaceChildren(요소('p', e.message, '반려')); })
+          .결재함조회();
+      }
+
+    </script>
+  </body>
+</html>
