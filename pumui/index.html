@@ -96,6 +96,7 @@
     </dialog>
 
     <div id="앱" hidden>
+    <input id="검색" type="search" placeholder="문서 찾기: 문서번호·사업명·항목·기안자·금액" oninput="검색적용()" style="width:100%;box-sizing:border-box;margin:8px 0">
     <section id="결재함영역" hidden>
       <h2 id="결재함제목">결재함</h2>
       <p class="확인" style="margin:0">결재할 문서가 위에 펼쳐져 있고, 그 아래는 내가 이미 결재한 문서입니다.</p>
@@ -421,6 +422,8 @@
       /** 한 줄 요약(품의일자 · 내용 · 금액 · 상태)을 누르면 자세한 내용이 펼쳐진다. */
       function 문서카드(문서, 펼침) {
         const 접이 = 요소('details', undefined, '문서');
+        접이.dataset.찾기 = [문서.문서번호, 문서.사업명, 문서.기안자이름, 문서.품의일자, 문서.합계, Number(문서.합계 || 0).toLocaleString('ko-KR'),
+          ...문서.내역.flatMap((r) => [r.계정, r.비고])].join(' ').toLowerCase();
         // 내가 해야 할 일(상신·승인)이 있는 문서는 버튼이 보이게 펼쳐 둔다
         접이.open = !!펼침 || 문서.가능동작.some((동작) => 동작 !== '수정' && 동작 !== '상신 취소'); // 결재 대기 중인 내 문서까지 다 펼치면 길어짐
         const 요약 = 요소('summary');
@@ -842,6 +845,13 @@
         // 내 문서는 품의서와 지출결의서를 나눠 보여 준다(PC는 좌우, 휴대폰은 위아래)
         목록그리기(document.getElementById('내목록'), 결과.내문서.filter((d) => d.구분 !== '지출결의서'), '작성한 품의서가 없습니다.');
         목록그리기(document.getElementById('내지출목록'), 결과.내문서.filter((d) => d.구분 === '지출결의서'), '작성한 지출결의서가 없습니다. 결재 완료된 품의에서 [지출결의서 작성]을 누르세요.');
+        검색적용();
+      }
+
+      /** 검색창 글자가 들어 있는 문서 카드만 보인다(이미 받아 둔 목록 안에서 거르므로 서버 호출 없음). */
+      function 검색적용() {
+        const 낱말 = document.getElementById('검색').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        document.querySelectorAll('details.문서').forEach((카드) => { 카드.hidden = !낱말.every((w) => (카드.dataset.찾기 || '').includes(w)); });
       }
 
       function 결재함새로고침() {
