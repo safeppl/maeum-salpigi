@@ -536,6 +536,9 @@
     } finally { clearTimeout(timer); }
   }
   async function submit() {
+    // 2026-11-24: 답이 빠진 문항이 있으면 보내지 않고 그 문항으로 데려가요(빠진 채 보내면 서버가 거절함)
+    const missing = FLAT.findIndex(f => typeof S.ans[SECTIONS[f.si].items[f.ii].id] !== "number");
+    if (missing >= 0 && (MODE === "pre" || S.screen !== "sat")) { S.pos = missing; S.secIntro = false; S.lock = false; S.missingNote = true; alert("답하지 않은 문항이 있어요. 그 문항으로 이동할게요. 답한 뒤 다시 보내 주세요."); go("survey"); return; }
     const secs = Math.round((Date.now() - S.t0) / 1000);
     S.screen = "sending"; render(); top();
     if (DEMO) {
@@ -562,6 +565,14 @@
     render(); top();
   }
   function advance() {
+    if (S.missingNote) {   // 2026-11-24: 빠진 문항만 채우는 중 — 다음 빠진 문항으로, 다 채웠으면 바로 마지막 단계로
+      const nx = FLAT.findIndex(f => typeof S.ans[SECTIONS[f.si].items[f.ii].id] !== "number");
+      S.lock = false;
+      if (nx >= 0) { S.pos = nx; S.secIntro = false; store.set(); render(); top(); return; }
+      S.missingNote = false;
+      if (MODE === "pre") go("extra"); else submit();
+      return;
+    }
     if (S.pos < FLAT.length - 1) { S.pos++; if (FLAT[S.pos].ii === 0) S.secIntro = true; store.set(); S.lock = false; render(); top(); }
     else { S.lock = false; if (MODE === "pre") go("extra"); else submit(); }
   }
@@ -588,7 +599,10 @@
       S.ans[it.id] = v;
       if (needsFollow(it, v)) { store.set(); render(); return; }
       if (it.follow) delete S.follow[it.id];
-      S.lock = true; render(); setTimeout(advance, 1000); return; // 2026-11-24: 고른 답을 확인할 수 있게 1초 뒤 넘어가요
+      // 2026-11-24: 고른 답을 확인할 수 있게 1초 뒤 넘어가요. 그사이 [다음]·[이전]을 눌러 이미 움직였으면 자동 넘김은 하지 않아요
+      // (예전엔 두 번 넘어가서 문항 하나가 답 없이 건너뛰어졌고, 제출 때 incomplete_answers로 실패했음).
+      const at = S.pos;
+      S.lock = true; render(); setTimeout(() => { if (S.lock && S.pos === at && !S.secIntro) advance(); else S.lock = false; }, 1000); return;
     }
     if (act === "retry") { submit(); return; }
     if (act === "reload") { location.reload(); return; }
