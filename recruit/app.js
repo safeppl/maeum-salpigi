@@ -76,8 +76,26 @@
       '<p class="muted">검토 후 담당자가 연락드릴게요. 함께해 주셔서 고마워요.</p></div>' + contacts();
   }
 
+  // 2026-11-24: 시도 선택·오류 안내 때 화면을 다시 그려도 이미 적은 칸(이름·연락처 등)이 지워지지 않게 보관했다가 되살려요
+  function snapshot() {
+    const keep = {};
+    app.querySelectorAll("input, textarea").forEach(el => {
+      const key = el.id || (el.name || el.className) + ":" + el.value;
+      keep[key] = (el.type === "checkbox" || el.type === "radio") ? el.checked : el.value;
+    });
+    return keep;
+  }
+  function restore(keep) {
+    app.querySelectorAll("input, textarea").forEach(el => {
+      const key = el.id || (el.name || el.className) + ":" + el.value;
+      if (!(key in keep)) return;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = keep[key]; else el.value = keep[key];
+    });
+  }
   function render() {
+    const keep = S.screen === "done" ? {} : snapshot();
     app.innerHTML = S.screen === "done" ? doneScreen() : formScreen();
+    if (S.screen !== "done") restore(keep);
     bind();
   }
 
