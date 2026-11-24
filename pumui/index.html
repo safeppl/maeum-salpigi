@@ -511,6 +511,23 @@
       // ── 증빙 ── 지출결의서에 영수증·이체확인증을 올리면 파일 이름으로 종류·날짜·계정을 추천하고, 기안자가 확정한다.
       const 증빙종류 = ['영수증', '이체확인증', '카드전표', '세금계산서', '거래명세서', '견적서', '기타'];
 
+      /** 증빙 파일을 새 창으로 연다. 창은 누르는 즉시 열어 둬야 팝업 차단에 안 걸린다. */
+      async function 증빙열기(문서, 증, 버튼) {
+        const 창 = window.open('', '_blank');
+        if (창) 창.document.write('<p style="font-family:sans-serif;padding:20px">증빙을 불러오는 중입니다…</p>');
+        버튼.disabled = true;
+        try {
+          const 파일 = await 서버보내기('증빙보기', [문서.문서번호, 증.파일]);
+          const 바이트 = Uint8Array.from(atob(파일.데이터), (c) => c.charCodeAt(0));
+          const 주소 = URL.createObjectURL(new Blob([바이트], { type: 파일.형식 }));
+          if (창) 창.location.href = 주소; else window.open(주소, '_blank');
+        } catch (e) {
+          if (창) 창.close();
+          alert(e.message);
+        }
+        버튼.disabled = false;
+      }
+
       /** 증빙이 바뀐 문서 카드만 다시 그린다(전체 목록을 다시 불러오지 않음). */
       function 증빙반영(문서, 칸, 새증빙) {
         문서.증빙 = 새증빙;
@@ -530,7 +547,11 @@
         목록.forEach((증) => {
           const tr = 요소('div', undefined, '증빙줄');
           tr.dataset.파일 = 증.파일;
-          tr.append(요소('div', 증.이름));
+          const 이름줄 = 요소('div', 증.이름 + ' ');
+          const 보기 = 요소('button', '보기'); 보기.type = 'button'; 보기.style.margin = '0'; 보기.style.padding = '2px 10px';
+          보기.onclick = () => 증빙열기(문서, 증, 보기);
+          이름줄.append(보기);
+          tr.append(이름줄);
           if (!문서.증빙편집) {
             tr.append(요소('div', [증.종류, 증.날짜, 증.계정, 증.내용].filter(Boolean).join(' · '), '확인'));
           } else {
@@ -542,7 +563,7 @@
             const 칸들 = 요소('div', undefined, '칸들');
             [['종류', 선택칸(증빙종류, 증.종류, '종류')], ['날짜', 날짜칸], ['항목(계정)', 계정칸], ['내용', 내용칸]].forEach(([글, el]) => { const l = 요소('label', 글); l.style.margin = '0'; l.append(el); 칸들.append(l); });
             tr.append(칸들);
-            const 빼기 = 요소('button', '삭제'); 빼기.type = 'button';
+            const 빼기 = 요소('button', '이 증빙 삭제'); 빼기.type = 'button'; 빼기.style.color = '#a00';
             빼기.onclick = () => {
               if (!confirm(`${증.이름}을(를) 증빙에서 뺄까요?`)) return;
               빼기.disabled = true;
@@ -558,7 +579,7 @@
 
         const 줄 = 요소('div');
         const 파일칸 = 요소('input'); 파일칸.type = 'file'; 파일칸.multiple = true; 파일칸.accept = 'image/jpeg,image/png,application/pdf';
-        const 알림칸 = 요소('span', ' 파일을 고르면 바로 올라갑니다', '확인');
+        const 알림칸 = 요소('span', ' 파일을 고르면 바로 올라갑니다 · 같은 이름으로 다시 올리면 새 파일로 바뀝니다', '확인');
         // 파일을 고르는 즉시 올린다. 3개씩 동시에 보내고, 마지막 응답의 증빙 목록으로 이 카드만 다시 그린다.
         파일칸.onchange = async () => {
           const 파일들 = [...파일칸.files].filter((f) => {
