@@ -196,7 +196,7 @@ function renderDashboard() {
   h += '<h2>지금 살펴볼 사람 (정서확인필요 · 유형별 고위험 · 정신과 진료/약물 · ' + flagged.length + '명)</h2>';
   h += flagged.length
     ? '<table><tr><th>참여번호</th><th>이름</th><th>상태</th><th>고위험 유형</th><th>정신과 진료·약물</th><th>표시</th></tr>' +
-      flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.status) + '</td>' +
+      flagged.map(p => '<tr><td>' + esc(p.code) + '</td><td><a href="#" class="careLink" data-code="' + esc(p.code) + '" title="초기면접지(신청서) 바로 보기">' + esc(p.name) + '</a></td><td>' + esc(p.status) + '</td>' +
         '<td class="care">' + esc((p.highTypes || []).map(t => t + "형").join(", ") || "—") + '</td>' +
         '<td' + (p.med ? ' class="care" title="신청서 \'극복 노력\' 답에서 찾은 낱말이에요. 실제 진료 여부는 신청서를 열어 확인하세요."' : '') + '>' + esc(p.med ? "언급 있음(" + p.med + ")" : "—") + '</td>' +
         '<td class="care">' + esc(p.flag || "—") + '</td></tr>').join("") +
@@ -222,6 +222,15 @@ function renderDashboard() {
     '<button id="purgePreviewBtn">대상 확인</button><div id="purgeResult" class="m" style="margin-top:8px"></div></div>';
 
   document.getElementById("main").innerHTML = h;
+  // 2026-11-24: '지금 살펴볼 사람' 이름을 누르면 그 사람 상세 화면을 열고 초기면접지(신청서) 부분으로 바로 내려가요
+  document.querySelectorAll(".careLink").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    activeCode = a.dataset.code;
+    renderList();
+    renderDetail(DATA.participants.find(x => x.code === activeCode));
+    const iv = document.getElementById("intakeView");
+    if (iv) iv.scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
   document.querySelectorAll("[data-act]").forEach(btn => btn.addEventListener("click", () => runAction(btn.dataset.act)));
   document.getElementById("smsSaveBtn").addEventListener("click", saveSmsSettings);
   document.getElementById("purgePreviewBtn").addEventListener("click", purgePreview);
@@ -378,7 +387,7 @@ function renderDetail(p) {
     '<textarea id="noticeText" rows="5">불러오는 중...</textarea>' +
     '<div class="noticeBtns"><button id="noticeCopyBtn">문구 복사</button>' +
     '<button id="noticeSendBtn">문자 보내기</button><span id="noticeMsg" class="m"></span></div></div>';
-  h += p.intake || '<p class="msg">신청서 내용을 못 불러왔어요.</p>';
+  h += '<div id="intakeView">' + (p.intake || '<p class="msg">신청서 내용을 못 불러왔어요.</p>') + '</div>';
   h += '</div>';
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
