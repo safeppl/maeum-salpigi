@@ -63,6 +63,11 @@
       <div id="결재할목록"></div>
     </section>
 
+    <section id="결재한영역" hidden>
+      <h2>내가 결재한 문서</h2>
+      <div id="결재한목록"></div>
+    </section>
+
     <h2>내 문서</h2>
     <div id="내목록"><p class="확인">불러오는 중…</p></div>
 
@@ -482,6 +487,8 @@
           .withSuccessHandler((결과) => {
             document.getElementById('결재할영역').hidden = !결재자인가 && 결과.결재할문서.length === 0;
             목록그리기(document.getElementById('결재할목록'), 결과.결재할문서, '지금 결재할 문서가 없습니다.');
+            document.getElementById('결재한영역').hidden = !결재자인가 && 결과.결재한문서.length === 0;
+            목록그리기(document.getElementById('결재한목록'), 결과.결재한문서, '아직 결재한 문서가 없습니다.');
             목록그리기(document.getElementById('내목록'), 결과.내문서, '작성한 문서가 없습니다.');
           })
           .withFailureHandler((e) => { document.getElementById('내목록').replaceChildren(요소('p', e.message, '반려')); })
