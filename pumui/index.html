@@ -114,6 +114,16 @@
       </tr>
     </template>
 
+      <section id="목록관리" hidden>
+        <h2>목록 관리 <span class="확인">(사무국장·관리자만)</span></h2>
+        <p class="확인">한 줄에 하나씩 씁니다. 줄을 추가하면 추가, 글자를 고치면 수정, 줄을 지우면 삭제됩니다. 이미 작성된 문서는 원래 이름 그대로 남습니다.</p>
+        <div class="칸">
+          <label>사업명 <textarea id="사업목록입력" rows="12" style="width:100%;font:inherit"></textarea></label>
+          <label>항목(계정) <textarea id="계정목록입력" rows="12" style="width:100%;font:inherit"></textarea></label>
+        </div>
+        <button type="button" id="목록저장버튼" onclick="목록저장하기()">목록 저장</button>
+        <span id="목록알림" class="확인"></span>
+      </section>
     </div>
 
     <script>
@@ -160,6 +170,7 @@
           .withSuccessHandler((정보) => {
             const 사용자 = 정보.사용자;
             결재자인가 = 사용자.역할 !== '기안자';
+            document.getElementById('목록관리').hidden = !(사용자.역할 === '검토자' || 사용자.역할 === '관리자');
             document.getElementById('인사').textContent = `안녕하세요, ${사용자.이름}님`;
             document.getElementById('안내').textContent = `역할: ${사용자.역할}${사용자.기관 ? ` (${사용자.기관})` : ''}`;
             if (!화면준비됨) 화면준비(정보);
@@ -180,13 +191,38 @@
         오늘 = 정보.오늘;
         const 폼 = document.getElementById('품의서');
         옵션채우기(폼.elements.기관, 정보.목록.기관);
-        정보.목록.사업목록.forEach((v) => document.getElementById('사업목록').append(new Option(v)));
         옵션채우기(폼.elements.지급방법, 정보.목록.지급방법목록);
         옵션채우기(폼.elements.부가세, 정보.목록.부가세목록);
         const 양식 = document.getElementById('줄양식').content;
-        옵션채우기(양식.querySelector('[data-칸="계정"]'), 정보.목록.계정목록);
         옵션채우기(양식.querySelector('[data-칸="재원"]'), 정보.목록.재원목록, '자부담');
+        목록적용(정보.목록);
         새로작성();
+      }
+
+      /** 사업명 추천 목록과 항목(계정) 선택지를 바꾼다. 이미 고른 값은 목록에서 빠졌어도 그대로 둔다. */
+      function 목록적용(목록) {
+        document.getElementById('사업목록').replaceChildren(...목록.사업목록.map((v) => new Option(v)));
+        const 계정칸들 = [document.getElementById('줄양식').content.querySelector('[data-칸="계정"]'), ...표.querySelectorAll('[data-칸="계정"]')];
+        계정칸들.forEach((칸) => {
+          const 고른값 = 칸.value;
+          칸.replaceChildren(new Option('선택', ''));
+          옵션채우기(칸, 목록.계정목록);
+          if (고른값 && !목록.계정목록.includes(고른값)) 칸.append(new Option(고른값, 고른값));
+          칸.value = 고른값;
+        });
+        document.getElementById('사업목록입력').value = 목록.사업목록.join('\n');
+        document.getElementById('계정목록입력').value = 목록.계정목록.join('\n');
+      }
+
+      function 목록저장하기() {
+        const 줄들 = (id) => document.getElementById(id).value.split('\n');
+        const 버튼 = document.getElementById('목록저장버튼');
+        const 알림칸 = document.getElementById('목록알림');
+        버튼.disabled = true; 알림칸.textContent = '저장 중…';
+        서버실행()
+          .withSuccessHandler((목록) => { 버튼.disabled = false; 목록적용(목록); 알림칸.textContent = `저장했습니다. 사업명 ${목록.사업목록.length}개, 항목 ${목록.계정목록.length}개`; })
+          .withFailureHandler((e) => { 버튼.disabled = false; 알림칸.textContent = ''; alert(e.message); })
+          .목록저장(줄들('사업목록입력'), 줄들('계정목록입력'));
       }
 
       if (토큰) 시작();
