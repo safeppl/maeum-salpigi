@@ -69,7 +69,9 @@
     withwalking: { label: '위드워킹 보고서', path: 'withwalking/admin.html' },
     ilgyeongheom: { label: '자기주도 일경험', path: 'ilgyeongheom/admin.html' },
     // 바로가기 탭: 위드워킹 관리자 화면을 미래내일일경험으로 걸러 요약부터 보여줘요(토큰은 위드워킹 것을 같이 씀)
-    mirae: { label: '미래내일일경험', path: 'withwalking/admin.html?biz=' + encodeURIComponent('미래내일일경험'), tokenOf: 'withwalking' }
+    mirae: { label: '미래내일일경험', path: 'withwalking/admin.html?biz=' + encodeURIComponent('미래내일일경험'), tokenOf: 'withwalking' },
+    // 2026-11-24: 사업별 활동상황판 자동점검 요약(마음살피기 토큰으로 읽어요)
+    board: { label: '활동상황판', path: 'board.html', tokenOf: 'maeum' }
   };
   var keys = Object.keys(CONF);
   var tokenKeys = keys.filter(function (k) { return !CONF[k].tokenOf; }); // 토큰 입력칸이 있는 탭만(바로가기 탭 제외)

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>안전한더유스 · 활동상황판</title>
+<style>
+  :root {
+    --bg: #FDF6EA; --surface: #FFFDF8; --ink: #241508; --muted: #6B5540; --line: #EAD9BE;
+    --accent: #2C6765; --accent-soft: #D9EFEA; --care: #C0392B; --watch: #B9790F;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 16px; font-family: "Apple SD Gothic Neo","Malgun Gothic",sans-serif; background: var(--bg); color: var(--ink); }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .m { color: var(--muted); font-size: 12.5px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card h2 { font-size: 15px; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .open { font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 7px; background: var(--accent); color: #fff; text-decoration: none; white-space: nowrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+  .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .chip.warn { background: #FFE9C7; color: var(--watch); }
+  .chip.bad { background: #FBE0DC; color: var(--care); }
+  ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+  li { margin: 3px 0; }
+  .err { color: var(--care); font-size: 12.5px; }
+  button { font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>활동상황판 · 매일 아침 자동점검 요약</h1>
+<div class="m">각 상황판 '자동점검 로그'의 가장 최근 날짜 기록이에요. 표 자체는 [상황판 열기]로 구글 시트에서 보세요. <button id="reload">↻ 다시 불러오기</button></div>
+<div id="cards" class="cards"><div class="m">불러오는 중…</div></div>
+<script>
+// 2026-11-24: 허브 '활동상황판' 탭. 마음살피기 서버(adminBoardSummary)가 세 상황판 로그를 읽어 요약해 줘요(읽기만).
+const MAEUM_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec";
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const tone = k => /오류/.test(k) ? "bad" : /확인|^X$|신규 X/.test(k) ? "warn" : "";
+
+function card(b) {
+  let h = '<div class="card"><h2>' + esc(b.title) + '<a class="open" href="' + esc(b.url) + '" target="_blank" rel="noopener">상황판 열기 ↗</a></h2>';
+  if (b.error) return h + '<p class="err">로그를 읽지 못했어요: ' + esc(b.error) + '</p></div>';
+  if (!b.lastDate) return h + '<p class="m">아직 점검 기록이 없어요.</p></div>';
+  h += '<div class="m" style="margin-top:4px">최근 점검: ' + esc(b.lastRun || b.lastDate) + '</div>';
+  const keys = Object.keys(b.counts);
+  h += '<div class="chips">' + (keys.length ? keys.map(k => '<span class="chip ' + tone(k) + '">' + esc(k) + ' ' + b.counts[k] + '</span>').join("") : '<span class="chip">변경 없음</span>') + '</div>';
+  h += b.attention.length
+    ? '<b style="font-size:13px">살펴볼 것 ' + b.attention.length + '건</b><ul>' + b.attention.map(a =>
+        '<li><b>' + esc(a.name) + '</b>' + (a.round ? ' ' + esc(a.round) + '회차' : '') + ' · ' + esc(a.result) + (a.note ? ' <span class="m">— ' + esc(a.note) + '</span>' : '') + '</li>').join("") + '</ul>'
+    : '<p class="m" style="margin:6px 0 0">살펴볼 것 없음 ✅</p>';
+  return h + '</div>';
+}
+
+async function load() {
+  const box = document.getElementById("cards");
+  if (!TOKEN) { box.innerHTML = '<p class="err">주소에 ?t=관리자토큰 이 없어요. 허브에서 열어 주세요.</p>'; return; }
+  box.innerHTML = '<div class="m">불러오는 중… (상황판 3개를 읽어서 몇 초 걸려요)</div>';
+  try {
+    const res = await fetch(MAEUM_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "adminBoardSummary", token: TOKEN }) });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error === "forbidden" ? "마음살피기 관리자 토큰이 맞지 않아요" : json.error);
+    box.innerHTML = json.boards.map(card).join("");
+  } catch (err) {
+    box.innerHTML = '<p class="err">불러오지 못했어요: ' + esc(err.message) + '</p>';
+  }
+}
+document.getElementById("reload").onclick = load;
+load();
+</script>
+</body>
+</html>
