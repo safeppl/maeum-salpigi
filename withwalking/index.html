@@ -198,10 +198,20 @@ function bindDateHint_(dateId, hintId) {
 ['faceTime', 'remote1Time', 'remote2Time', 'nextFaceTime', 'nextRemote1Time', 'nextRemote2Time'].forEach(fillTimeSelect_);
 
 // 원본 구글폼 "대면 시 활동 내용" 보기와 같아야 해요(서버 Code.gs의 FACE_ACTIVITIES).
+const REASON_ACTIVITIES = ['조언을 해주었음', '고민 해결을 위해 노력했음'];
 const FACE_ACTIVITIES = ['초기 면접 과정을 숙지하고 상황을 이해했음', '원하는 장소로 이동했음', '자주 찾거나 익숙한 장소에서 대화했음',
   '이야기를 최대한 경청했음', '조언을 해주었음', '고민 해결을 위해 노력했음', '집까지 배웅 또는 가는 것을 끝까지 지켜봐 주었음'];
 document.getElementById('faceActs').innerHTML = FACE_ACTIVITIES.map((a, i) =>
-  '<label style="font-weight:400;margin-top:6px"><input type="checkbox" class="faceAct" value="' + a + '" style="width:auto;display:inline-block;margin-right:6px">' + a + '</label>').join('');
+  '<label style="font-weight:400;margin-top:6px"><input type="checkbox" class="faceAct" value="' + a + '" style="width:auto;display:inline-block;margin-right:6px">' + a + '</label>' +
+  (REASON_ACTIVITIES.indexOf(a) >= 0 ? '<textarea class="faceReason" data-act="' + a + '" rows="2" placeholder="어떤 내용이었는지 사유를 적어 주세요(필수)" style="display:none;margin-top:4px"></textarea>' : '')).join('');
+// 2026-11-24: '조언'·'고민 해결'에 체크하면 사유 칸이 나타나요(서버 Code.gs의 REASON_ACTIVITIES_와 같아야 해요).
+function syncReasonBoxes() {
+  document.querySelectorAll('.faceReason').forEach(t => {
+    const cb = [...document.querySelectorAll('.faceAct')].find(c => c.value === t.dataset.act);
+    t.style.display = cb && cb.checked ? 'block' : 'none';
+  });
+}
+document.querySelectorAll('.faceAct').forEach(cb => cb.addEventListener('change', syncReasonBoxes));
 bindDateHint_('faceDate', 'faceDayHint');
 bindDateHint_('remote1Date', 'remote1DayHint');
 bindDateHint_('remote2Date', 'remote2DayHint');
@@ -367,6 +377,10 @@ async function loadForEdit(item) {
   set('nextFace', r['다음계획_대면']); set('nextRemote', r['다음계획_비대면']);
   const acts = String(r['대면_활동내용'] || '').split(', ');
   document.querySelectorAll('.faceAct').forEach(cb => { cb.checked = acts.indexOf(cb.value) >= 0; });
+  const reasons = {};
+  String(r['대면_활동사유'] || '').split('\n').forEach(line => { const i = line.indexOf(': '); if (i > 0) reasons[line.slice(0, i)] = line.slice(i + 2); });
+  document.querySelectorAll('.faceReason').forEach(t => { t.value = reasons[t.dataset.act] || ''; });
+  syncReasonBoxes();
   const etc = acts.find(a => a.indexOf('기타: ') === 0);
   set('faceActEtc', etc ? etc.slice(4) : '');
   // 다음 일정도 불러와 고칠 수 있어요 — 바꾸면 서버가 스케줄표의 예전 줄을 지우고 새로 적어요(중복 없음)
@@ -417,6 +431,8 @@ document.getElementById('submit').onclick = async () => {
   const msg = document.getElementById('msg');
   const sel = document.getElementById('code');
   if (!editing && !sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
+  const noReason = [...document.querySelectorAll('.faceReason')].find(t => t.style.display !== 'none' && !t.value.trim());
+  if (noReason) { msg.textContent = '"' + noReason.dataset.act + '"의 사유를 적어 주세요.'; noReason.focus(); return; }
   if (!signed) { msg.textContent = '서명을 해 주세요.'; return; }
   if (!document.getElementById('signAgree').checked) { msg.textContent = '"위 내용이 사실임을 확인합니다"에 체크해 주세요.'; return; }
   btn.disabled = true; msg.textContent = '제출하는 중이에요…';
@@ -445,6 +461,7 @@ document.getElementById('submit').onclick = async () => {
     finalize: document.getElementById('finalize').checked,
     faceActs: [...document.querySelectorAll('.faceAct:checked')].map(cb => cb.value),
     faceActEtc: document.getElementById('faceActEtc').value.trim(),
+    faceActReasons: Object.fromEntries([...document.querySelectorAll('.faceReason')].filter(t => t.style.display !== 'none').map(t => [t.dataset.act, t.value.trim()])),
     nextFaceDate: document.getElementById('nextFaceDate').value,
     nextFaceTime: document.getElementById('nextFaceTime').value,
     nextRemote1Date: document.getElementById('nextRemote1Date').value,
