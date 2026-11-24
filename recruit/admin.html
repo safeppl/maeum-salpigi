@@ -99,10 +99,12 @@ function renderDashboard() {
   let h = '<div class="cards">' +
     Object.keys(DATA.byStatus).map(s => '<div class="card"><b>' + DATA.byStatus[s] + '</b><span>' + esc(s) + '</span></div>').join("") +
     '</div>';
-  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>접수일</th></tr>' +
-    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.appliedAt) + '</td></tr>').join("") +
+  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>접수일</th><th></th></tr>' +
+    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(p.appliedAt) + '</td>' +
+      '<td><button class="act rowDel" data-row="' + p.rowIndex + '" style="background:#B3261E;color:#fff;padding:4px 10px;font-size:12px">🗑 삭제</button></td></tr>').join("") +
     '</table>';
   document.getElementById("main").innerHTML = h;
+  document.querySelectorAll(".rowDel").forEach(b => b.addEventListener("click", () => deleteApplicant(DATA.applicants.find(p => p.rowIndex === Number(b.dataset.row)), b)));
 }
 
 function act(rowIndex, action, btn, label, extra) {
