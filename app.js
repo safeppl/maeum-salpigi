@@ -505,7 +505,7 @@
     else if (sc === "survey") body = S.secIntro ? secIntro() : question();
     else if (sc === "extra") body = extraScreen();
     else if (sc === "sending") body = msgScreen("보내는 중이에요", "잠시만 기다려 주세요. 창을 닫지 말아 주세요.").replace(guideCard(), "");
-    else if (sc === "sendError") body = `${msgScreen("보내지 못했어요", "인터넷 연결을 확인하고 다시 보내기를 눌러주세요. 답한 내용은 이 기기에 남아 있어요.")}
+    else if (sc === "sendError") body = `${msgScreen("보내지 못했어요", "인터넷 연결을 확인하고 다시 보내기를 눌러주세요. 답한 내용은 이 기기에 남아 있어요." + (S.sendErr ? " (오류 내용: " + String(S.sendErr).replace(/[<>&"]/g, "") + " — 계속 안 되면 이 화면을 캡처해 담당자에게 보내주세요)" : ""))}
       <button class="btn btn-primary btn-block" data-act="retry">다시 보내기</button>`;
     else if (sc === "done") body = doneScreen();
     else if (sc === "loading") body = msgScreen("불러오는 중이에요", "잠시만 기다려 주세요.").replace(guideCard(), "");
@@ -558,7 +558,7 @@
       store.clear();
       if (MODE === "pre") { S.myToken = r.token; S.screen = "done"; }
       else { S.result = r.result; S.screen = r.result && r.result.pre ? "change" : "finished"; }
-    } catch (e) { S.screen = "sendError"; }
+    } catch (e) { S.sendErr = e.name === "AbortError" ? "응답 시간 초과(30초)" : String(e.message || e); S.screen = "sendError"; }   // 2026-11-24: 원인을 화면에 보여줘서 알려줄 수 있게
     render(); top();
   }
   function advance() {
