@@ -29,6 +29,8 @@
       .문서 button { margin: 8px 8px 0 0; padding: 4px 12px; }
       .문서 table { margin-top: 6px; }
       details.문서 { padding: 0; }
+      details.월 { margin-top: 8px; }
+      details.월 > summary { cursor: pointer; font-weight: bold; font-size: 14px; color: #345; padding: 6px 4px; border-bottom: 2px solid #cfd8dc; }
       .미리보기들 { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
       .미리보기들 button { margin: 0; padding: 0; width: 96px; height: 96px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; overflow: hidden; font-size: 11px; color: #888; }
       .미리보기들 img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -843,8 +845,26 @@
           .품의서출력(문서.문서번호);
       }
 
+      /** 문서를 월별(지급일자 기준, 없으면 품의일자) 드롭다운으로 묶어 그린다. 가장 최근 달과 내가 처리할 문서가 있는 달만 펼친다. */
       function 목록그리기(칸, 문서들, 빈글, 펼침) {
-        칸.replaceChildren(...(문서들.length ? 문서들.map((d) => 문서카드(d, 펼침)) : [요소('p', 빈글, '확인')]));
+        if (!문서들.length) return 칸.replaceChildren(요소('p', 빈글, '확인'));
+        const 월별 = new Map();
+        문서들.forEach((d) => {
+          const 달 = String(d.지급일자 || d.품의일자 || '').slice(0, 7) || '날짜없음';
+          if (!월별.has(달)) 월별.set(달, []);
+          월별.get(달).push(d);
+        });
+        const 달들 = [...월별.keys()].sort().reverse();
+        칸.replaceChildren(...달들.map((달, i) => {
+          const 묶음 = 월별.get(달);
+          const 카드들 = 묶음.map((d) => 문서카드(d, 펼침));
+          const 합 = 묶음.reduce((a, d) => a + Number(d.합계 || 0), 0);
+          const [년, 월] = 달.split('-');
+          const 월접이 = 요소('details', undefined, '월');
+          월접이.open = i === 0 || 카드들.some((c) => c.open);
+          월접이.append(요소('summary', `${월 ? `${년}년 ${Number(월)}월` : 달} · ${묶음.length}건 · ${합.toLocaleString('ko-KR')}원`), ...카드들);
+          return 월접이;
+        }));
       }
 
       function 결재함그리기(결과) {
@@ -865,6 +885,12 @@
       function 검색적용() {
         const 낱말 = document.getElementById('검색').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
         document.querySelectorAll('details.문서').forEach((카드) => { 카드.hidden = !낱말.every((w) => (카드.dataset.찾기 || '').includes(w)); });
+        // 월 묶음: 보이는 문서가 없으면 숨기고, 찾는 중이면 맞는 달을 펼친다
+        document.querySelectorAll('details.월').forEach((월) => {
+          const 보임 = [...월.querySelectorAll('details.문서')].some((카드) => !카드.hidden);
+          월.hidden = !보임;
+          if (낱말.length && 보임) 월.open = true;
+        });
       }
 
       function 결재함새로고침() {
