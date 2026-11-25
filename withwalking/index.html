@@ -407,6 +407,22 @@ async function loadForEdit(item) {
 
 // 서명 패드: 한 획이라도 그어야 제출돼요. 흰 바탕 JPEG로 보내서 사진과 같은 방식으로 저장해요.
 const signPad = document.getElementById('signPad');
+// 서명 주변의 흰 여백을 잘라내 문서의 서명란에 크게/알맞게 들어가게 해요(패드 전체를 그대로 올리면 글씨가 작고 줄이 넘어가요)
+function trimSignData_() {
+  const w = signPad.width, hgt = signPad.height, d = signPad.getContext('2d').getImageData(0, 0, w, hgt).data;
+  let x0 = w, y0 = hgt, x1 = -1, y1 = -1;
+  for (let y = 0; y < hgt; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (d[i] < 235 || d[i + 1] < 235 || d[i + 2] < 235) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return signPad.toDataURL('image/jpeg', 0.8);
+  const pad = 10;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(hgt - 1, y1 + pad);
+  const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+  const oc = out.getContext('2d'); oc.fillStyle = '#fff'; oc.fillRect(0, 0, out.width, out.height);
+  oc.drawImage(signPad, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.8);
+}
 let signed = false;
 function resetSign() {
   const r = window.devicePixelRatio || 1;
@@ -468,7 +484,7 @@ document.getElementById('submit').onclick = async () => {
     nextRemote1Time: document.getElementById('nextRemote1Time').value,
     nextRemote2Date: document.getElementById('nextRemote2Date').value,
     nextRemote2Time: document.getElementById('nextRemote2Time').value,
-    signData: signPad.toDataURL('image/jpeg', 0.8)
+    signData: trimSignData_()
   };
   SCALE_ITEMS.forEach(([key]) => {
     form[key] = scaleVals[key];
