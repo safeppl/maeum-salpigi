@@ -476,6 +476,7 @@ document.getElementById('submit').onclick = async () => {
   });
   const res = await post({ action: editing ? 'editReport' : 'report', token, form });
   if (res.ok) {
+    post({ action: 'savePdf', token, code: form.code }).catch(() => {}); // PDF 보관은 응답 뒤에 따로(기다리지 않음)
     document.getElementById('app').style.display = 'none';
     const done = document.getElementById('done');
     done.style.display = 'block';
