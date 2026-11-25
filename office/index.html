@@ -70,7 +70,7 @@
     if (이름 === '근태' && !근태.src) 근태.src = 'https://script.google.com/macros/s/AKfycbz9MX4AIoadvdGZ2zbO5dXZpHOTAPme7UZNYAGdyVLBxcyVyAbzA41lpKzLdt59CTE/exec?page=admin';
     const f = document.getElementById('frame');
     f.style.display = 이름 === '품의' ? 'block' : 'none';
-    if (이름 === '품의') f.src = '../pumui/index.html?t=' + encodeURIComponent(읽기()); // 누를 때마다 새로 불러옴
+    if (이름 === '품의') f.src = '../pumui/index.html?t=' + encodeURIComponent(읽기()) + '&v=' + Date.now(); // 누를 때마다 새로 불러옴(&v=는 브라우저가 옛 화면을 재사용하지 못하게)
   }
 
   function 시작() {
