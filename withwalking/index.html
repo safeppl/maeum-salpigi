@@ -469,7 +469,14 @@ document.getElementById('submit').onclick = async () => {
   if (noReason) { msg.textContent = '"' + noReason.dataset.act + '"의 사유를 적어 주세요.'; noReason.focus(); return; }
   if (!signed) { msg.textContent = '서명을 해 주세요.'; return; }
   if (!document.getElementById('signAgree').checked) { msg.textContent = '"위 내용이 사실임을 확인합니다"에 체크해 주세요.'; return; }
-  btn.disabled = true; msg.textContent = '제출하는 중이에요…';
+  btn.disabled = true;
+  // 제출은 10초 이상 걸릴 수 있어요: 경과 시간을 보여주고, 끝나기 전에 화면을 닫으려 하면 경고해요
+  const t0 = Date.now();
+  const tick = () => { msg.textContent = '제출하는 중이에요… ' + Math.round((Date.now() - t0) / 1000) + '초 (10~20초 걸릴 수 있어요. 화면을 닫거나 다시 누르지 말고 기다려 주세요)'; };
+  tick(); const timer = setInterval(tick, 1000);
+  const warnLeave = e => { e.preventDefault(); e.returnValue = ''; };
+  window.addEventListener('beforeunload', warnLeave);
+  const finish = () => { clearInterval(timer); window.removeEventListener('beforeunload', warnLeave); };
   const photoData = await fileToBase64(document.getElementById('facePhoto').files[0]);
   const form = {
     code: editing ? editing.code : sel.value, round: editing ? editing.round : document.getElementById('round').value,
@@ -508,7 +515,14 @@ document.getElementById('submit').onclick = async () => {
     form[key] = scaleVals[key];
     form[key + '_근거'] = document.getElementById(key + '_evidence').value;
   });
-  const res = await post({ action: editing ? 'editReport' : 'report', token, form });
+  let res;
+  try { res = await post({ action: editing ? 'editReport' : 'report', token, form }); }
+  catch (err) {
+    finish(); btn.disabled = false;
+    msg.textContent = '연결이 끊겨 결과를 확인하지 못했어요. 다시 제출하기 전에 위의 "내 보고서 목록"에서 이미 제출됐는지 먼저 확인해 주세요.';
+    return;
+  }
+  finish();
   if (res.ok) {
     post({ action: 'savePdf', token, code: form.code }).catch(() => {}); // PDF 보관은 응답 뒤에 따로(기다리지 않음)
     document.getElementById('app').style.display = 'none';
@@ -516,7 +530,12 @@ document.getElementById('submit').onclick = async () => {
     done.style.display = 'block';
     if (res.notes && res.notes.length) done.innerHTML += '<br><br>' + res.notes.map(n => n.replace(/</g, '&lt;')).join('<br>');
   }
-  else { msg.textContent = '제출하지 못했어요: ' + res.error; btn.disabled = false; }
+  else {
+    msg.textContent = res.error === 'busy'
+      ? '다른 제출을 처리하고 있어요. 1~2분 뒤에 다시 눌러 주세요. (이미 제출됐을 수 있으니 "내 보고서 목록"도 확인해 주세요)'
+      : '제출하지 못했어요: ' + res.error;
+    btn.disabled = false;
+  }
 };
 </script>
 </body>
