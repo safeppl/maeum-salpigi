@@ -421,25 +421,11 @@ function trimSignData_() {
   const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
   const oc = out.getContext('2d'); oc.fillStyle = '#fff'; oc.fillRect(0, 0, out.width, out.height);
   oc.drawImage(signPad, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
-  return composeSignWithLabel_(out);
-}
-// "(서명 또는 인)" 글자 위에 서명이 겹쳐 보이게 한 장의 그림으로 합쳐요(구글 문서는 API로 '텍스트 뒤' 배치를 못 만들어서,
-// 글자를 그림 안에 넣고 서명을 그 위에 겹쳐요). 1pt = K픽셀로 그려서 문서에서 11pt 본문 글자와 같은 크기가 돼요.
-function composeSignWithLabel_(sig) {
-  const K = 4, H = 36 * K, label = '(서명 또는 인)';
-  const m = document.createElement('canvas').getContext('2d');
-  m.font = (11 * K) + 'px "Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif';
-  const tw = Math.ceil(m.measureText(label).width);
-  let sc = H / sig.height; if (sig.width * sc > 120 * K) sc = 120 * K / sig.width;
-  const sw = Math.round(sig.width * sc), sh = Math.round(sig.height * sc);
-  const W = Math.max(tw, sw) + 8 * K;
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#000'; g.font = m.font; g.textBaseline = 'alphabetic';
-  g.fillText(label, Math.round((W - tw) / 2), H - 9 * K);
-  g.globalCompositeOperation = 'multiply'; // 서명 그림의 흰 바탕이 글자를 가리지 않게
-  g.drawImage(sig, Math.round((W - sw) / 2), Math.round((H - sh) / 2), sw, sh);
-  return c.toDataURL('image/jpeg', 0.9);
+  // 흰 바탕을 투명하게(검은 정도만큼 불투명) — 문서에서 '텍스트 뒤'로 깔았을 때 글자를 가리지 않게 해요
+  const id = oc.getImageData(0, 0, out.width, out.height), px = id.data;
+  for (let i = 0; i < px.length; i += 4) { const a = 255 - Math.min(px[i], px[i + 1], px[i + 2]); px[i] = px[i + 1] = px[i + 2] = 0; px[i + 3] = a; }
+  oc.putImageData(id, 0, 0);
+  return out.toDataURL('image/png');
 }
 let signed = false;
 function resetSign() {
