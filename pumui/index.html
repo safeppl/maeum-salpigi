@@ -461,6 +461,19 @@
           전환버튼.onclick = () => 지출결의서작성(문서);
           카드.append(전환버튼);
         }
+        if (문서.바로지출가능) {
+          const 바로버튼 = 요소('button', '지출결의서로 바로 쓰기');
+          바로버튼.type = 'button';
+          바로버튼.onclick = () => {
+            if (!confirm(`${문서.문서번호}을(를) 지출결의서로 바꿉니다. 이미 지출한 건이라 품의 승인 없이 바로 증빙을 올리고 상신할 수 있습니다. 문서번호는 새로 부여됩니다.`)) return;
+            바로버튼.disabled = true; 바로버튼.textContent = '바꾸는 중…';
+            서버실행()
+              .withSuccessHandler((번호) => { 알림띄우기(`${번호}(지출결의서)로 바꿨습니다. 증빙을 올리세요.`); 결재함새로고침(); })
+              .withFailureHandler((e) => { 바로버튼.disabled = false; 바로버튼.textContent = '지출결의서로 바로 쓰기'; alert(e.message); })
+              .지출결의서로바꾸기(문서.문서번호);
+          };
+          카드.append(바로버튼);
+        }
         if (문서.상태 === '반려' && 문서.반려사유) 카드.append(요소('div', '반려 사유: ' + 문서.반려사유, '반려'));
 
         const 표내역 = 요소('table');
