@@ -13,7 +13,10 @@
   header b { margin-right: auto; }
   button { font: inherit; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: #fafafa; cursor: pointer; }
   button.on { background: var(--on); color: #fff; border-color: var(--on); }
-  #setup, #근태 { max-width: 560px; margin: 32px auto; padding: 0 16px; }
+  #setup { max-width: 560px; margin: 32px auto; padding: 0 16px; }
+  #근태 { height: calc(100% - 52px); }
+  #근태 .확인 { margin: 0; padding: 4px 16px; }
+  #근태화면 { width: 100%; height: calc(100% - 28px); border: 0; }
   #setup input { width: 100%; font: inherit; padding: 8px; margin: 6px 0 12px; }
   .확인 { color: var(--muted); font-size: 14px; }
   #frame { width: 100%; height: calc(100% - 52px); border: 0; display: none; }
@@ -23,7 +26,7 @@
 <body>
 <!--
   2026-11-24: 품의·지출결의서 앱과 근태관리 앱 '둘만' 묶은 행정 관리자용 페이지(서비스 사업 통합 허브와 분리 — 사용자 지정).
-  열쇠(품의 사무국장 전용 링크)는 이 브라우저에만 저장(office_ 키, 허브와 다른 키). 근태관리는 관리자 비밀번호가 있는 키오스크 관리자 화면을 새 탭으로 연다(다른 페이지에 끼워 넣기를 허용하지 않아 보안 유지).
+  열쇠(품의 사무국장 전용 링크)는 이 브라우저에만 저장(office_ 키, 허브와 다른 키). 근태관리는 키오스크 관리자 화면(비밀번호 필요)을 이 페이지 안에 띄운다(2026-11-25 사용자 요청 — 새 탭 전환이 불편. 근태 Code.gs doGet에 XFrameOptions ALLOWALL 필요).
 -->
 <header>
   <b>행정 관리 대시보드</b>
@@ -40,10 +43,8 @@
 </div>
 
 <div id="근태" hidden>
-  <h2 style="font-size:18px">근태관리</h2>
-  <p class="확인">보안을 위해 근태관리 관리자 화면은 <b>새 탭</b>으로 열립니다. 들어가서 관리자 비밀번호를 입력하세요.</p>
-  <a class="큰버튼" href="https://script.google.com/macros/s/AKfycbz9MX4AIoadvdGZ2zbO5dXZpHOTAPme7UZNYAGdyVLBxcyVyAbzA41lpKzLdt59CTE/exec?page=admin" target="_blank" rel="noopener">근태관리 관리자 화면 열기 ↗</a>
-  <p class="확인" style="margin-top:16px">"현재 파일을 열 수 없습니다"가 뜨면 이 브라우저에 구글 계정이 여러 개 로그인돼 있어서입니다. 시크릿 창이나 근태관리용 계정 하나만 로그인한 크롬 프로필에서 여세요.</p>
+  <p class="확인">관리자 비밀번호를 넣고 쓰세요. 화면이 안 뜨면 <a href="https://script.google.com/macros/s/AKfycbz9MX4AIoadvdGZ2zbO5dXZpHOTAPme7UZNYAGdyVLBxcyVyAbzA41lpKzLdt59CTE/exec?page=admin" target="_blank" rel="noopener">새 탭으로 열기 ↗</a></p>
+  <iframe id="근태화면" title="근태관리"></iframe>
 </div>
 
 <iframe id="frame" title="품의·지출결의"></iframe>
@@ -64,6 +65,9 @@
     document.getElementById('탭품의').classList.toggle('on', 이름 === '품의');
     document.getElementById('탭근태').classList.toggle('on', 이름 === '근태');
     보임('근태', 이름 === '근태');
+    const 근태 = document.getElementById('근태화면');
+    // 처음 열 때만 불러온다 — 탭을 오가도 비밀번호를 다시 넣지 않게
+    if (이름 === '근태' && !근태.src) 근태.src = 'https://script.google.com/macros/s/AKfycbz9MX4AIoadvdGZ2zbO5dXZpHOTAPme7UZNYAGdyVLBxcyVyAbzA41lpKzLdt59CTE/exec?page=admin';
     const f = document.getElementById('frame');
     f.style.display = 이름 === '품의' ? 'block' : 'none';
     if (이름 === '품의') f.src = '../pumui/index.html?t=' + encodeURIComponent(읽기()); // 누를 때마다 새로 불러옴
