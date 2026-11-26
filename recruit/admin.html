@@ -106,16 +106,45 @@ function renderList() {
   }));
 }
 
+// 2026-11-26: 서류 제출 모니터링 — 표에서 상태를 보고 [서류 보기]로 폴더·파일 목록을 바로 열어요
+function docStatusHtml(p) {
+  const st = p.docSubmittedAt ? (p.docsAcknowledged ? '<span style="color:#2C6765">기존 서류 인정</span>' : '<span style="color:#2C6765;font-weight:700">업로드 ' + esc(p.docSubmittedAt) + '</span>')
+    : (p.done && p.done.length && p.showReject ? '<span style="color:#B3261E">미제출</span>' : '<span class="m">—</span>');
+  return st + ' <button class="act rej docView" data-row="' + p.rowIndex + '" style="padding:3px 8px;font-size:12px">서류 보기</button>';
+}
+const DOC_KINDS = [["이력서", "이력서"], ["자격증", "자격증"], ["신분증", "신분증"], ["통장", "통장사본"], ["이수", "이수증"]];
+async function showDocs(p, box, btn) {
+  if (!p) return;
+  box.innerHTML = '<p class="m">' + esc(p.name) + '님 서류를 불러오는 중…</p>';
+  if (btn) btn.disabled = true;
+  try {
+    const j = await callAdmin("adminDocFiles", { rowIndex: p.rowIndex });
+    if (!j.ok) throw new Error(j.error || "오류");
+    const kinds = DOC_KINDS.map(([stem, label]) => [label, j.files.some(f => f.name.indexOf(stem) >= 0)]);
+    let h = '<div style="margin:12px 0;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px"><b>' + esc(p.name) + ' 서류</b>';
+    if (!j.folderUrl) h += '<p class="m">드라이브에 이 분의 서류 폴더가 아직 없어요(업로드 전이거나 폴더 이름이 달라요).</p>';
+    else {
+      h += ' <a href="' + esc(j.folderUrl) + '" target="_blank" rel="noopener">📁 폴더 열기(' + esc(j.folderName) + ')</a>' +
+        '<p class="m">' + kinds.map(([l, ok]) => (ok ? "✅ " : "▫️ ") + l).join(" · ") + '</p>' +
+        (j.files.length ? '<ul style="margin:6px 0;padding-left:18px">' + j.files.map(f => '<li><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a> <span class="m">' + esc(f.updated) + '</span></li>').join("") + '</ul>' : '<p class="m">폴더 바로 아래에 파일이 없어요.</p>') +
+        (j.subfolders.length ? '<p class="m">하위 폴더: ' + j.subfolders.map(d => '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + '</a>').join(", ") + '</p>' : '');
+    }
+    box.innerHTML = h + '</div>';
+  } catch (err) { box.innerHTML = '<p class="m" style="color:#B3261E">서류를 불러오지 못했어요: ' + esc(err.message) + '</p>'; }
+  if (btn) btn.disabled = false;
+}
+
 function renderDashboard() {
   activeRow = null; renderList();
   let h = '<div class="cards">' +
     Object.keys(DATA.byStatus).map(s => '<div class="card"><b>' + DATA.byStatus[s] + '</b><span>' + esc(s) + '</span></div>').join("") +
     '</div>';
-  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>담당사업</th><th>접수일</th><th></th></tr>' +
-    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(assignText(p) || "—") + '</td><td>' + esc(p.appliedAt) + '</td>' +
+  h += '<h2>신청자 (' + DATA.applicants.length + '명)</h2><table><tr><th>이름</th><th>지역</th><th>희망역할</th><th>처리상태</th><th>담당사업</th><th>서류</th><th>접수일</th><th></th></tr>' +
+    DATA.applicants.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.sido) + ' ' + esc(p.sigungu) + '</td><td>' + esc(roleNames(p.roles)) + '</td><td>' + esc(p.status) + '</td><td>' + esc(assignText(p) || "—") + '</td><td>' + docStatusHtml(p) + '</td><td>' + esc(p.appliedAt) + '</td>' +
       '<td><button class="act rowDel" data-row="' + p.rowIndex + '" style="background:#B3261E;color:#fff;padding:4px 10px;font-size:12px">🗑 삭제</button></td></tr>').join("") +
-    '</table>';
+    '</table><div id="docPanel"></div>';
   document.getElementById("main").innerHTML = h;
+  document.querySelectorAll(".docView").forEach(b => b.addEventListener("click", () => showDocs(DATA.applicants.find(p => p.rowIndex === Number(b.dataset.row)), document.getElementById("docPanel"), b)));
   document.querySelectorAll(".rowDel").forEach(b => b.addEventListener("click", () => deleteApplicant(DATA.applicants.find(p => p.rowIndex === Number(b.dataset.row)), b)));
 }
 
@@ -174,6 +203,7 @@ function renderDetail(p) {
     (p.docsAcknowledged ? '<button class="act rej" id="btnUnack">서류 인정 취소</button>' : '') +
     (p.addableRoles || []).map(r => '<button class="act ' + (r === "코치" ? "coach" : "activist") + ' addRole" data-role="' + r + '">' + ROLE_NAME[r] + ' 역할 추가 등록</button>').join("") +
     '</div>';
+  h += '<div class="btns"><button class="act rej" id="btnDocs">📁 서류 보기</button></div><div id="docPanel"></div>';
   h += '<div class="btns" style="margin-top:24px;padding-top:12px;border-top:1px solid var(--border)">' +
     '<button class="act" id="btnDelete" style="background:#B3261E;color:#fff">🗑 잘못 제출된 신청 삭제</button></div>';
   h += '<div class="linkBox" id="linkBox" style="display:none"><textarea id="linkText" readonly></textarea>' +
@@ -193,6 +223,7 @@ function renderDetail(p) {
   }));
   document.getElementById("btnCopy") && document.getElementById("btnCopy").addEventListener("click", copyLink);
   document.getElementById("btnDelete").addEventListener("click", e => deleteApplicant(p, e.target));
+  document.getElementById("btnDocs").addEventListener("click", e => showDocs(p, document.getElementById("docPanel"), e.target));
   bindAssignments(p);
 }
 
