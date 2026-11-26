@@ -60,6 +60,11 @@
       #서명창 { max-width: 420px; width: calc(100% - 32px); border: 1px solid #ccc; border-radius: 8px; }
       #서명창 canvas { width: 100%; height: 160px; border: 1px dashed #999; border-radius: 6px; background: #fff; touch-action: none; display: block; }
       #서명창 img { max-width: 100%; max-height: 90px; border: 1px solid #eee; display: block; margin: 6px 0; }
+      #단계표시 button { margin: 0 4px 4px 0; padding: 4px 10px; font-size: 12px; border: 1px solid #ccc; border-radius: 12px; background: #fff; }
+      #단계표시 button.지금 { background: #345; color: #fff; border-color: #345; }
+      #확인요약 .줄 { display: flex; gap: 8px; align-items: baseline; }
+      #확인요약 .줄 span { flex: 1; }
+      #확인요약 .줄 button { margin: 0; padding: 0 8px; font-size: 12px; }
       .단계버튼줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
       #내역 td button { padding: 4px 8px; white-space: nowrap; margin: 0; }
       #내역 select { min-width: 72px; }
@@ -114,6 +119,7 @@
     </div>
     <section id="작성영역" hidden>
     <h2 id="폼제목">품의서 작성</h2>
+    <div id="반려안내" hidden style="margin:8px 0;padding:8px 12px;background:#fdecea;color:#a00;white-space:pre-line"></div>
     <div id="단계표시" class="확인"></div>
     <form id="품의서" onsubmit="return false">
       <div class="단계" data-단계="1">
@@ -393,7 +399,11 @@
       function 단계보이기(n) {
         현재단계 = n;
         document.querySelectorAll('#품의서 .단계').forEach((el) => { el.hidden = Number(el.dataset.단계) !== n; });
-        document.getElementById('단계표시').textContent = `${n} / ${단계이름.length} · ${단계이름[n - 1]}`;
+        document.getElementById('단계표시').replaceChildren(...단계이름.map((이름, i) => {
+          const 칩 = 요소('button', `${i + 1} ${이름}`, i + 1 === n ? '지금' : '');
+          칩.type = 'button'; 칩.style.cssText = ''; 칩.onclick = () => 단계보이기(i + 1); // 눌러서 바로 이동(저장 때 전체 검사)
+          return 칩;
+        }));
         document.getElementById('이전버튼').hidden = n === 1;
         document.getElementById('다음버튼').hidden = n === 단계이름.length;
         document.getElementById('저장버튼').hidden = n !== 단계이름.length;
@@ -460,15 +470,20 @@
         const 칸 = document.getElementById('확인요약');
         const 합계 = 입력.내역.reduce((합, 줄) => 합 + (Number(줄.금액) || 0), 0);
         const 줄들 = [
-          `${입력.기관} · ${입력.사업명}`,
-          `품의일자 ${입력.품의일자} · 지급일자 ${입력.지급일자} · 지급기한 ${입력.지급기한}`,
-          `지급방법 ${입력.지급방법} · 부가세 ${입력.부가세}`,
-          ...입력.내역.map((줄, i) => `${i + 1}. ${줄.계정} · ${원(줄.금액)}${줄.비고 ? ' · ' + 줄.비고 : ''} · ${줄.재원}`),
-          `합계 ${원(합계)}`,
-          `새로 올릴 증빙 ${선택증빙.length}개`,
-          document.getElementById('결재선').textContent,
-        ].filter(Boolean);
-        칸.replaceChildren(...줄들.map((글) => 요소('div', 글)));
+          [`${입력.기관} · ${입력.사업명}`, 2],
+          [`품의일자 ${입력.품의일자} · 지급일자 ${입력.지급일자} · 지급기한 ${입력.지급기한}`, 3],
+          [`지급방법 ${입력.지급방법} · 부가세 ${입력.부가세}`, 3],
+          ...입력.내역.map((줄, i) => [`${i + 1}. ${줄.계정} · ${원(줄.금액)}${줄.비고 ? ' · ' + 줄.비고 : ''} · ${줄.재원}`, 4]),
+          [`합계 ${원(합계)}`, 0],
+          [`새로 올릴 증빙 ${선택증빙.length}개`, 1],
+          [document.getElementById('결재선').textContent, 0],
+        ].filter(([글]) => 글);
+        칸.replaceChildren(...줄들.map(([글, 단계]) => {
+          const 줄 = 요소('div', undefined, '줄');
+          줄.append(요소('span', 글));
+          if (단계) { const 고치기 = 요소('button', '고치기'); 고치기.type = 'button'; 고치기.onclick = () => 단계보이기(단계); 줄.append(고치기); }
+          return 줄;
+        }));
         칸.style.cssText = 'padding:8px 12px;background:#f5f5f5;line-height:1.7';
       }
 
@@ -541,6 +556,7 @@
         합계계산();
         결재선보기('');
         선택증빙 = []; 증빙고른목록그리기();
+        document.getElementById('반려안내').hidden = true;
         document.getElementById('증빙수정안내').hidden = true;
         알림('');
       }
@@ -572,7 +588,10 @@
         document.getElementById('폼제목').textContent = `${문서.구분 === '지출결의서' ? '지출결의서' : '품의서'} 수정 — ${문서.문서번호}`;
         document.getElementById('증빙수정안내').hidden = false;
         document.getElementById('작성영역').hidden = false;
-        단계보이기(2);
+        const 안내 = document.getElementById('반려안내');
+        안내.hidden = !(문서.상태 === '반려' && 문서.반려사유);
+        안내.textContent = `반려 사유: ${문서.반려사유 || ''}\n고칠 줄의 [고치기]를 눌러 그 부분만 고친 뒤 [저장하고 결재 올리기]를 누르세요.`;
+        단계보이기(문서.상태 === '반려' ? 5 : 2); // 반려된 문서는 고칠 곳만 찾도록 확인 화면에서 시작
         document.getElementById('작성영역').scrollIntoView({ behavior: 'smooth' });
       }
 
@@ -600,13 +619,18 @@
         return ['임시저장 · 상신 전', '임시'];
       }
 
+      const 열린카드 = new Set();
+      const 열린월 = new Set();
+
       /** 한 줄 요약(품의일자 · 내용 · 금액 · 상태)을 누르면 자세한 내용이 펼쳐진다. */
       function 문서카드(문서, 펼침) {
         const 접이 = 요소('details', undefined, '문서');
         접이.dataset.찾기 = [문서.문서번호, 문서.사업명, 문서.기안자이름, 문서.품의일자, 문서.합계, Number(문서.합계 || 0).toLocaleString('ko-KR'),
           ...문서.내역.flatMap((r) => [r.계정, r.비고])].join(' ').toLowerCase();
         // 내가 해야 할 일(상신·승인)이 있는 문서는 버튼이 보이게 펼쳐 둔다
-        접이.open = !!펼침 || 문서.가능동작.some((동작) => 동작 !== '수정' && 동작 !== '상신 취소'); // 결재 대기 중인 내 문서까지 다 펼치면 길어짐
+        // 2026-11-26 사용자 요청: 기본은 모두 닫아 둔다(너무 길어짐). 열어 본 카드는 목록을 다시 그려도 열어 둔다.
+        접이.open = 열린카드.has(문서.문서번호);
+        접이.addEventListener('toggle', () => { if (접이.open) 열린카드.add(문서.문서번호); else 열린카드.delete(문서.문서번호); });
         const 요약 = 요소('summary');
         const 첫항목 = 문서.내역[0] ? 문서.내역[0].계정 + (문서.내역.length > 1 ? ` 외 ${문서.내역.length - 1}건` : '') : '';
         const [상태글, 상태종류] = 상태표시(문서.상태);
@@ -1024,7 +1048,7 @@
           .품의서출력(문서.문서번호);
       }
 
-      /** 문서를 월별(지급일자 기준, 없으면 품의일자) 드롭다운으로 묶어 그린다. 가장 최근 달과 내가 처리할 문서가 있는 달만 펼친다. */
+      /** 문서를 월별(지급일자 기준, 없으면 품의일자) 드롭다운으로 묶어 그린다. 기본은 모두 닫아 두고, 제목에 결재할·반려 건수를 보여 준다. */
       function 목록그리기(칸, 문서들, 빈글, 펼침) {
         if (!문서들.length) return 칸.replaceChildren(요소('p', 빈글, '확인'));
         const 월별 = new Map();
@@ -1040,8 +1064,16 @@
           const 합 = 묶음.reduce((a, d) => a + Number(d.합계 || 0), 0);
           const [년, 월] = 달.split('-');
           const 월접이 = 요소('details', undefined, '월');
-          월접이.open = i === 0 || 카드들.some((c) => c.open);
-          월접이.append(요소('summary', `${월 ? `${년}년 ${Number(월)}월` : 달} · ${묶음.length}건 · ${합.toLocaleString('ko-KR')}원`), ...카드들);
+          const 열쇠 = 칸.id + '|' + 달;
+          월접이.open = 열린월.has(열쇠) || 카드들.some((c) => c.open); // 기본은 닫힘
+          월접이.addEventListener('toggle', () => { if (월접이.open) 열린월.add(열쇠); else 열린월.delete(열쇠); });
+          // 닫아 두어도 할 일을 놓치지 않게 제목에 표시한다
+          const 결재할 = 묶음.filter((d) => d.가능동작.includes('승인')).length;
+          const 반려됨 = 묶음.filter((d) => d.상태 === '반려' && d.가능동작.includes('수정')).length;
+          const 표시 = [결재할 ? `결재할 ${결재할}건` : '', 반려됨 ? `반려 ${반려됨}건` : ''].filter(Boolean).join(' · ');
+          const 제목 = 요소('summary', `${월 ? `${년}년 ${Number(월)}월` : 달} · ${묶음.length}건 · ${합.toLocaleString('ko-KR')}원`);
+          if (표시) { const 배지 = 요소('span', ' ' + 표시, '배지 ' + (결재할 ? '대기' : '반려')); 제목.append(배지); }
+          월접이.append(제목, ...카드들);
           return 월접이;
         }));
       }
