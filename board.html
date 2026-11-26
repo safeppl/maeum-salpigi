@@ -36,6 +36,7 @@
 const MAEUM_URL = "https://script.google.com/macros/s/AKfycbzOUjsXCYytuhh8kJXmVxfor49VkKj4Nhj3Ri8bbFmfqF4duVmuR2dofbyj_V8Y7BYb-Q/exec";
 const TOKEN = new URLSearchParams(location.search).get("t") || "";
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const HINT = { "X": "보고서는 제출됐지만 필수 항목(스케줄표·척도·소통내용 등)이 빠져 O가 되지 못함. 아래 '살펴볼 것'의 사유를 채우면 다음 점검에서 O로 바뀜", "신규 X": "새로 X로 기입됨(출석부 사람 확인 대기)", "O": "모든 항목 충족, 완료", "확인 필요": "자동으로 판단하지 못함. 사람이 확인", "확인필요": "자동으로 판단하지 못함. 사람이 확인", "오류": "점검 중 오류. 상세는 상황판 로그 확인", "근거 갱신": "근거(스케줄·척도)만 갱신, 칸 값은 그대로", "날짜 수정": "보고서 수정이 상황판에 반영됨", "코치 기입": "위드워킹 앱 담당 코치를 빈 칸에 기입", "변경 없음": "새로 처리할 것 없음" };
 const tone = k => /오류/.test(k) ? "bad" : /확인|^X$|신규 X/.test(k) ? "warn" : "";
 
 function card(b) {
@@ -44,7 +45,9 @@ function card(b) {
   if (!b.lastDate) return h + '<p class="m">아직 점검 기록이 없어요.</p></div>';
   h += '<div class="m" style="margin-top:4px">최근 점검: ' + esc(b.lastRun || b.lastDate) + '</div>';
   const keys = Object.keys(b.counts);
-  h += '<div class="chips">' + (keys.length ? keys.map(k => '<span class="chip ' + tone(k) + '">' + esc(k) + ' ' + b.counts[k] + '</span>').join("") : '<span class="chip">변경 없음</span>') + '</div>';
+  h += '<div class="chips">' + (keys.length ? keys.map(k => '<span class="chip ' + tone(k) + '" title="' + esc(HINT[k] || "") + '">' + esc(k) + ' ' + b.counts[k] + '</span>').join("") : '<span class="chip">변경 없음</span>') + '</div>';
+  const used = keys.filter(k => HINT[k]);
+  if (used.length) h += '<div class="m" style="margin:2px 0 8px;font-size:12px">' + used.map(k => '<b>' + esc(k) + '</b> = ' + esc(HINT[k])).join('<br>') + '</div>';
   h += b.attention.length
     ? '<b style="font-size:13px">살펴볼 것 ' + b.attention.length + '건</b><ul>' + b.attention.map(a =>
         '<li><b>' + esc(a.name) + '</b>' + (a.round ? ' ' + esc(a.round) + '회차' : '') + ' · ' + esc(a.result) + (a.note ? ' <span class="m">— ' + esc(a.note) + '</span>' : '') + '</li>').join("") + '</ul>'
