@@ -13,6 +13,10 @@
   .card { background:#fff; border-radius:12px; padding:16px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
   select, input, textarea { width:100%; font:inherit; font-size:15px; padding:10px; border:1px solid var(--border); border-radius:8px; margin-top:4px; background:#fff; }
   label { display:block; margin-top:14px; font-weight:600; font-size:14px; }
+  label.req::after { content:' *'; color:#C0392B; font-weight:700; }
+  .invalid { border:2px solid #C0392B !important; border-radius:8px; background:#FDF1EF; }
+  #faceActs.invalid, .scale.invalid { padding:6px; }
+  #msg.err { color:#C0392B; }
   .sub { font-weight:400; color:var(--muted); font-size:12px; margin-top:2px; }
   .row2 { display:flex; gap:8px; }
   .row2 > * { flex:1; }
@@ -37,6 +41,7 @@
   <div id="myReports" class="card" style="display:none"></div>
 
   <div id="formCard" class="card">
+    <p class="muted" style="margin:0"><span style="color:#C0392B;font-weight:700">*</span> 표시는 필수 입력이에요. 빠짐없이 적어야 제출돼요.</p>
     <p class="muted" id="editingHint" style="display:none"></p>
     <div id="pickerFields">
     <label>참여자<span class="sub">누구와 함께한 활동인가요</span></label>
@@ -45,72 +50,72 @@
     <label>회차<span class="sub" id="trackHint"></span></label>
     <select id="round"></select>
     </div>
-    <label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(10회 또는 15회 활동인지 확인 후 체크할 것! 체크하면 참여자와 동행활동이 종료 처리되니 유의하세요!)</label>
+    <div id="finalizeBox" style="display:none"><label><input type="checkbox" id="finalize" style="width:auto;display:inline-block;margin-right:6px"> 이번 회차로 활동 종결(10회 또는 15회 활동인지 확인 후 체크할 것! 체크하면 참여자와 동행활동이 종료 처리되니 유의하세요!)</label></div>
 
-    <label>대면 시 활동 내용<span class="sub" id="faceActsSub">대상자와 활동한 내용들을 모두 체크해 주세요!</span></label>
+    <label class="req">대면 시 활동 내용<span class="sub" id="faceActsSub">대상자와 활동한 내용들을 모두 체크해 주세요!</span></label>
     <div id="faceActs"></div>
-    <input id="faceActEtc" placeholder="기타(직접 입력, 없으면 비워두세요)">
+    <input id="faceActEtc" placeholder="기타(직접 입력, 없으면 '없음'이라고 적어 주세요)">
 
-    <label>대면활동 — 날짜</label>
+    <label class="req">대면활동 — 날짜</label>
     <input id="faceDate" type="date">
     <p class="sub" id="faceDayHint" style="margin-top:2px"></p>
     <label>대면활동 — 시간</label>
     <select id="faceTime"></select>
-    <label>대면활동 — 장소</label>
+    <label class="req">대면활동 — 장소</label>
     <input id="facePlace" placeholder="예: OO동 카페, 도서관 등(구체적 상호명은 적지 말아주세요)">
-    <label>대면활동 — 소통 내용<span class="sub">개조식으로 5문장 이하</span></label>
+    <label class="req">대면활동 — 소통 내용<span class="sub">개조식으로 5문장 이하</span></label>
     <textarea id="faceTalk" rows="3" placeholder="나눈 이야기, 활동 내용을 개조식으로 5문장 이하로 적어주세요"></textarea>
-    <label>사진<span class="sub">선택 — 대표 사진 1장</span></label>
+    <label class="req">사진<span class="sub">대표 사진 1장(필수)</span></label>
     <input id="facePhoto" type="file" accept="image/*">
-    <label>특이사항</label>
+    <label class="req">특이사항<span class="sub">없으면 '없음'이라고 적어 주세요</span></label>
     <textarea id="faceNote" rows="2"></textarea>
   </div>
 
   <div class="card">
-    <label>비대면 연락 1 — 날짜</label>
+    <label class="req">비대면 연락 1 — 날짜</label>
     <input id="remote1Date" type="date">
     <p class="sub" id="remote1DayHint" style="margin-top:2px"></p>
     <div class="row2">
       <div><label style="margin-top:0">시간</label><select id="remote1Time"></select></div>
-      <div><label style="margin-top:0">수단</label><input id="remote1How" placeholder="예: 전화, 문자"></div>
+      <div><label class="req" style="margin-top:0">수단</label><input id="remote1How" placeholder="예: 전화, 문자"></div>
     </div>
-    <label>비대면 연락 1 — 내용</label>
+    <label class="req">비대면 연락 1 — 내용</label>
     <textarea id="remote1Talk" rows="2"></textarea>
-    <label>비대면 연락 2 — 날짜<span class="sub">없으면 비워두세요</span></label>
+    <label class="req">비대면 연락 2 — 날짜</label>
     <input id="remote2Date" type="date">
     <p class="sub" id="remote2DayHint" style="margin-top:2px"></p>
     <div class="row2">
       <div><label style="margin-top:0">시간</label><select id="remote2Time"></select></div>
-      <div><label style="margin-top:0">수단</label><input id="remote2How" placeholder="예: 전화, 문자"></div>
+      <div><label class="req" style="margin-top:0">수단</label><input id="remote2How" placeholder="예: 전화, 문자"></div>
     </div>
-    <label>비대면 연락 2 — 내용</label>
+    <label class="req">비대면 연락 2 — 내용</label>
     <textarea id="remote2Talk" rows="2"></textarea>
   </div>
 
   <div class="card">
-    <label>이후 활동계획 — 대면</label>
+    <label class="req">이후 활동계획 — 대면</label>
     <textarea id="nextFace" rows="2"></textarea>
-    <label>이후 활동계획 — 비대면</label>
+    <label class="req">이후 활동계획 — 비대면</label>
     <textarea id="nextRemote" rows="2"></textarea>
     <div id="schedBox">
-      <label>다음 일정 등록<span class="sub" id="schedHint" style="display:block;color:var(--orange)"></span><span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차), 비) 홍길동-아무개 19시(2회차 1차)). 정해지지 않았으면 비워두세요.</span></label>
+      <label class="req">다음 일정 등록<span class="sub" id="schedHint" style="display:block;color:var(--orange)"></span><span class="sub">적으면 사업 스케줄표의 그 날짜 칸에 자동으로 적혀요(예: 대) 홍길동-아무개 19시(2회차), 비) 홍길동-아무개 19시(2회차 1차)). 모든 일정 칸을 채워 주세요(다른 관리자와 스케줄표로 함께 확인해요).</span></label>
       <div class="row2">
-        <div><label style="margin-top:0">다음 대면 — 날짜</label><input id="nextFaceDate" type="date"></div>
+        <div><label class="req" style="margin-top:0">다음 대면 — 날짜</label><input id="nextFaceDate" type="date"></div>
         <div><label style="margin-top:0">시간</label><select id="nextFaceTime"></select></div>
       </div>
       <div class="row2">
-        <div><label style="margin-top:0">비대면 1차(대면 전) — 날짜</label><input id="nextRemote1Date" type="date"></div>
+        <div><label class="req" style="margin-top:0">비대면 1차(대면 전) — 날짜</label><input id="nextRemote1Date" type="date"></div>
         <div><label style="margin-top:0">시간</label><select id="nextRemote1Time"></select></div>
       </div>
       <div class="row2">
-        <div><label style="margin-top:0">비대면 2차(대면 후) — 날짜</label><input id="nextRemote2Date" type="date"></div>
+        <div><label class="req" style="margin-top:0">비대면 2차(대면 후) — 날짜</label><input id="nextRemote2Date" type="date"></div>
         <div><label style="margin-top:0">시간</label><select id="nextRemote2Time"></select></div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크(척도) — 해당하는 만큼만 체크해도 돼요</p>
+    <p class="muted" style="margin:0 0 4px">참여자 반응 변화 체크(척도) — 15개 문항을 모두 선택하고 판단 근거도 적어 주세요</p>
     <div id="scaleItems"></div>
   </div>
 
@@ -216,6 +221,22 @@ bindDateHint_('faceDate', 'faceDayHint');
 bindDateHint_('remote1Date', 'remote1DayHint');
 bindDateHint_('remote2Date', 'remote2DayHint');
 
+// 2026-11-26: '활동 종결' 체크는 10회차·15회차에서만 보이고, 다른 회차로 바꾸면 체크도 풀려요(서버 validateReportForm_도 같은 규칙)
+function syncFinalize() {
+  const r = String(editing ? editing.round : document.getElementById('round').value);
+  const ok = r === '10' || r === '15';
+  document.getElementById('finalizeBox').style.display = ok ? 'block' : 'none';
+  if (!ok) document.getElementById('finalize').checked = false;
+}
+document.getElementById('round').addEventListener('change', syncFinalize);
+
+// 값을 고치거나 선택하면 그 칸의 붉은 표시를 바로 지워요
+['input', 'change', 'click'].forEach(ev => document.addEventListener(ev, e => {
+  const t = e.target; if (!t || !t.closest) return;
+  t.classList && t.classList.remove('invalid');
+  const g = t.closest('.scale, #faceActs'); if (g) g.classList.remove('invalid');
+}));
+
 function post(body) {
   return fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
 }
@@ -229,7 +250,7 @@ function rubricHtml_(key) {
 function buildScaleItems() {
   const wrap = document.getElementById('scaleItems');
   wrap.innerHTML = SCALE_ITEMS.map(([key, q]) =>
-    '<label><span class="q" data-q="' + q + '">' + q + '</span> <button type="button" class="infoBtn" data-key="' + key + '">ⓘ</button></label>' +
+    '<label class="req"><span class="q" data-q="' + q + '">' + q + '</span> <button type="button" class="infoBtn" data-key="' + key + '">ⓘ</button></label>' +
     rubricHtml_(key) +
     '<div class="scale" data-for="' + key + '"></div>' +
     '<textarea id="' + key + '_evidence" rows="2" placeholder="판단 근거(구체적 행동)"></textarea>'
@@ -299,6 +320,7 @@ post({ action: 'myInfo', token }).then(res => {
   const fillRound = () => {
     const opt = sel.selectedOptions[0];
     roundSel.value = opt ? opt.dataset.next : 1;
+    syncFinalize();
     document.getElementById('trackHint').textContent = opt ? '(이 참여자 트랙: ' + opt.dataset.track + '회 종결)' : '';
     applyTerms(opt ? opt.dataset.biz : '');
   };
@@ -362,7 +384,8 @@ async function loadForEdit(item) {
   const res = await post({ action: 'getReport', token, code: item.code, round: item.round });
   if (!res.ok) { msg.textContent = res.error === 'edit_window_closed' ? '수정은 제출한 날 당일, 그 참여자의 가장 최근 회차만 할 수 있어요.' : '불러오지 못했어요.'; return; }
   const r = res.report;
-  editing = { code: item.code, round: item.round };
+  editing = { code: item.code, round: item.round, hasPhoto: !!r.facePhoto };
+  syncFinalize();
   const editOpt = [...document.getElementById('code').options].find(o => o.value === item.code);
   applyTerms(editOpt ? editOpt.dataset.biz : '');
   document.getElementById('myReports').style.display = 'none';
@@ -451,9 +474,32 @@ document.getElementById('submit').onclick = async () => {
   const msg = document.getElementById('msg');
   const sel = document.getElementById('code');
   if (!editing && !sel.value) { msg.textContent = '참여자를 선택해 주세요.'; return; }
-  const noReason = [...document.querySelectorAll('.faceReason')].find(t => t.style.display !== 'none' && !t.value.trim());
-  if (noReason) { msg.textContent = '"' + noReason.dataset.act + '"의 사유를 적어 주세요.'; noReason.focus(); return; }
-  if (!signed) { msg.textContent = '서명을 해 주세요.'; return; }
+  // 2026-11-26: 활동 종결 체크를 뺀 모든 칸이 필수 — 서버(validateReportForm_)와 같아야 해요. 빈 칸은 한꺼번에 붉게 표시해요.
+  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+  const miss = []; // [요소, 이름]
+  const empty = (id, label) => { const el = document.getElementById(id); if (el && !String(el.value || '').trim()) miss.push([el, label]); };
+  if (!document.querySelector('.faceAct:checked')) miss.push([document.getElementById('faceActs'), '대면 시 활동 내용']);
+  document.querySelectorAll('.faceReason').forEach(t => { if (t.style.display !== 'none' && !t.value.trim()) miss.push([t, '활동 사유(' + t.dataset.act + ')']); });
+  empty('faceActEtc', '기타 활동 내용(없으면 \'없음\')'); empty('faceDate', '대면활동 날짜'); empty('facePlace', '대면활동 장소'); empty('faceTalk', '대면활동 소통 내용');
+  if (!document.getElementById('facePhoto').files[0] && !(editing && editing.hasPhoto)) miss.push([document.getElementById('facePhoto'), '사진']);
+  empty('faceNote', '특이사항(없으면 \'없음\')');
+  empty('remote1Date', '비대면 연락 1 날짜'); empty('remote1How', '비대면 연락 1 수단'); empty('remote1Talk', '비대면 연락 1 내용');
+  empty('remote2Date', '비대면 연락 2 날짜'); empty('remote2How', '비대면 연락 2 수단'); empty('remote2Talk', '비대면 연락 2 내용');
+  empty('nextFace', '이후 활동계획(대면)'); empty('nextRemote', '이후 활동계획(비대면)');
+  empty('nextFaceDate', '다음 대면 날짜'); empty('nextRemote1Date', '다음 비대면 1차 날짜'); empty('nextRemote2Date', '다음 비대면 2차 날짜');
+  SCALE_ITEMS.forEach(([key]) => {
+    if (!scaleVals[key]) miss.push([document.querySelector('.scale[data-for="' + key + '"]'), '척도 ' + key + ' 선택']);
+    empty(key + '_evidence', '척도 ' + key + ' 판단 근거');
+  });
+  if (miss.length) {
+    miss.forEach(([el]) => el.classList.add('invalid'));
+    const names = miss.slice(0, 3).map(m => m[1]).join(', ') + (miss.length > 3 ? ' 외 ' + (miss.length - 3) + '곳' : '');
+    msg.className = 'err'; msg.textContent = miss.length + '곳이 비어 있어요(붉게 표시했어요): ' + names;
+    miss[0][0].scrollIntoView({ block: 'center' });
+    return;
+  }
+  msg.className = '';
+  if (!signed) { msg.className = 'err'; msg.textContent = '서명을 해 주세요.'; return; }
   if (!document.getElementById('signAgree').checked) { msg.textContent = '"위 내용이 사실임을 확인합니다"에 체크해 주세요.'; return; }
   btn.disabled = true;
   // 제출은 10초 이상 걸릴 수 있어요: 경과 시간을 보여주고, 끝나기 전에 화면을 닫으려 하면 경고해요
