@@ -124,7 +124,8 @@ async function showDocs(p, box, btn) {
     let h = '<div style="margin:12px 0;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px"><b>' + esc(p.name) + ' 서류</b>';
     if (!j.folderUrl) h += '<p class="m">드라이브에 이 분의 서류 폴더가 아직 없어요(업로드 전이거나 폴더 이름이 달라요).</p>';
     else {
-      h += ' <a href="' + esc(j.folderUrl) + '" target="_blank" rel="noopener">📁 폴더 열기(' + esc(j.folderName) + ')</a>' +
+      h += ' <a href="' + esc(j.folderUrl) + '" target="_blank" rel="noopener">📁 폴더 열기(' + esc(j.folderName) + ')</a>' + (j.where ? ' <span class="m">위치: ' + esc(j.where) + '</span>' : '') +
+        ((j.others || []).length ? '<p class="m">비슷한 이름의 다른 폴더: ' + j.others.map(o => '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.name) + (o.where ? '(' + esc(o.where) + ')' : '') + '</a>').join(", ") + '</p>' : '') +
         '<p class="m">' + kinds.map(([l, ok]) => (ok ? "✅ " : "▫️ ") + l).join(" · ") + '</p>' +
         (j.files.length ? '<ul style="margin:6px 0;padding-left:18px">' + j.files.map(f => '<li><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a> <span class="m">' + esc(f.updated) + '</span></li>').join("") + '</ul>' : '<p class="m">폴더 바로 아래에 파일이 없어요.</p>') +
         (j.subfolders.length ? '<p class="m">하위 폴더: ' + j.subfolders.map(d => '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + '</a>').join(", ") + '</p>' : '');
