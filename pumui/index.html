@@ -207,9 +207,9 @@
         <p class="확인">한 줄에 하나씩 씁니다. 줄을 추가하면 추가, 글자를 고치면 수정, 줄을 지우면 삭제됩니다. 이미 작성된 문서는 원래 이름 그대로 남습니다.</p>
         <div class="칸">
           <label>사업명 <textarea id="사업목록입력" rows="12" style="width:100%;font:inherit"></textarea></label>
-          <label>항목(계정) <textarea id="계정목록입력" rows="12" style="width:100%;font:inherit"></textarea></label>
-          <label>지출결의서 전용 항목 <span class="확인">(품의서 없이 지출결의서만 쓰는 항목. 항목(계정)에 있는 이름만, 비워도 됨)</span>
-            <textarea id="전용목록입력" rows="4" style="width:100%;font:inherit"></textarea></label>
+          <label>항목(계정) <textarea id="계정목록입력" rows="12" style="width:100%;font:inherit" oninput="전용체크그리기()"></textarea></label>
+          <div>지출결의서 전용 항목 <span class="확인">(체크한 항목은 품의서 없이 지출결의서로 바로 쓰고, 사무국장 검토 없이 최종결재로 갑니다)</span>
+            <div id="전용체크" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px;margin-top:6px"></div></div>
         </div>
         <button type="button" id="목록저장버튼" onclick="목록저장하기()">목록 저장</button>
         <span id="목록알림" class="확인"></span>
@@ -334,8 +334,21 @@
         });
         document.getElementById('사업목록입력').value = 목록.사업목록.join('\n');
         document.getElementById('계정목록입력').value = 목록.계정목록.join('\n');
-        document.getElementById('전용목록입력').value = (목록.지출전용목록 || []).join('\n');
+        전용체크그리기(목록.지출전용목록 || []);
       }
+
+      /** 지출결의서 전용 체크박스를 항목(계정) 입력칸의 현재 내용으로 그린다. 선택값을 주지 않으면 지금 체크된 것을 유지한다. */
+      function 전용체크그리기(선택) {
+        const 고른 = new Set(선택 || 전용체크고른것());
+        const 계정들 = [...new Set(document.getElementById('계정목록입력').value.split('\n').map((v) => v.trim()).filter(Boolean))];
+        document.getElementById('전용체크').replaceChildren(...계정들.map((이름) => {
+          const 줄 = 요소('label'); 줄.style.margin = '0';
+          const 체크 = 요소('input'); 체크.type = 'checkbox'; 체크.value = 이름; 체크.checked = 고른.has(이름);
+          줄.append(체크, document.createTextNode(' ' + 이름));
+          return 줄;
+        }));
+      }
+      function 전용체크고른것() { return [...document.querySelectorAll('#전용체크 input:checked')].map((c) => c.value); }
 
       /** 작성 종류에 맞는 항목(계정) 선택지: 품의서는 전용 항목 제외, 바로 지출은 전용 항목만(대표는 전체), 기존 문서 수정은 전체. */
       function 계정선택지(목록) {
@@ -353,7 +366,7 @@
         서버실행()
           .withSuccessHandler((목록) => { 버튼.disabled = false; 목록적용(목록); 알림칸.textContent = `저장했습니다. 사업명 ${목록.사업목록.length}개, 항목 ${목록.계정목록.length}개`; })
           .withFailureHandler((e) => { 버튼.disabled = false; 알림칸.textContent = ''; alert(e.message); })
-          .목록저장(줄들('사업목록입력'), 줄들('계정목록입력'), 줄들('전용목록입력'));
+          .목록저장(줄들('사업목록입력'), 줄들('계정목록입력'), 전용체크고른것());
       }
 
 
