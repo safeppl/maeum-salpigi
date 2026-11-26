@@ -209,7 +209,7 @@
     var f = document.getElementById('frame-' + k);
     var tok = tokens[CONF[k].tokenOf || k];
     // 탭을 누를 때마다 새로 불러와요(예전엔 처음 한 번만 불러와서 시트에서 바꾼 내용이 안 보였음)
-    f.src = CONF[k].path + (CONF[k].path.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(tok);
+    f.src = CONF[k].path + (CONF[k].path.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(tok) + '&v=' + Date.now();
   }
 })();
 </script>
