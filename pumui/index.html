@@ -115,8 +115,18 @@
     <div id="작성버튼줄">
       <button type="button" id="품의작성버튼" onclick="작성열기('품의서')">품의서 작성하기</button>
       <button type="button" id="지출작성버튼" onclick="작성열기('직접지출')">지출결의서 바로 작성하기</button>
+      <button type="button" id="합침작성버튼" onclick="품의선택열기()">승인된 품의로 지출결의서 작성하기</button>
       <span class="확인" id="작성안내"></span>
     </div>
+    <section id="품의선택영역" hidden>
+      <h2>승인된 품의 고르기</h2>
+      <p class="확인">같은 기관·사업명의 품의는 여러 건을 골라 한 지출결의서로 합칠 수 있습니다(항목 합계 12줄까지). 합친 품의는 다시 지출결의서로 바꿀 수 없습니다.</p>
+      <div id="품의선택목록"></div>
+      <div class="단계버튼줄">
+        <button type="button" onclick="선택품의로작성()">선택한 품의로 작성</button>
+        <button type="button" onclick="품의선택닫기()">취소</button>
+      </div>
+    </section>
     <section id="작성영역" hidden>
     <h2 id="폼제목">품의서 작성</h2>
     <div id="반려안내" hidden style="margin:8px 0;padding:8px 12px;background:#fdecea;color:#a00;white-space:pre-line"></div>
@@ -435,6 +445,7 @@
       }
 
       function 작성열기(종류) {
+        document.getElementById('품의선택영역').hidden = true;
         작성종류 = 종류;
         if (목록현재) 목록적용(목록현재);
         새로작성();
@@ -447,6 +458,59 @@
         if (묻기 && 작성영역있음() && !confirm('작성을 그만할까요? 저장하지 않은 내용은 사라집니다.')) return;
         document.getElementById('작성영역').hidden = true;
         새로작성();
+      }
+      // ── 승인된 품의 여러 건을 한 지출결의서로 합치기 ──
+      function 품의선택열기() {
+        const 후보 = (최근결재함 ? 최근결재함.내문서 : []).filter((d) => d.지출전환가능).sort((a, b) => a.문서번호.localeCompare(b.문서번호));
+        if (!후보.length) return alert('지출결의서로 바꿀 수 있는 승인된 품의가 없습니다.');
+        const 칸 = document.getElementById('품의선택목록');
+        칸.replaceChildren(...후보.map((d) => {
+          const 줄 = 요소('label'); 줄.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border:1px solid #ddd;border-radius:6px;padding:8px;margin-top:6px';
+          const 체크 = 요소('input'); 체크.type = 'checkbox'; 체크.value = d.문서번호; 체크.onchange = 선택맞춤;
+          const 첫 = d.내역[0] ? d.내역[0].계정 + (d.내역.length > 1 ? ` 외 ${d.내역.length - 1}건` : '') : '';
+          줄.append(체크, 요소('span', `${d.문서번호} · ${d.기관} · ${d.사업명} · ${첫} · ${원(d.합계)} · 지급 ${d.지급일자}`));
+          줄.dataset.기관 = d.기관; 줄.dataset.사업명 = d.사업명;
+          return 줄;
+        }));
+        document.getElementById('작성영역').hidden = true;
+        document.getElementById('품의선택영역').hidden = false;
+        document.getElementById('품의선택영역').scrollIntoView({ behavior: 'smooth' });
+      }
+      /** 하나라도 고르면 기관·사업명이 다른 품의는 고를 수 없게 막는다. */
+      function 선택맞춤() {
+        const 줄들 = [...document.querySelectorAll('#품의선택목록 label')];
+        const 기준 = 줄들.find((줄) => 줄.querySelector('input').checked);
+        줄들.forEach((줄) => {
+          const 다름 = 기준 && (줄.dataset.기관 !== 기준.dataset.기관 || 줄.dataset.사업명 !== 기준.dataset.사업명);
+          줄.querySelector('input').disabled = !!다름;
+          줄.style.opacity = 다름 ? '.45' : '';
+        });
+      }
+      function 품의선택닫기() { document.getElementById('품의선택영역').hidden = true; }
+      function 선택품의로작성() {
+        const 번호들 = [...document.querySelectorAll('#품의선택목록 input:checked')].map((c) => c.value);
+        if (!번호들.length) return alert('합칠 품의를 하나 이상 고르세요.');
+        const 문서들 = 번호들.map((번호) => 최근결재함.내문서.find((d) => d.문서번호 === 번호)).sort((a, b) => a.문서번호.localeCompare(b.문서번호));
+        const 줄수 = 문서들.reduce((합, d) => 합 + d.내역.length, 0);
+        if (줄수 > 12) return alert(`항목이 모두 ${줄수}줄이라 한 장(최대 12줄)에 합칠 수 없습니다. 품의를 줄여서 고르세요.`);
+        합쳐서작성(문서들);
+      }
+      /** 고른 승인 품의들의 항목을 이어 붙여 지출결의서 작성 화면을 연다(금액·날짜는 실제 지출에 맞게 고칠 수 있다). */
+      function 합쳐서작성(문서들) {
+        작성열기('수정');
+        const 폼 = document.getElementById('품의서');
+        const 첫 = 문서들[0];
+        ['기관', '사업명', '지급방법', '부가세'].forEach((칸) => { 폼.elements[칸].value = 첫[칸]; });
+        ['품의일자', '지급일자', '지급기한'].forEach((칸) => { 폼.elements[칸].value = 문서들.map((d) => d[칸]).sort().pop(); }); // 가장 늦은 날짜
+        표.innerHTML = '';
+        문서들.forEach((d) => d.내역.forEach((줄) => {
+          줄추가();
+          표.rows[표.rows.length - 1].querySelectorAll('[data-칸]').forEach((el) => { el.value = 줄[el.dataset.칸] === undefined ? '' : 줄[el.dataset.칸]; });
+        }));
+        합계계산();
+        결재선보기(첫.기관);
+        전환원문서 = 문서들.map((d) => d.문서번호).join(',');
+        document.getElementById('폼제목').textContent = `지출결의서 작성 — 근거 ${문서들.map((d) => d.문서번호).join(', ')} (실제 지출에 맞게 금액·날짜를 고친 뒤 저장)`;
       }
       function 작성영역있음() { return !document.getElementById('작성영역').hidden; }
 
@@ -633,6 +697,7 @@
       }
 
       const 열린카드 = new Set();
+      let 최근결재함 = null;
       const 열린월 = new Set();
 
       /** 한 줄 요약(품의일자 · 내용 · 금액 · 상태)을 누르면 자세한 내용이 펼쳐진다. */
@@ -1092,6 +1157,7 @@
       }
 
       function 결재함그리기(결과) {
+        최근결재함 = 결과;
         if (마지막정보) { 마지막정보.결재함 = 결과; 캐시저장(); }
         // 결재함: 결재할 문서(펼침) 다음에 내가 결재한 문서(접힘), 품의서·지출결의서로 나눔
         const 결재함 = 결과.결재할문서.concat(결과.결재한문서);
