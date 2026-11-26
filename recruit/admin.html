@@ -150,7 +150,7 @@ function copyLink() {
 function renderDetail(p) {
   if (!p) return;
   let h = '<p class="m"><b>' + esc(p.name) + ' · ' + esc(p.phone) + '</b> · ' + esc(p.status) + '</p>';
-  h += '<p class="m">' + esc(p.sido) + ' ' + esc(p.sigungu) + ' · ' + esc(p.age) + '세 ' + esc(p.sex) + ' · 소속: ' + esc(p.org || "—") + '</p>';
+  h += '<p class="m">' + esc(p.sido) + ' ' + esc(p.sigungu) + ' · ' + esc(/^\d{1,3}$/.test(String(p.age)) ? p.age + '세' : p.age) + ' ' + esc(p.sex) + ' · 소속: ' + esc(p.org || "—") + '</p>';
   h += '<p class="m">희망역할: ' + esc(roleNames(p.roles)) + '</p>';
   h += '<p class="m">활동경력: ' + esc(p.exp || "—") + '</p>';
   h += '<p class="m">참여동기: ' + esc(p.motive || "—") + '</p>';

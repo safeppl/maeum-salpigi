@@ -59,13 +59,13 @@
       '<div class="field"><label>거주 시군구</label><select id="f-sigungu">' + sigunguOptions() + '</select></div>' +
       '<div class="field"><label>성별</label><div class="choices">' +
       ["남", "여"].map(v => '<label><input type="radio" name="f-sex" value="' + v + '">' + v + '</label>').join("") + '</div></div>' +
-      '<div class="field"><label>나이</label><input type="number" id="f-age" min="14" max="100"></div>' +
+      '<div class="field"><label>태어난 해</label><input type="number" id="f-year" inputmode="numeric" placeholder="예: 1998" min="1900" max="2100"></div>' +
       '<div class="field"><label>소속 <span class="hint">(학교·직장·단체 등, 없으면 없음)</span></label><input type="text" id="f-org"></div>' +
       '<div class="field"><label>희망 역할 <span class="hint">(중복 선택 가능)</span></label><div class="choices">' +
       [["활동가", "동행활동가 (미래내일일경험: 동행코치)"], ["코치", "일경험 코치"]].map(([v, label]) => '<label><input type="checkbox" class="f-role" value="' + v + '">' + label + '</label>').join("") + '</div></div>' +
       '<div class="field"><label>활동 경력<span class="hint">(진로코칭2년, 청소년 봉사 3년, 사회복지사3년 등으로 표기, 없으면 없음)</span></label><textarea id="f-exp" placeholder="관련 활동이나 경력이 있다면 적어주세요"></textarea></div>' +
       '<div class="field"><label>참여 동기</label><textarea id="f-motive" placeholder="지원 동기를 적어주세요"></textarea></div>' +
-      '<label class="consent"><input type="checkbox" id="f-agree"><span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 연락처, 거주지역, 성별, 나이, 소속을 신청서 검토와 연락 목적으로만 쓰고, 모집 종료 후 파기해요.</span></span></label>' +
+      '<label class="consent"><input type="checkbox" id="f-agree"><span><b>[필수] 개인정보 수집·이용 동의</b><br><span class="muted">이름, 연락처, 거주지역, 성별, 태어난 해, 소속을 신청서 검토와 연락 목적으로만 쓰고, 모집 종료 후 파기해요.</span></span></label>' +
       (S.err ? '<p class="err">' + e(S.err) + '</p>' : '') +
       '<button class="btn btn-primary btn-block" id="f-submit" ' + (S.sending ? "disabled" : "") + '>' + (S.sending ? "보내는 중…" : "신청하기") + '</button>' +
       '</div>' + contacts();
@@ -114,7 +114,7 @@
     const sido = document.getElementById("f-sido").value;
     const sigungu = document.getElementById("f-sigungu").value;
     const sex = (document.querySelector('input[name="f-sex"]:checked') || {}).value || "";
-    const age = document.getElementById("f-age").value;
+    const year = document.getElementById("f-year").value.trim();
     const org = document.getElementById("f-org").value.trim();
     const roles = Array.from(document.querySelectorAll(".f-role:checked")).map(r => r.value);
     const exp = document.getElementById("f-exp").value.trim();
@@ -123,6 +123,8 @@
 
     if (!name || !phone) { S.err = "이름과 연락처를 입력해 주세요."; render(); return; }
     if (!sido || !sigungu) { S.err = "거주 지역을 선택해 주세요."; render(); return; }
+    const thisYear = new Date().getFullYear(), y = parseInt(year, 10);
+    if (!/^\d{4}$/.test(year) || y < thisYear - 100 || y > thisYear - 14) { S.err = "태어난 해를 네 자리 숫자로 적어주세요(예: 1998)."; render(); return; }
     if (!roles.length) { S.err = "희망 역할을 하나 이상 골라주세요."; render(); return; }
     if (!motive) { S.err = "참여 동기를 적어주세요."; render(); return; }
     if (!agree) { S.err = "개인정보 수집·이용에 동의해 주셔야 신청할 수 있어요."; render(); return; }
@@ -130,7 +132,7 @@
     S.err = ""; S.sending = true; render();
     try {
       if (!DEMO) {
-        const r = await api({ action: "apply", apply: { name, phone, sido, sigungu, sex, age, org, roles, exp, motive, agree } });
+        const r = await api({ action: "apply", apply: { name, phone, sido, sigungu, sex, year, org, roles, exp, motive, agree } });
         if (!r.ok) throw new Error(r.error || "fail");
       }
       S.screen = "done"; S.sending = false; render();
