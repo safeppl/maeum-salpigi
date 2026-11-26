@@ -65,6 +65,11 @@
       #확인요약 .줄 { display: flex; gap: 8px; align-items: baseline; }
       #확인요약 .줄 span { flex: 1; }
       #확인요약 .줄 button { margin: 0; padding: 0 8px; font-size: 12px; }
+      #탭바 { display: flex; gap: 4px; position: sticky; top: 0; background: #fff; z-index: 5; padding: 8px 0 0; border-bottom: 2px solid #cfd8dc; margin-bottom: 8px; }
+      #탭바 button { flex: 1; margin: 0; padding: 10px 6px; border: 1px solid #cfd8dc; border-bottom: 0; border-radius: 8px 8px 0 0; background: #f5f5f5; font-size: 15px; color: #345; }
+      #탭바 button.지금 { background: #345; color: #fff; font-weight: bold; }
+      #탭바 .수 { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: #c62828; color: #fff; font-size: 12px; line-height: 18px; }
+      .탭면[hidden], #탭바[hidden], #검색줄[hidden] { display: none; }
       .단계버튼줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
       #내역 td button { padding: 4px 8px; white-space: nowrap; margin: 0; }
       #내역 select { min-width: 72px; }
@@ -111,12 +116,22 @@
     </dialog>
 
     <div id="앱" hidden>
-    <input id="검색" type="search" placeholder="문서 찾기: 문서번호·사업명·항목·기안자·금액" oninput="검색적용()" style="width:100%;box-sizing:border-box;margin:8px 0">
+    <nav id="탭바">
+      <button type="button" data-탭="작성" class="지금" onclick="탭열기('작성')">작성</button>
+      <button type="button" data-탭="결재함" onclick="탭열기('결재함')" hidden>결재함</button>
+      <button type="button" data-탭="내문서" onclick="탭열기('내문서')">내 문서</button>
+      <button type="button" data-탭="목록관리" onclick="탭열기('목록관리')" hidden>목록 관리</button>
+    </nav>
+    <div id="검색줄" hidden>
+      <input id="검색" type="search" placeholder="문서 찾기: 문서번호·사업명·항목·기안자·금액" oninput="검색적용()" style="width:100%;box-sizing:border-box;margin:8px 0">
+    </div>
+    <div class="탭면" id="탭-작성">
     <div id="작성버튼줄">
       <button type="button" id="품의작성버튼" onclick="작성열기('품의서')">품의서 작성하기</button>
       <button type="button" id="지출작성버튼" onclick="작성열기('직접지출')">지출결의서 바로 작성하기</button>
       <button type="button" id="합침작성버튼" onclick="품의선택열기()">승인된 품의로 지출결의서 작성하기</button>
       <span class="확인" id="작성안내"></span>
+    </div>
     </div>
     <section id="품의선택영역" hidden>
       <h2>승인된 품의 고르기</h2>
@@ -186,15 +201,18 @@
       <div id="알림"></div>
     </form>
     </section>
+    <div class="탭면" id="탭-결재함" hidden>
     <section id="결재함영역" hidden>
       <h2 id="결재함제목">결재함</h2>
-      <p class="확인" style="margin:0">결재할 문서가 위에 펼쳐져 있고, 그 아래는 내가 이미 결재한 문서입니다.</p>
+      <p class="확인" style="margin:0">달을 눌러 펼친 뒤 문서를 누르세요. 제목의 빨간 [결재할 n건]이 지금 처리할 문서입니다.</p>
       <div class="나눔">
         <div><h3>품의서</h3><div id="결재품의목록"></div></div>
         <div><h3>지출결의서</h3><div id="결재지출목록"></div></div>
       </div>
     </section>
 
+    </div>
+    <div class="탭면" id="탭-내문서" hidden>
     <h2>내 문서</h2>
     <div class="나눔">
       <div><h3>품의서</h3><div id="내목록"><p class="확인">불러오는 중…</p></div></div>
@@ -202,6 +220,7 @@
     </div>
 
 
+    </div>
     <template id="줄양식">
       <tr>
         <td><select data-칸="계정" required><option value="">선택</option></select></td>
@@ -212,6 +231,7 @@
       </tr>
     </template>
 
+    <div class="탭면" id="탭-목록관리" hidden>
       <section id="목록관리" hidden>
         <h2>목록 관리 <span class="확인">(사무국장만)</span></h2>
         <p class="확인">한 줄에 하나씩 씁니다. 줄을 추가하면 추가, 글자를 고치면 수정, 줄을 지우면 삭제됩니다. 이미 작성된 문서는 원래 이름 그대로 남습니다.</p>
@@ -224,6 +244,7 @@
         <button type="button" id="목록저장버튼" onclick="목록저장하기()">목록 저장</button>
         <span id="목록알림" class="확인"></span>
       </section>
+    </div>
     </div>
 
     <script>
@@ -298,7 +319,9 @@
             내역할 = 사용자.역할;
             document.getElementById('품의작성버튼').hidden = 내역할 === '최종결재자';
             document.getElementById('작성안내').textContent = 내역할 === '최종결재자' ? '대표 계정은 품의서 없이 지출결의서만 작성합니다.' : '주유·주차·톨게이트(차량유지비) 등 전용 항목은 지출결의서로 바로 작성합니다.';
-            document.getElementById('목록관리').hidden = !(사용자.역할 === '검토자' || 사용자.역할 === '관리자');
+            const 목록관리자 = 사용자.역할 === '검토자' || 사용자.역할 === '관리자';
+            document.getElementById('목록관리').hidden = !목록관리자;
+            document.querySelector('#탭바 button[data-탭="목록관리"]').hidden = !목록관리자;
             document.getElementById('인사').textContent = `안녕하세요, ${사용자.이름}님`;
             document.getElementById('안내').textContent = `역할: ${사용자.역할}${사용자.기관 ? ` (${사용자.기관})` : ''}`;
             if (!화면준비됨) 화면준비(정보); else 목록적용(정보.목록);
@@ -412,6 +435,31 @@
       let 수정중번호 = '';
       let 전환원문서 = ''; // 승인 품의를 근거로 지출결의서를 새로 쓰는 중이면 그 품의 번호
 
+      // ── 탭 ── 작성 / 결재함 / 내 문서 / 목록 관리. 작성 화면을 여는 동안은 탭을 숨긴다.
+      let 현재탭 = '작성';
+      let 첫탭정함 = false;
+      function 탭열기(이름) {
+        현재탭 = 이름;
+        document.querySelectorAll('.탭면').forEach((면) => { 면.hidden = 면.id !== '탭-' + 이름; });
+        document.querySelectorAll('#탭바 button').forEach((b) => b.classList.toggle('지금', b.dataset.탭 === 이름));
+        document.getElementById('검색줄').hidden = !(이름 === '결재함' || 이름 === '내문서');
+        try { localStorage.setItem(캐시키 + ':탭', 이름); } catch (e) { /* 저장 못 해도 괜찮음 */ }
+      }
+      /** 탭 이름 옆에 해야 할 일 건수를 붙인다. */
+      function 탭수표시(이름, 건수) {
+        const b = document.querySelector(`#탭바 button[data-탭="${이름}"]`);
+        const 글 = { 결재함: '결재함', 내문서: '내 문서' }[이름];
+        b.replaceChildren(document.createTextNode(글));
+        if (건수) b.append(요소('span', String(건수), '수'));
+      }
+      /** 작성 화면(또는 품의 고르기)을 보이면 탭 영역을 숨기고, 닫으면 탭으로 돌아온다. */
+      function 작성화면보이기(보임, 돌아갈탭) {
+        document.getElementById('작성영역').hidden = !보임;
+        document.getElementById('탭바').hidden = !!보임 || !document.getElementById('품의선택영역').hidden;
+        if (보임) { document.querySelectorAll('.탭면').forEach((면) => { 면.hidden = true; }); document.getElementById('검색줄').hidden = true; }
+        else 탭열기(돌아갈탭 || 현재탭);
+      }
+
       // ── 단계별 작성 ── 증빙 → 기관·사업명 → 날짜·방법 → 항목 → 확인·서명·저장(저장하면 바로 결재 시작)
       const 단계이름 = ['증빙', '기관·사업명', '날짜·지급방법', '항목·금액', '확인'];
       let 현재단계 = 1;
@@ -450,14 +498,14 @@
         if (목록현재) 목록적용(목록현재);
         새로작성();
         document.getElementById('폼제목').textContent = 종류 === '직접지출' ? '지출결의서 바로 작성 (품의 없이)' : '품의서 작성';
-        document.getElementById('작성영역').hidden = false;
+        작성화면보이기(true);
         단계보이기(1);
-        document.getElementById('작성영역').scrollIntoView({ behavior: 'smooth' });
+        window.scrollTo(0, 0);
       }
-      function 작성닫기(묻기) {
+      function 작성닫기(묻기, 돌아갈탭) {
         if (묻기 && 작성영역있음() && !confirm('작성을 그만할까요? 저장하지 않은 내용은 사라집니다.')) return;
-        document.getElementById('작성영역').hidden = true;
         새로작성();
+        작성화면보이기(false, 돌아갈탭);
       }
       // ── 승인된 품의 여러 건을 한 지출결의서로 합치기 ──
       function 품의선택열기() {
@@ -474,7 +522,9 @@
         }));
         document.getElementById('작성영역').hidden = true;
         document.getElementById('품의선택영역').hidden = false;
-        document.getElementById('품의선택영역').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('탭바').hidden = true;
+        document.querySelectorAll('.탭면').forEach((면) => { 면.hidden = true; });
+        window.scrollTo(0, 0);
       }
       /** 하나라도 고르면 기관·사업명이 다른 품의는 고를 수 없게 막는다. */
       function 선택맞춤() {
@@ -486,7 +536,7 @@
           줄.style.opacity = 다름 ? '.45' : '';
         });
       }
-      function 품의선택닫기() { document.getElementById('품의선택영역').hidden = true; }
+      function 품의선택닫기() { document.getElementById('품의선택영역').hidden = true; document.getElementById('탭바').hidden = false; 탭열기('작성'); }
       function 선택품의로작성() {
         const 번호들 = [...document.querySelectorAll('#품의선택목록 input:checked')].map((c) => c.value);
         if (!번호들.length) return alert('합칠 품의를 하나 이상 고르세요.');
@@ -600,7 +650,7 @@
             증빙목록 = await 서버보내기('증빙정보저장', [번호, 증빙목록.map((x) => ({ 파일: x.파일, 종류: x.종류, 날짜: x.날짜, 계정: x.계정 === '미분류' ? 계정종류[0] : x.계정, 내용: x.내용 }))]);
           }
           if (증빙목록 && 증빙목록.some((x) => x.계정 === '미분류')) {
-            작성닫기(false);
+            작성닫기(false, '내문서');
             결재함새로고침();
             alert(`${번호} 저장했습니다. 다만 계정을 알 수 없는 증빙(미분류)이 있어 결재는 아직 올리지 않았습니다.\n'내 문서'에서 ${번호}를 펼쳐 증빙의 항목(계정)을 고르고 [증빙 정보 저장] 후 [상신]을 눌러 주세요.`);
             return;
@@ -608,7 +658,7 @@
           알림('결재를 올리는 중입니다…');
           const 결과 = await 서버보내기('문서처리', [번호, '상신', '', 선택.서명]);
           결재함그리기(결과.결재함);
-          작성닫기(false);
+          작성닫기(false, '내문서');
           알림띄우기(`${번호}: ${상태표시(결과.상태)[0]}\n결재가 올라갔습니다.${결과.저장필요 ? '\n엑셀·PDF를 폴더에 저장하는 중입니다.' : ''}`);
           if (결과.저장필요) {
             서버보내기('승인문서저장', [번호]).then(() => 결재함새로고침())
@@ -664,12 +714,13 @@
         결재선보기(문서.기관);
         document.getElementById('폼제목').textContent = `${문서.구분 === '지출결의서' ? '지출결의서' : '품의서'} 수정 — ${문서.문서번호}`;
         document.getElementById('증빙수정안내').hidden = false;
-        document.getElementById('작성영역').hidden = false;
+        document.getElementById('품의선택영역').hidden = true;
+        작성화면보이기(true);
         const 안내 = document.getElementById('반려안내');
         안내.hidden = !(문서.상태 === '반려' && 문서.반려사유);
         안내.textContent = `반려 사유: ${문서.반려사유 || ''}\n고칠 줄의 [고치기]를 눌러 그 부분만 고친 뒤 [저장하고 결재 올리기]를 누르세요.`;
         단계보이기(문서.상태 === '반려' ? 5 : 2); // 반려된 문서는 고칠 곳만 찾도록 확인 화면에서 시작
-        document.getElementById('작성영역').scrollIntoView({ behavior: 'smooth' });
+        window.scrollTo(0, 0);
       }
 
       /** 태그를 만든다. 사용자가 입력한 글자는 textContent로만 넣어 화면에 코드가 끼어들지 못하게 한다. */
@@ -1161,7 +1212,18 @@
         if (마지막정보) { 마지막정보.결재함 = 결과; 캐시저장(); }
         // 결재함: 결재할 문서(펼침) 다음에 내가 결재한 문서(접힘), 품의서·지출결의서로 나눔
         const 결재함 = 결과.결재할문서.concat(결과.결재한문서);
-        document.getElementById('결재함영역').hidden = !결재자인가 && 결재함.length === 0;
+        const 결재함보임 = 결재자인가 || 결재함.length > 0;
+        document.getElementById('결재함영역').hidden = !결재함보임;
+        document.querySelector('#탭바 button[data-탭="결재함"]').hidden = !결재함보임;
+        탭수표시('결재함', 결과.결재할문서.length);
+        탭수표시('내문서', 결과.내문서.filter((d) => d.상태 === '반려' && d.가능동작.includes('수정')).length);
+        if (!첫탭정함 && !작성영역있음() && document.getElementById('품의선택영역').hidden) {
+          첫탭정함 = true;
+          let 이전 = '';
+          try { 이전 = localStorage.getItem(캐시키 + ':탭') || ''; } catch (e) { /* 없어도 됨 */ }
+          // 결재할 문서가 있으면 결재함부터, 아니면 마지막에 보던 탭(없으면 작성)
+          탭열기(결과.결재할문서.length ? '결재함' : (['작성', '내문서', '결재함'].includes(이전) && (이전 !== '결재함' || 결재함보임) ? 이전 : '작성'));
+        }
         document.getElementById('결재함제목').textContent = `결재함 · 결재할 문서 ${결과.결재할문서.length}건`;
         목록그리기(document.getElementById('결재품의목록'), 결재함.filter((d) => d.구분 !== '지출결의서'), '품의서가 없습니다.');
         목록그리기(document.getElementById('결재지출목록'), 결재함.filter((d) => d.구분 === '지출결의서'), '지출결의서가 없습니다.');
