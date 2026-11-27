@@ -9,7 +9,7 @@
   const won = n => new Intl.NumberFormat("ko-KR").format(Math.round(n || 0)) + "원";
 
   const S = { screen: "loading", data: null, q: "", filter: "진행중", biz: "", code: null };
-  const STAGES = ["신청", "코칭", "사전검사", "계획서작성", "일경험 진행", "서비스 종료", "만족도조사", "사후검사", "완료"];
+  const STAGES = ["신청", "코칭", "계획서작성", "일경험 진행", "서비스 종료", "만족도조사", "사후검사", "완료"];
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
