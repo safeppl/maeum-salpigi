@@ -19,7 +19,7 @@
   #side header b { font-size: 15px; }
   #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; }
-  #bizFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
+  #bizFilter, #yearFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
   #filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
   #filters button { font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
   #filters button.on { background: var(--accent); color: #fff; border-color: transparent; }
@@ -38,6 +38,10 @@
   .stat-cards .card b { display: block; font-size: 20px; }
   .stat-cards .card span { font-size: 12px; color: var(--muted); }
   .sec-h { font-size: 15px; margin: 22px 0 8px; }
+  .bulkbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 0 0 8px; }
+  .bulkbar .form-row { margin: 0; flex-wrap: nowrap; }
+  .bulkbar select { min-width: 110px !important; flex: none; }
+  .roster th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
   .split2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
   .split2 > div { min-width: 0; }
   .acts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -59,6 +63,7 @@
     <header><b>안전한더유스</b><span>관리자 통합보기 · 자기주도 일경험</span></header>
     <input id="search" placeholder="이름·참여번호 검색">
     <select id="bizFilter"></select>
+    <select id="yearFilter"></select>
     <div id="filters"></div>
     <button id="dashBtn">대시보드</button>
     <div id="list"></div>
@@ -66,6 +71,6 @@
   <div id="main"><div class="app wide" id="app"></div></div>
 </div>
 
-<script src="admin.js?v=1795776447"></script>
+<script src="admin.js?v=1795777413"></script>
 </body>
 </html>

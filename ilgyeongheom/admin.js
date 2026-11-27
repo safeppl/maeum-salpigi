@@ -59,11 +59,11 @@
         else if (a > 0) { txt = "+" + a; col = "var(--accent)"; }
         cells += '<td style="text-align:center;color:' + col + '">' + txt + '</td>';
       }
-      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h</td></tr>';
+      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h' + (tp && ta > tp ? ' <span style="color:#C0392B;font-size:11px">초과 ' + Math.round((ta - tp) * 100) / 100 + '</span>' : "") + '</td></tr>';
     }
     return '<details class="plan-block" open><summary>계획 대비 실제 (최근 4주' + (hasPlan ? "" : " · 계획서에 요일별 시간이 없어요") + ')</summary>' +
       '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12.5px"><tr style="color:var(--muted)"><th style="text-align:left">주</th>' + DAYS7.map(d => '<th>' + d + '</th>').join("") + '<th>합계</th></tr>' + rows + '</table></div>' +
-      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 인증 대기 기록도 포함</div></details>';
+      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 합계의 빨간 "초과"는 계획 시간을 넘긴 시간(보상금 제외) · 인증 대기 기록도 포함</div></details>';
   }
 
   function planChip(status) {
@@ -78,6 +78,7 @@
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
+      (p.overHours ? '<div class="banner warn" style="margin:2px 0"><b>계획 초과 ' + p.overHours + '시간</b> — 주 계획(' + p.weeklyPlanHours + '시간)을 넘긴 시간은 보상금에서 제외돼요. (' + p.overWeeks.map(w => w.week + ' 주 ' + w.hours + 'h').join(", ") + ')</div>' : "") +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">상태</span><select id="pst-' + e(p.code) + '" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '"' + (x === p.status ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onepst="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
@@ -169,13 +170,17 @@
     const q = S.q.trim();
     const inF = S.filter === "전체" || p.status === S.filter;
     const inB = !S.biz || p.biz === S.biz;
-    return inF && inB && (!q || String(p.name).indexOf(q) >= 0 || String(p.code).indexOf(q) >= 0);
+    const inY = !S.year || (p.start || "").slice(0, 4) === S.year;
+    return inF && inB && inY && (!q || String(p.name).indexOf(q) >= 0 || String(p.code).indexOf(q) >= 0);
   }
   function renderSide() {
     if (!S.data) return;
     const d = S.data, ps = d.participants;
     const bizs = Array.from(new Set((d.bizList && d.bizList.length ? d.bizList : ["도봉구", "용인시", "미래내일일경험", "갭이어"]).concat(ps.map(p => p.biz).filter(Boolean))));
     $("bizFilter").innerHTML = ['<option value="">전체 사업</option>'].concat(bizs.map(b => '<option value="' + e(b) + '"' + (b === S.biz ? " selected" : "") + '>' + e(b) + '</option>')).join("");
+    const years = Array.from(new Set(ps.map(p => (p.start || "").slice(0, 4)).filter(Boolean))).sort().reverse();
+    if (S.year && years.indexOf(S.year) < 0) S.year = "";
+    $("yearFilter").innerHTML = ['<option value="">전체 연도</option>'].concat(years.map(y => '<option value="' + y + '"' + (y === S.year ? " selected" : "") + '>' + y + '년</option>')).join("");
     const cnt = st => st === "전체" ? ps.length : ps.filter(p => p.status === st).length;
     $("filters").innerHTML = ["진행중", "전체", "중단", "완료"].map(f => '<button data-f="' + f + '" class="' + (f === S.filter ? "on" : "") + '">' + f + " " + cnt(f) + '</button>').join("");
     $("dashBtn").textContent = S.code ? "← 대시보드" : "대시보드";
@@ -185,23 +190,26 @@
       '<span class="p-meta">' + e(p.biz || "미분류") + " · " + e(p.stage) + " · " + p.thisWeekHours + "/" + p.weeklyMinHours + "h" + (p.coach ? " · 코치 " + e(p.coach) : "") + '</span></div>').join("") ||
       '<div class="empty" style="padding:12px">해당하는 참여자가 없어요.</div>';
   }
-  $("search").addEventListener("input", ev => { S.q = ev.target.value; renderSide(); });
-  $("bizFilter").addEventListener("change", ev => { S.biz = ev.target.value; renderSide(); });
-  $("filters").addEventListener("click", ev => { const b = ev.target.closest("button[data-f]"); if (b) { S.filter = b.dataset.f; renderSide(); } });
+  // 사이드바 검색·사업·연도·상태를 바꾸면 사이드바 목록과 대시보드의 참여자 현황 표가 같이 바뀌어요.
+  const refilter = () => { if (S.code) renderSide(); else render(); };
+  $("search").addEventListener("input", ev => { S.q = ev.target.value; refilter(); });
+  $("bizFilter").addEventListener("change", ev => { S.biz = ev.target.value; refilter(); });
+  $("yearFilter").addEventListener("change", ev => { S.year = ev.target.value; refilter(); });
+  $("filters").addEventListener("click", ev => { const b = ev.target.closest("button[data-f]"); if (b) { S.filter = b.dataset.f; refilter(); } });
   $("dashBtn").addEventListener("click", () => { S.code = null; render(); });
   $("list").addEventListener("click", ev => { const it = ev.target.closest(".p-item"); if (it) { S.code = it.dataset.code; render(); $("main").scrollTop = 0; } });
 
   function rosterTable(rows) {
     if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
     const coachOpts = '<option value="">코치 선택</option><option value="__none">(지정 해제)</option>' + ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>').join(""));
-    return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button></div>' +
-      '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 상태를</span><select id="bulkPst" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkpst="1">상태 일괄 변경</button></div>' +
-      '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 단계를</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">단계 일괄 변경</button></div>' +
-      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
+    return '<div class="bulkbar"><span class="coach-meta"><b>체크한 사람 →</b></span><div class="form-row"><span class="coach-meta">코치</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">일괄 지정</button></div>' +
+      '<div class="form-row"><span class="coach-meta">상태</span><select id="bulkPst" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkpst="1">일괄 변경</button></div>' +
+      '<div class="form-row"><span class="coach-meta">단계</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">일괄 변경</button></div></div>' +
+      '<div style="overflow:auto;max-height:480px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>계획초과</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
+        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td' + (p.overHours ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.overHours ? p.overHours + 'h' : "—") + '</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
       (function () { const t = k => rows.reduce((s, p) => s + (Number(p[k]) || 0), 0);
-        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
+        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + (Math.round(t("overHours") * 100) / 100 || "—") + '</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
   }
   function noteHtml() {
     const n = S.note; if (!n) return "";
@@ -212,6 +220,24 @@
     const ta = document.createElement("textarea"); ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
     let ok = false; try { ok = document.execCommand("copy"); } catch (err) {} ta.remove(); return ok;
   }
+  // 처리 내역: 참여자 이름 드롭다운으로 골라서 봐요(인증 완료 / 반려 각각).
+  function doneBody(kind) {
+    const who = S[kind + "Who"] || "", list = (S.doneLists && S.doneLists[kind]) || [];
+    if (!who) return '<div class="coach-meta">참여자를 고르면 내역이 나와요.</div>';
+    const mine = list.filter(x => x.name === who);
+    return mine.length ? mine.map(x => histLine(x.h, "")).join("") : '<div class="coach-meta">해당 내역이 없어요.</div>';
+  }
+  function doneColumn(kind, title, list) {
+    const names = Array.from(new Set(list.map(x => x.name)));
+    return '<b>' + title + ' (' + list.length + '건)</b>' +
+      '<select class="donePick" data-kind="' + kind + '" style="display:block;margin:6px 0;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:180px"><option value="">참여자 선택</option>' +
+      names.map(n => '<option value="' + e(n) + '"' + (n === S[kind + "Who"] ? " selected" : "") + '>' + e(n) + ' (' + list.filter(x => x.name === n).length + '건)</option>').join("") + '</select>' +
+      '<div id="done-' + kind + '">' + doneBody(kind) + '</div>';
+  }
+  app.addEventListener("change", ev => {
+    const sel = ev.target.closest("select.donePick"); if (!sel) return;
+    S[sel.dataset.kind + "Who"] = sel.value; const box = $("done-" + sel.dataset.kind); if (box) box.innerHTML = doneBody(sel.dataset.kind);
+  });
   function dashboard() {
     const d = S.data;
     if (S.code) {
@@ -223,6 +249,7 @@
     const shown = d.participants.filter(matches);
     const done = [].concat.apply([], d.participants.map(p => (p.history || []).filter(h => h.state !== "대기").map(h => ({ h: h, name: p.name })))).sort((a, b) => (b.h.at || b.h.date).localeCompare(a.h.at || a.h.date));
     const okList = done.filter(x => x.h.state === "인증"), rejList = done.filter(x => x.h.state === "반려");
+    S.doneLists = { ok: okList, rej: rejList };
     const todo = active.filter(p => p.pendingCount || p.planStatus === "대기");
     const todoRows = todo.length ? todo.map(p => '<div class="coach-meta"><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.code) + ' ' + e(p.name) + '</b></a> — ' +
       (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
@@ -233,9 +260,7 @@
       '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
       '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
       '<details class="plan-block" style="margin-top:8px"><summary>처리된 인증·반려 내역 보기 (인증 ' + okList.length + ' · 반려 ' + rejList.length + ')</summary>' +
-        '<div class="split2"><div><b>✓ 인증 완료 (' + okList.length + '건)</b>' + (okList.length ? okList.slice(0, 60).map(x => histLine(x.h, x.name)).join("") : '<div class="coach-meta">아직 없어요.</div>') + '</div>' +
-        '<div><b>↩ 반려 (' + rejList.length + '건)</b>' + (rejList.length ? rejList.slice(0, 60).map(x => histLine(x.h, x.name)).join("") : '<div class="coach-meta">아직 없어요.</div>') + '</div></div>' +
-        (done.length > 120 ? '<div class="coach-meta">각각 최근 60건만 보여요. 전체는 참여자 상세에서 볼 수 있어요.</div>' : "") + '</details>' +
+        '<div class="split2"><div>' + doneColumn("ok", "✓ 인증 완료", okList) + '</div><div>' + doneColumn("rej", "↩ 반려", rejList) + '</div></div></details>' +
       '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
       '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
       '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
@@ -247,7 +272,7 @@
       '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></div>' +
       '<div class="coach-card" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
       '<div><button class="btn btn-primary btn-sm" data-calc="1">이번 달 보상금 계산하기</button></div></div>' +
-      '<div class="coach-card" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">확인 중…</div>' +
+      '<div class="coach-card" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">' + e(S.smsText || "확인 중…") + '</div>' +
       '<div class="form-row"><input id="sms-key" placeholder="API Key"><input id="sms-secret" type="password" placeholder="API Secret"><input id="sms-sender" placeholder="발신번호(0222471091)"><button class="btn btn-primary btn-sm" data-smssave="1">저장</button></div></div>' +
       '<div class="act-msg" id="act-msg"></div>';
   }
@@ -268,7 +293,7 @@
     } catch (err) { b.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
   }
   async function loadSmsStatus() {
-    try { const r = await api({ action: "adminSmsStatus", token }); const el = $("sms-status"); if (el) el.textContent = !r.ok ? "확인하지 못했어요" : r.ready ? "설정됨 (발신번호 " + r.sender + ")" : "아직 설정 안 됨"; } catch (err) {}
+    try { const r = await api({ action: "adminSmsStatus", token }); S.smsText = !r.ok ? "확인하지 못했어요" : r.ready ? "설정됨 (발신번호 " + r.sender + ")" : "아직 설정 안 됨"; const el = $("sms-status"); if (el) el.textContent = S.smsText; } catch (err) {}
   }
   const MENU_ERR = { missing_fields: "빈 칸이 있어요.", duplicate: "이미 등록된 분이에요.", not_found: "대상을 찾지 못했어요.", forbidden: "관리자 토큰이 맞지 않아요.", busy: "다른 작업 중이에요. 잠시 뒤 다시 눌러 주세요." };
   function linkResult(r) { return (r.sent ? "문자로 링크를 보냈어요." : "문자를 못 보냈어요 (" + (r.smsError || "") + ") — 아래 링크를 복사해서 직접 전달해 주세요."); }
@@ -457,7 +482,7 @@
     else body = dashboard();
     app.innerHTML = body;
     renderSide();
-    if (S.screen === "ready" && !S.code) loadSmsStatus();
+    if (S.screen === "ready" && !S.code && !S.smsText) loadSmsStatus();
   }
 
   async function load() {

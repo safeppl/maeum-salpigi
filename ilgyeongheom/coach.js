@@ -64,11 +64,11 @@
         else if (a > 0) { txt = "+" + a; col = "var(--accent)"; }
         cells += '<td style="text-align:center;color:' + col + '">' + txt + '</td>';
       }
-      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h</td></tr>';
+      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h' + (tp && ta > tp ? ' <span style="color:#C0392B;font-size:11px">초과 ' + Math.round((ta - tp) * 100) / 100 + '</span>' : "") + '</td></tr>';
     }
     return '<details class="plan-block" open><summary>계획 대비 실제 (최근 4주' + (hasPlan ? "" : " · 계획서에 요일별 시간이 없어요") + ')</summary>' +
       '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12.5px"><tr style="color:var(--muted)"><th style="text-align:left">주</th>' + DAYS7.map(d => '<th>' + d + '</th>').join("") + '<th>합계</th></tr>' + rows + '</table></div>' +
-      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 인증 대기 기록도 포함</div></details>';
+      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 합계의 빨간 "초과"는 계획 시간을 넘긴 시간(보상금 제외) · 인증 대기 기록도 포함</div></details>';
   }
 
   function planBlock(p) {
