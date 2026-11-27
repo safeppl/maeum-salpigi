@@ -143,10 +143,10 @@
 
   // 2026-11-27: 처음 화면을 '집단코칭 참여'와 '활동 계획서 작성' 두 갈래로 나눠요. 계획서는 오리엔테이션 출석 뒤에 열려요.
   function groupCard(st) {
-    const g = st.group || { done: [], open: null };
+    const g = st.group || { done: [], nextRound: 1 };
     return '<div class="panel"><h3>집단코칭 참여</h3>' +
-      (g.done.length ? g.done.map(d => '<p class="list-note">✓ ' + e(d.title) + ' · ' + e(d.date) + ' 출석 완료</p>').join("") : '<p class="list-note">아직 참여 기록이 없어요.</p>') +
-      (g.open ? '<button class="btn btn-primary btn-block" id="g-open">✍ ' + e(g.open.title) + ' 출석하기</button>' : '<p class="list-note muted">지금 열려 있는 출석이 없어요. 현장에서 안내를 받으면 이 화면에서 출석할 수 있어요.</p>') + '</div>';
+      (g.done.length ? g.done.map(d => '<p class="list-note">✓ ' + d.round + '회차' + (d.round === 1 ? ' (오리엔테이션)' : '') + ' · ' + e(d.date) + ' 서명 완료' + (d.confirmed ? ' · 참석 확인됨' : '') + '</p>').join("") : '<p class="list-note">아직 참여 기록이 없어요.</p>') +
+      '<button class="btn btn-primary btn-block" id="g-open">✍ 집단코칭 출석하기</button></div>';
   }
   function planHomeCard(st) {
     const plan = st.plan;
@@ -160,16 +160,19 @@
       groupCard(st) + planHomeCard(st) + contacts();
   }
   function groupScreen() {
-    const st = S.status, o = st.group.open;
+    const st = S.status, g = st.group || { done: [], nextRound: 1 };
+    const doneSet = new Set(g.done.map(d => d.round));
+    const opts = Array.from({ length: 15 }, (_, i) => i + 1).map(n =>
+      '<option value="' + n + '"' + (n === (S.gRound || g.nextRound) ? " selected" : "") + (doneSet.has(n) ? " disabled" : "") + '>' + n + '회차' + (n === 1 ? ' (오리엔테이션)' : '') + (doneSet.has(n) ? ' — 제출함' : '') + '</option>').join("");
     return '<div class="brand"><b>집단코칭 출석</b><span>안전한더유스</span></div>' +
       '<button class="btn btn-ghost btn-sm" id="g-back">← 돌아가기</button>' +
-      (o ? '<div class="panel"><h3>' + e(o.title) + '</h3><p class="list-note">' + e(o.date) + ' · ' + e(st.name) + '님</p>' +
-        '<div class="field"><label>현장 코드 <span class="muted">(안내받은 숫자 4자리)</span></label><input id="g-code" inputmode="numeric" maxlength="4"></div>' +
-        '<p class="list-note">손가락으로 아래 칸에 서명해 주세요 <button type="button" id="g-clr" style="width:auto;padding:2px 10px;margin-left:6px">지우기</button></p>' +
-        '<canvas id="g-pad" style="width:100%;height:170px;border:2px dashed #888;border-radius:10px;background:#fff;touch-action:none"></canvas>' +
-        (S.gerr ? '<p class="err">' + e(S.gerr) + '</p>' : "") +
-        '<button class="btn btn-primary btn-block" id="g-go" style="margin-top:10px"' + (S.gsending ? " disabled" : "") + '>' + (S.gsending ? "제출 중…" : "서명 제출") + '</button></div>'
-        : '<div class="banner"><b>출석 열려 있는 회차가 없어요.</b></div>');
+      '<div class="panel"><h3>' + e(st.name) + '님</h3>' +
+      '<div class="field"><label>집단코칭 날짜</label><input type="date" id="g-date" value="' + e(S.gDate || todayStr()) + '"></div>' +
+      '<div class="field"><label>회차</label><select id="g-round">' + opts + '</select></div>' +
+      '<p class="list-note">손가락으로 아래 칸에 서명해 주세요 <button type="button" id="g-clr" style="width:auto;padding:2px 10px;margin-left:6px">지우기</button></p>' +
+      '<canvas id="g-pad" style="width:100%;height:170px;border:2px dashed #888;border-radius:10px;background:#fff;touch-action:none"></canvas>' +
+      (S.gerr ? '<p class="err">' + e(S.gerr) + '</p>' : "") +
+      '<button class="btn btn-primary btn-block" id="g-go" style="margin-top:10px"' + (S.gsending ? " disabled" : "") + '>' + (S.gsending ? "제출 중…" : "서명 제출") + '</button></div>';
   }
   function setupGroupPad() {
     const cv = document.getElementById("g-pad"); if (!cv) return;
@@ -183,8 +186,9 @@
     ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, () => { drawing = false; }));
     document.getElementById("g-clr").onclick = () => { c.clearRect(0, 0, cv.width, cv.height); signed = false; };
     document.getElementById("g-go").onclick = async () => {
-      const code = document.getElementById("g-code").value.trim();
-      if (!/^\d{4}$/.test(code)) { S.gerr = "현장 코드 4자리를 입력해 주세요."; render(); return; }
+      const gdate = document.getElementById("g-date").value, round = Number(document.getElementById("g-round").value);
+      S.gDate = gdate; S.gRound = round;
+      if (!gdate) { S.gerr = "날짜를 입력해 주세요."; render(); return; }
       if (!signed) { S.gerr = "서명을 해 주세요."; render(); return; }
       const d = c.getImageData(0, 0, cv.width, cv.height).data; let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
       for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -193,11 +197,11 @@
       out.getContext("2d").drawImage(cv, x0, y0, w, h, 0, 0, out.width, out.height);
       S.gerr = ""; S.gsending = true; render();
       try {
-        const res = await api({ action: "attendSignToken", token, sid: S.status.group.open.id, onsite: code, signData: out.toDataURL("image/png") });
+        const res = await api({ action: "attendSignToken", token, date: gdate, round: round, signData: out.toDataURL("image/png") });
         if (!res.ok) throw new Error(res.error || "fail");
-        S.gsending = false; S.view = ""; await load();
+        S.gsending = false; S.gDate = ""; S.gRound = 0; S.view = ""; await load();
       } catch (err) {
-        const M = { bad_onsite: "현장 코드가 맞지 않아요.", closed: "이 출석은 마감됐어요.", already: "이미 출석하셨어요." };
+        const M = { already: "이미 그 회차에 서명하셨어요. 고쳐야 하면 담당자에게 말씀해 주세요.", bad_date: "날짜를 확인해 주세요.", bad_round: "회차를 확인해 주세요." };
         S.gerr = M[err.message] || "제출하지 못했어요. 다시 시도해 주세요."; S.gsending = false; render();
       }
     };
@@ -271,7 +275,7 @@
     const pback = document.getElementById("plan-back");
     if (pback) pback.addEventListener("click", () => { S.view = ""; render(); });
     const gopen = document.getElementById("g-open");
-    if (gopen) gopen.addEventListener("click", () => { S.gerr = ""; S.view = "group"; render(); });
+    if (gopen) gopen.addEventListener("click", () => { S.gerr = ""; S.gDate = ""; S.gRound = 0; S.view = "group"; render(); });
     const gback = document.getElementById("g-back");
     if (gback) gback.addEventListener("click", () => { S.view = ""; render(); });
   }
@@ -345,7 +349,7 @@
       if (DEMO) {
         S.status = { name: "체험", stage: "일경험 진행", thisWeekHours: 6, weeklyMinHours: 10, hourlyRate: 12000,
           monthEstimate: 240000, nextPayDate: todayStr(), recent: [], payments: [],
-          checkinAllowed: true, planUnlocked: true, group: { done: [], open: null }, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
+          checkinAllowed: true, planUnlocked: true, group: { done: [], nextRound: 1 }, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
       } else {
         const r = await api({ action: "status", token });
         if (!r.ok) throw new Error(r.error || "fail");

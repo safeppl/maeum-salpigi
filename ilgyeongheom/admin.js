@@ -112,143 +112,64 @@
   }
   app.addEventListener("change", ev => { if (ev.target.id === "bizSel") { S.biz = ev.target.value; render(); } });
 
-  // ───── 2026-11-27 집체코칭 출석 전자서명 ─────
-  const todayStr = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.toISOString().slice(0, 10); };
-  function curSession() {
-    const a = S.att; if (!a || !a.sessions.length) return null;
-    return a.sessions.find(x => x.id === S.sid) || a.sessions.find(x => x.status === "진행중") || a.sessions[0];
+  // ───── 2026-11-27 집체코칭 출석 확인 ─────
+  // 참여자가 앱에서 날짜·회차를 고르고 서명하면 여기 올라와요. 참석을 확인(체크)하고 저장하면 명부 PDF가 사업 폴더에 저장돼요.
+  function attendGroups() {
+    const rows = (S.att && S.att.rows) || [], map = {};
+    rows.forEach(r => { const k = r.biz + "|" + r.date + "|" + r.round; (map[k] = map[k] || { biz: r.biz, date: r.date, round: r.round, rows: [] }).rows.push(r); });
+    return Object.keys(map).map(k => map[k]).sort((x, y) => (y.date + y.round).localeCompare(x.date + x.round));
   }
   function attendSection() {
-    const a = S.att;
-    if (!a) return '<div class="coach-card"><b>집체코칭 출석</b><div class="coach-meta">불러오는 중…</div></div>';
-    const ses = curSession();
-    const bizs = Array.from(new Set((S.data.bizList && S.data.bizList.length ? S.data.bizList : ["도봉구", "용인시"])));
-    let h = '<div class="coach-card" style="border:2px solid var(--accent,#5b7)"><div class="coach-top"><b>집체코칭 출석 · 전자서명</b></div>';
-    if (a.sessions.length) {
-      h += '<select id="sesSel" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);margin:4px 0">' +
-        a.sessions.map(x => '<option value="' + e(x.id) + '"' + (ses && x.id === ses.id ? " selected" : "") + '>' + e(x.date) + ' · ' + e(x.biz) + ' · ' + e(x.title) + (x.status === "마감" ? " (마감)" : "") + '</option>').join("") + '</select>';
-    }
-    if (ses) {
-      const mine = a.attendance.filter(r => r.sid === ses.id);
-      h += '<div class="coach-meta">서명 ' + mine.length + '명' + (ses.status === "마감" ? " · 마감됨" : "") + '</div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' +
-        (ses.status === "마감" ? '<button class="btn btn-ghost btn-sm" data-ses="reopen">다시 열기</button>' :
-          '<button class="btn btn-primary" data-ses="qr">📋 현장 코드 · 출석 현황</button> <button class="btn btn-ghost btn-sm" data-ses="sign">링크 없는 분 서명(관리자 기기)</button>') +
-        '<button class="btn btn-ghost btn-sm" data-ses="pdf">명부 PDF 저장</button>' +
-        (ses.status !== "마감" ? '<button class="btn btn-ghost btn-sm" data-ses="close">마감</button>' : "") + '</div>' +
-        (ses.pdf ? '<div class="coach-meta"><a href="' + e(ses.pdf) + '" target="_blank" rel="noopener">저장된 명부 PDF 열기</a></div>' : "") +
-        (mine.length ? '<details class="plan-block"><summary>서명한 사람 보기</summary>' + mine.map(r =>
-          '<div class="coach-meta">' + e(r.name) + (r.kind === "신규" ? ' <span class="chip info">명단에 없음</span>' : '') + ' · ' + e(r.at) + ' <button class="btn btn-ghost btn-sm" data-sdel="' + r.rowIndex + '" data-name="' + e(r.name) + '">삭제</button></div>').join("") + '</details>' : "");
-    }
-    h += '<details class="plan-block"' + (ses ? "" : " open") + '><summary>새 회차 만들기</summary>' +
-      '<input id="newTitle" placeholder="회차 이름 (예: 집체코칭 1회 (오리엔테이션))" value="집체코칭 1회 (오리엔테이션)" style="width:100%;box-sizing:border-box;margin:6px 0;padding:7px;font:inherit;border:1px solid var(--line);border-radius:8px">' +
-      '<input id="newDate" type="date" value="' + todayStr() + '" style="padding:7px;font:inherit;border:1px solid var(--line);border-radius:8px"> ' +
-      '<select id="newBiz" style="font:inherit;padding:7px;border-radius:8px;border:1px solid var(--line)">' + bizs.map(b => '<option>' + e(b) + '</option>').join("") + '</select> ' +
-      '<button class="btn btn-primary btn-sm" data-ses="create">만들기</button></details></div>';
-    return h;
+    if (!S.att) return '<div class="coach-card"><b>집체코칭 출석 확인</b><div class="coach-meta">불러오는 중…</div></div>';
+    const gs = attendGroups();
+    let h = '<div class="coach-card" style="border:2px solid var(--accent,#5b7)"><div class="coach-top"><b>집체코칭 출석 확인</b></div>' +
+      '<div class="coach-meta">참여자가 일경험 앱에서 날짜·회차를 고르고 서명하면 아래에 나타나요. 참석한 분을 체크하고 저장하면 명부 PDF가 사업 폴더에 저장돼요.</div>';
+    if (!gs.length) h += '<p class="empty">아직 서명한 사람이 없어요.</p>';
+    gs.forEach((g, gi) => {
+      const conf = g.rows.filter(r => r.confirmed).length;
+      h += '<details class="plan-block"' + (gi === 0 ? " open" : "") + '><summary>' + e(g.date) + ' · ' + e(g.biz) + ' · ' + g.round + '회차' + (g.round === 1 ? " (오리엔테이션)" : "") +
+        ' — 서명 ' + g.rows.length + '명 / 확인 ' + conf + '명</summary>' +
+        '<div class="coach-meta"><button class="btn btn-ghost btn-sm" data-allchk="' + gi + '">전체 선택</button></div>' +
+        g.rows.map(r => '<div class="coach-meta"><label><input type="checkbox" data-chk="' + gi + '" data-row="' + r.rowIndex + '"' + (r.confirmed ? " checked" : "") + '> <b>' + e(r.name) + '</b></label> ' +
+          '<span class="muted">' + e(r.at) + ' 서명</span> <button class="btn btn-ghost btn-sm" data-adel="' + r.rowIndex + '" data-name="' + e(r.name) + '" data-date="' + e(r.date) + '" data-round="' + r.round + '">삭제</button></div>').join("") +
+        '<button class="btn btn-primary btn-sm" style="margin-top:8px" data-asave="' + gi + '">참석 확인 저장 · 명부 PDF 만들기</button></details>';
+    });
+    return h + '</div>';
   }
-  // 참여자는 개인 링크 앱에서 서명해요. 이 화면은 현장에서 알려 줄 '현장 코드'와 서명 현황을 보여줘요.
-  function qrScreen() {
-    const ses = curSession();
-    const mine = S.att.attendance.filter(r => r.sid === ses.id);
-    return '<div style="text-align:center"><div class="brand"><b>' + e(ses.title) + '</b><span>' + e(ses.date) + '</span></div>' +
-      '<p style="font-size:18px;margin:8px 0">참여자는 받은 일경험 앱 링크를 열어 [집단코칭 참여]에서 서명해요</p>' +
-      '<p class="muted" style="margin:10px 0 0">현장 코드 (참여자에게 말로 알려 주세요)</p>' +
-      '<div style="font-size:64px;font-weight:700;letter-spacing:8px">' + e(ses.onsite) + '</div>' +
-      '<p style="margin:12px 0 4px"><b>서명 ' + mine.length + '명</b></p>' +
-      '<div style="text-align:left;max-width:360px;margin:0 auto">' + (mine.length ? mine.map(r => '<div class="coach-meta">✓ ' + e(r.name) + (r.kind === "현장" ? ' <span class="muted">(관리자 기기)</span>' : '') + ' · ' + e(r.at) + '</div>').join("") : '<span class="muted">아직 없어요</span>') + '</div>' +
-      '<div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn btn-ghost" data-ses="qrrefresh">서명 현황 새로고침</button><button class="btn btn-primary" data-ses="back">← 돌아가기</button></div></div>';
-  }
-  function signScreen() {
-    const ses = curSession();
-    const signed = new Set(S.att.attendance.filter(r => r.sid === ses.id).map(r => r.name));
-    const list = S.data.participants.filter(p => p.biz === ses.biz);
-    const rest = S.data.participants.filter(p => p.biz !== ses.biz);
-    const btn = p => '<button class="btn ' + (signed.has(p.name) ? "btn-ghost" : "btn-primary") + '" style="margin:4px;min-width:96px;font-size:17px" data-who="' + e(p.name) + '" data-wcode="' + e(p.code) + '">' + e(p.name) + (signed.has(p.name) ? " ✓" : "") + '</button>';
-    return '<div class="brand"><b>출석 서명</b><span>' + e(ses.title) + ' · ' + e(ses.date) + '</span></div>' +
-      '<p class="muted">본인 이름을 눌러 서명해 주세요. (✓ = 서명 완료, 다시 누르면 다시 서명)</p>' +
-      '<div>' + (list.length ? list.map(btn).join("") : '<span class="muted">' + e(ses.biz) + ' 참여자가 아직 등록되지 않았어요. 아래에 이름을 직접 입력해 주세요.</span>') + '</div>' +
-      (rest.length ? '<details class="plan-block"><summary>다른 사업 참여자</summary>' + rest.map(btn).join("") + '</details>' : "") +
-      '<div style="margin:12px 0"><input id="manualName" placeholder="명단에 없으면 이름 직접 입력" style="padding:9px;font:inherit;border:1px solid var(--line);border-radius:8px"> ' +
-      '<button class="btn btn-ghost" data-who-manual="1">서명하기</button></div>' +
-      '<button class="btn btn-ghost btn-block" data-ses="back">← 돌아가기</button>';
-  }
-  function padScreen() {
-    return '<div class="brand"><b>' + e(S.who.name) + '님 서명</b></div>' +
-      '<p class="muted">아래 칸에 손가락으로 서명해 주세요.</p>' +
-      '<canvas id="pad" style="width:100%;height:220px;border:2px dashed #888;border-radius:10px;background:#fff;touch-action:none"></canvas>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-ghost" id="padClear">지우기</button>' +
-      '<button class="btn btn-primary" id="padOk" style="flex:1">서명 완료</button><button class="btn btn-ghost" id="padCancel">취소</button></div><p id="padMsg" class="muted"></p>';
-  }
-  function setupPad() {
-    const cv = document.getElementById("pad"); if (!cv) return;
-    const r = window.devicePixelRatio || 1;
-    cv.width = Math.round(cv.clientWidth * r); cv.height = Math.round(cv.clientHeight * r);
-    const c = cv.getContext("2d"); c.lineWidth = 3 * r; c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = "#111";
-    let drawing = false, signed = false;
-    const pos = ev => { const b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * cv.width / b.width, (ev.clientY - b.top) * cv.height / b.height]; };
-    cv.addEventListener("pointerdown", ev => { drawing = true; cv.setPointerCapture(ev.pointerId); c.beginPath(); c.moveTo.apply(c, pos(ev)); });
-    cv.addEventListener("pointermove", ev => { if (!drawing) return; c.lineTo.apply(c, pos(ev)); c.stroke(); signed = true; });
-    ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, () => { drawing = false; }));
-    document.getElementById("padClear").onclick = () => { c.clearRect(0, 0, cv.width, cv.height); signed = false; };
-    document.getElementById("padCancel").onclick = () => { S.screen = "sign"; render(); };
-    document.getElementById("padOk").onclick = async () => {
-      const msg = document.getElementById("padMsg");
-      if (!signed) { msg.textContent = "서명을 해 주세요."; return; }
-      // 서명 둘레의 빈 곳을 잘라내고 폭 400px 이하로 줄여요(투명 PNG)
-      const d = c.getImageData(0, 0, cv.width, cv.height).data; let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
-      for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-      const w = x1 - x0 + 1, h = y1 - y0 + 1, k = Math.min(1, 400 / w);
-      const out = document.createElement("canvas"); out.width = Math.max(1, Math.round(w * k)); out.height = Math.max(1, Math.round(h * k));
-      out.getContext("2d").drawImage(cv, x0, y0, w, h, 0, 0, out.width, out.height);
-      const b = document.getElementById("padOk"); b.disabled = true; b.textContent = "저장 중…"; msg.textContent = "";
-      try {
-        const res = await api({ action: "adminSign", token, sid: curSession().id, code: S.who.code, name: S.who.name, signData: out.toDataURL("image/png") });
-        if (!res.ok) { msg.textContent = (ATT_ERR[res.error] || "저장하지 못했어요: " + res.error); b.disabled = false; b.textContent = "서명 완료"; return; }
-        await loadAtt(); S.screen = "sign"; render();
-      } catch (err) { msg.textContent = "저장하지 못했어요. 다시 눌러 주세요."; b.disabled = false; b.textContent = "서명 완료"; }
-    };
-  }
-  const ATT_ERR = { closed: "이 회차는 마감됐어요.", bad_sign: "서명 이미지가 올바르지 않아요.", missing_field: "빈 칸이 있어요.", no_session: "회차를 찾지 못했어요.", forbidden: "관리자 토큰이 맞지 않아요.", changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요." };
-  async function loadAtt() { try { const r = await api({ action: "adminSessionList", token }); if (r.ok) S.att = r; } catch (err) {} }
-  app.addEventListener("change", ev => { if (ev.target.id === "sesSel") { S.sid = ev.target.value; render(); } });
+  async function loadAtt() { try { const r = await api({ action: "adminAttendList", token }); if (r.ok) S.att = r; } catch (err) {} }
+  const ATT_ERR = { changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요.", none_confirmed: "참석 확인된 사람이 없어요.", forbidden: "관리자 토큰이 맞지 않아요.", missing_field: "빈 칸이 있어요." };
   app.addEventListener("click", async ev => {
-    const b = ev.target.closest("button[data-ses], button[data-sdel], button[data-who], button[data-who-manual]");
+    const b = ev.target.closest("button[data-allchk], button[data-asave], button[data-adel]");
     if (!b) return;
-    const ses = curSession();
-    if (b.dataset.who) { S.who = { name: b.dataset.who, code: b.dataset.wcode }; S.screen = "pad"; render(); return; }
-    if (b.dataset.whoManual) {
-      const n = (document.getElementById("manualName").value || "").trim();
-      if (!n) { alert("이름을 입력해 주세요."); return; }
-      S.who = { name: n, code: "" }; S.screen = "pad"; render(); return;
-    }
-    const act = b.dataset.ses;
-    if (act === "sign") { S.screen = "sign"; render(); return; }
-    if (act === "qr") { S.screen = "qr"; render(); return; }
-    if (act === "qrrefresh") { b.disabled = true; await loadAtt(); render(); return; }
-    if (act === "back") { S.screen = "ready"; render(); return; }
+    if (b.dataset.allchk != null) { document.querySelectorAll('input[data-chk="' + b.dataset.allchk + '"]').forEach(c => { c.checked = true; }); return; }
     let payload;
-    if (b.dataset.sdel) {
-      if (!confirm(b.dataset.name + " 님의 서명을 삭제할까요?")) return;
-      payload = { action: "adminSignDelete", token, sid: ses.id, rowIndex: Number(b.dataset.sdel), name: b.dataset.name };
-    } else if (act === "create") {
-      const title = document.getElementById("newTitle").value.trim(), date = document.getElementById("newDate").value, biz = document.getElementById("newBiz").value;
-      if (!title || !date) { alert("회차 이름과 날짜를 입력해 주세요."); return; }
-      payload = { action: "adminSessionCreate", token, title, date, biz };
-    } else if (act === "close" || act === "reopen") {
-      if (act === "close" && !confirm("마감하면 더 이상 서명을 받을 수 없어요. 마감할까요? (다시 열 수 있어요)")) return;
-      payload = { action: "adminSessionClose", token, id: ses.id, reopen: act === "reopen" };
-    } else if (act === "pdf") {
-      payload = { action: "adminSessionPdf", token, sid: ses.id };
-    } else return;
-    b.disabled = true; const label = b.textContent; b.textContent = act === "pdf" ? "PDF 만드는 중(10~20초)…" : "처리 중…";
+    const gs = attendGroups();
+    if (b.dataset.adel) {
+      if (!confirm(b.dataset.name + " 님의 서명을 삭제할까요? (참여자가 다시 서명할 수 있게 돼요)")) return;
+      payload = { action: "adminAttendDelete", token, rowIndex: Number(b.dataset.adel), name: b.dataset.name, date: b.dataset.date, round: Number(b.dataset.round) };
+    } else {
+      const g = gs[Number(b.dataset.asave)];
+      const items = Array.from(document.querySelectorAll('input[data-chk="' + b.dataset.asave + '"]')).map(c => {
+        const r = g.rows.find(x => x.rowIndex === Number(c.dataset.row));
+        return { rowIndex: r.rowIndex, name: r.name, date: r.date, round: r.round, confirmed: c.checked };
+      });
+      if (!items.some(i => i.confirmed)) { alert("참석한 분을 한 명 이상 체크해 주세요."); return; }
+      b.disabled = true; b.textContent = "저장 중(10~20초)…";
+      try {
+        const r1 = await api({ action: "adminAttendConfirm", token, items });
+        if (!r1.ok) { alert(ATT_ERR[r1.error] || ("저장하지 못했어요: " + r1.error)); await loadAtt(); render(); return; }
+        const r2 = await api({ action: "adminAttendPdf", token, biz: g.biz, date: g.date, round: g.round });
+        if (!r2.ok) alert("참석 확인은 저장했지만 PDF는 만들지 못했어요: " + (ATT_ERR[r2.error] || r2.error));
+        else alert("저장했어요. (" + r2.count + "명 · 폴더: 일경험/연도/" + r2.folder + ")");
+      } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      await loadAtt(); render(); return;
+    }
+    b.disabled = true;
     try {
       const r = await api(payload);
-      if (!r.ok) { alert(ATT_ERR[r.error] || ("처리하지 못했어요: " + r.error)); b.disabled = false; b.textContent = label; return; }
-      if (act === "create") S.sid = r.id;
-      if (act === "pdf") alert("저장했어요. (" + r.count + "명, 폴더: 일경험/연도/" + r.folder + ")");
+      if (!r.ok) { alert(ATT_ERR[r.error] || ("처리하지 못했어요: " + r.error)); b.disabled = false; return; }
       await loadAtt(); render();
-    } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); b.disabled = false; b.textContent = label; }
+    } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); b.disabled = false; }
   });
 
   function render() {
@@ -256,12 +177,8 @@
     if (S.screen === "loading") body = '<div class="sec-intro"><p class="eyebrow">일경험 관리자 대시보드</p><h2>불러오는 중…</h2></div>';
     else if (S.screen === "no-token") body = noTokenScreen();
     else if (S.screen === "error") body = errorScreen();
-    else if (S.screen === "sign") body = signScreen();
-    else if (S.screen === "qr") body = qrScreen();
-    else if (S.screen === "pad") body = padScreen();
     else body = dashboard();
     app.innerHTML = body;
-    if (S.screen === "pad") setupPad();
   }
 
   async function load() {
