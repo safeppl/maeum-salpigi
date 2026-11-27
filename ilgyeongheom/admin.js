@@ -42,6 +42,7 @@
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
+      '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
         ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) + historyBlock(p) +
@@ -146,9 +147,10 @@
   function rosterTable(rows) {
     if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
     const coachOpts = '<option value="">코치 선택</option><option value="__none">(지정 해제)</option>' + ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>').join(""));
-    return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button><span class="act-msg" id="bulk-msg"></span></div>' +
+    return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button></div>' +
+      '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 단계를</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">단계 일괄 변경</button></div>' +
       '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th></th></tr>' +
-      rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td>' + e(p.stage) + '</td><td>' + e(p.coach || "—") + '</td>' +
+      rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
         '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") + '</table></div>';
   }
   function noteHtml() {
@@ -221,6 +223,20 @@
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
     if (ev.target.id === "rosterAll") { document.querySelectorAll(".rosterChk").forEach(c => { c.checked = ev.target.checked; }); return; }
+    const st = ev.target.closest("button[data-bulkstage], button[data-onestage]");
+    if (st) {
+      let codes, stage;
+      if (st.dataset.onestage) { codes = [st.dataset.onestage]; stage = $("stage-" + codes[0]).value; }
+      else { codes = Array.from(document.querySelectorAll(".rosterChk:checked")).map(c => c.dataset.code); stage = $("bulkStage").value; if (!codes.length) { alert("먼저 참여자를 체크해 주세요."); return; } }
+      if (!confirm(codes.length + "명의 단계를 '" + stage + "'(으)로 바꿀까요?")) return;
+      st.disabled = true;
+      try {
+        const r = await api({ action: "adminSetStage", token, codes, stage });
+        if (!r.ok) { st.disabled = false; alert("처리하지 못했어요: " + r.error); return; }
+        await load();
+      } catch (err) { st.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
     const sc = ev.target.closest("button[data-bulkcoach], button[data-onecoach]");
     if (sc) {
       let codes, coach;
@@ -309,6 +325,16 @@
   }
   async function loadAtt() { try { const r = await api({ action: "adminAttendList", token }); S.att = r.ok ? r : { rows: [], failed: true }; } catch (err) { S.att = { rows: [], failed: true }; } }
   app.addEventListener("click", async ev => { if (ev.target.closest("button[data-attretry]")) { S.att = null; render(); await loadAtt(); render(); } });
+  app.addEventListener("change", async ev => {
+    const sel = ev.target.closest("select.stageSel"); if (!sel) return;
+    if (!confirm(sel.dataset.name + " 님의 단계를 '" + sel.value + "'(으)로 바꿀까요?")) { await load(); return; }
+    sel.disabled = true;
+    try {
+      const r = await api({ action: "adminSetStage", token, codes: [sel.dataset.code], stage: sel.value });
+      if (!r.ok) alert("처리하지 못했어요: " + r.error);
+    } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+    await load();
+  });
   const ATT_ERR = { changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요.", none_confirmed: "참석 확인된 사람이 없어요.", forbidden: "관리자 토큰이 맞지 않아요.", missing_field: "빈 칸이 있어요." };
   app.addEventListener("click", async ev => {
     const b = ev.target.closest("button[data-allchk], button[data-asave], button[data-adel]");
