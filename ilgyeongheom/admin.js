@@ -79,6 +79,7 @@
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
       (p.capHours ? '<div class="coach-meta">1인당 한도 <b>' + p.capHours + '시간(' + won(p.capAmount) + ')</b> 중 인정 ' + Math.round(p.accruedAmount / (p.rate || 12000) * 100) / 100 + '시간 · 시급 ' + won(p.rate) + '</div>' : "") +
+      (p.minOverride ? '<div class="banner" style="margin:2px 0"><b>개별 기준 ' + p.minOverride + '시간 적용 중</b> — 사업 기준보다 낮은 시간을 채운 주도 보상 대상이에요.' + (p.minReason ? ' (사유: ' + e(p.minReason) + ')' : "") + '</div>' : "") +
       (p.periodWeeks ? '<div class="coach-meta">완주 현황: 주 기준시간(' + p.weeklyMinHours + '시간) 채운 주 <b>' + p.metWeeks + '주</b> / 사업 기간 ' + p.periodWeeks + '주' + (p.weeklyPayCap ? ' · 주 지급 상한 ' + p.weeklyPayCap + '시간' : "") + '</div>' : "") +
       (p.limitedHours ? '<div class="banner warn" style="margin:2px 0"><b>주 지급 상한 ' + p.weeklyPayCap + '시간 초과 ' + p.limitedHours + '시간</b> — 한도를 기간 전체에 고르게 지급하려고 한 주에 인정하는 시간을 넘긴 부분은 제외돼요.</div>' : "") +
       (p.outsideHours ? '<div class="banner warn" style="margin:2px 0"><b>사업 기간 밖 활동 ' + p.outsideHours + '시간</b> — 지급 기간(' + e(p.periodStart || "") + ' ~ ' + e(p.periodEnd || "") + ') 밖이라 보상금에서 제외돼요.</div>' : "") +
@@ -87,6 +88,7 @@
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">상태</span><select id="pst-' + e(p.code) + '" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '"' + (x === p.status ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onepst="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
+      '<div class="form-row" style="margin:0"><span class="coach-meta">개별 주 기준시간</span><input id="mh-' + e(p.code) + '" type="number" min="0" step="0.5" value="' + (p.minOverride || "") + '" placeholder="사업 기준(' + e(p.weeklyMinHours) + ')" style="flex:none;width:130px"><input id="mr-' + e(p.code) + '" value="' + e(p.minReason || "") + '" placeholder="사유(필수) 예: 건강 사정으로 주당 활동 제한" style="flex:1;min-width:200px"><button class="btn btn-ghost btn-sm" data-setmin="' + e(p.code) + '">저장</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
         ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
       planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) + payBlock(p) +
@@ -212,7 +214,7 @@
       '<div class="form-row"><span class="coach-meta">단계</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">일괄 변경</button></div></div>' +
       '<div style="overflow:auto;max-height:480px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>계획초과</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td' + (p.overHours ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.overHours ? p.overHours + 'h' : "—") + '</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
+        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + (p.minOverride ? ' <small style="color:var(--accent)">개별</small>' : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td' + (p.overHours ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.overHours ? p.overHours + 'h' : "—") + '</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
       (function () { const t = k => rows.reduce((s, p) => s + (Number(p[k]) || 0), 0);
         return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + (Math.round(t("overHours") * 100) / 100 || "—") + '</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
   }
@@ -265,7 +267,7 @@
     const rows = S.payRows, t = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
     return '<div class="act-msg" style="color:var(--ink)">' + e(S.payMsg || "") + '</div>' +
       '<div style="overflow:auto;max-height:360px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여자</th><th>사업</th><th>지급월</th><th>대상시간</th><th>금액</th><th>계획초과</th><th>한도제외</th><th>주상한제외</th><th>기간밖제외</th><th>결과</th></tr>' +
-      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + e(r.month) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + (r.limited ? r.limited + "h" : "—") + '</td><td>' + (r.outside ? r.outside + "h" : "—") + '</td><td>' + e(r.result) + '</td></tr>').join("") +
+      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + e(r.month) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + (r.limited ? r.limited + "h" : "—") + '</td><td>' + (r.outside ? r.outside + "h" : "—") + '</td><td>' + e(r.result) + (r.minOverride ? ' <small>(개별 기준 ' + r.minOverride + 'h)</small>' : "") + '</td></tr>').join("") +
       '<tr style="border-top:2px solid var(--line);font-weight:700"><td colspan="3">합계 (' + rows.length + '건)</td><td>' + Math.round(t("hours") * 100) / 100 + 'h</td><td>' + won(t("amount")) + '</td><td colspan="5"></td></tr></table></div>';
   }
   // 사업별 보상 설정: 시급·1인당 한도 시간·참여자 수·기간을 넣으면 한도 금액·총예산·주 기준시간이 자동으로 채워져요(직접 고쳐도 돼요).
@@ -362,6 +364,19 @@
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
     if (ev.target.id === "rosterAll") { document.querySelectorAll(".rosterChk").forEach(c => { c.checked = ev.target.checked; }); return; }
+    const sm = ev.target.closest("button[data-setmin]");
+    if (sm) {
+      const code = sm.dataset.setmin, hours = $("mh-" + code).value.trim(), reason = $("mr-" + code).value.trim();
+      if (hours && !reason) { alert("개별 기준을 정할 때는 사유를 적어 주세요."); return; }
+      if (!confirm(hours ? "이 참여자의 주 기준시간을 " + hours + "시간으로 정할까요? 지급내역이 바로 다시 계산돼요." : "개별 기준을 지우고 사업 기준으로 돌아갈까요? 지급내역이 바로 다시 계산돼요.")) return;
+      sm.disabled = true;
+      try {
+        const r = await api({ action: "adminSetMinHours", token, code, hours, reason });
+        if (!r.ok) { sm.disabled = false; alert(r.error === "bad_number" ? "0.5~40시간 사이로 적어 주세요(비우면 사업 기준)." : r.error === "missing_reason" ? "사유를 적어 주세요." : "저장하지 못했어요: " + r.error); return; }
+        await load();
+      } catch (err) { sm.disabled = false; alert("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
     const sv = ev.target.closest("button[data-savebz]");
     if (sv) {
       const biz = sv.dataset.savebz, val = k => { const el = document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'); return el ? el.value : ""; };
