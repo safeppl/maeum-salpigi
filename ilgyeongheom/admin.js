@@ -42,7 +42,7 @@
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
-      planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
+      planChip(p.planStatus) + planBlock(p) + pendingBlock(p) + historyBlock(p) +
       '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
@@ -63,6 +63,17 @@
         '<button class="btn btn-ghost btn-sm" data-plan="반려" data-code="' + e(p.code) + '">반려</button></div>';
     }
     return h + '</details>';
+  }
+  const STATE_CHIP = { "인증": "ok", "반려": "watch", "대기": "info" };
+  function histLine(h, name) {
+    return '<div class="coach-meta" style="border-top:1px solid var(--line);padding-top:6px;margin-top:6px"><b>' + e(h.date) + '</b> ' + (name ? e(name) + ' ' : "") + e(h.type) + ' · ' + e(h.timeIn) + '~' + e(h.timeOut) + ' (' + e(h.hours) + '시간) ' +
+      '<span class="chip ' + STATE_CHIP[h.state] + '">' + h.state + (h.at ? " " + e(h.at) : "") + '</span>' +
+      (h.place ? ' · ' + e(h.place) : "") + (h.job ? '<br>직무: ' + e(h.job) : "") + (h.reason ? '<br>반려 사유: ' + e(h.reason) : "") + '</div>';
+  }
+  function historyBlock(p) {
+    const hs = p.history || [];
+    if (!hs.length) return "";
+    return '<details class="plan-block"><summary>출퇴근 기록 전체 ' + hs.length + '건 (인증 ' + hs.filter(h => h.state === "인증").length + ' · 반려 ' + hs.filter(h => h.state === "반려").length + ' · 대기 ' + hs.filter(h => h.state === "대기").length + ')</summary>' + hs.map(h => histLine(h)).join("") + '</details>';
   }
   function pendingBlock(p) {
     if (!p.pending || !p.pending.length) return "";
@@ -154,6 +165,7 @@
     const active = d.participants.filter(p => p.status === "진행중");
     const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
     const shown = d.participants.filter(matches);
+    const done = [].concat.apply([], d.participants.map(p => (p.history || []).filter(h => h.state !== "대기").map(h => ({ h: h, name: p.name })))).sort((a, b) => (b.h.at || b.h.date).localeCompare(a.h.at || a.h.date));
     const todo = active.filter(p => p.pendingCount || p.planStatus === "대기");
     const todoRows = todo.length ? todo.map(p => '<div class="coach-meta"><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.code) + ' ' + e(p.name) + '</b></a> — ' +
       (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
@@ -163,6 +175,8 @@
       '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
       '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
       '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
+      '<details class="plan-block" style="margin-top:8px"><summary>처리된 인증·반려 내역 보기 (' + done.length + '건)</summary>' +
+        (done.length ? done.slice(0, 60).map(x => histLine(x.h, x.name)).join("") + (done.length > 60 ? '<div class="coach-meta">최근 60건만 보여요. 전체는 참여자 상세에서 볼 수 있어요.</div>' : "") : '<div class="coach-meta">아직 처리된 기록이 없어요.</div>') + '</details>' +
       '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
       '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
       '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
