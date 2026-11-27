@@ -43,7 +43,7 @@
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
-      '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button></div>' +
+      '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
 
@@ -168,6 +168,22 @@
       '<div class="form-row"><input id="sms-key" placeholder="API Key"><input id="sms-secret" type="password" placeholder="API Secret"><input id="sms-sender" placeholder="발신번호(0222471091)"><button class="btn btn-primary btn-sm" data-smssave="1">저장</button></div></div>' +
       '<div class="act-msg" id="act-msg"></div>';
   }
+  // 잘못 등록한 참여자 삭제 — 기록이 있으면 건수를 보여 주고 한 번 더 확인해요. 지운 내용은 시트 [삭제기록] 탭에 남아요.
+  async function deletePart(b) {
+    const code = b.dataset.delpart, name = b.dataset.name;
+    if (!confirm(code + " " + name + " 님을 일경험 참여자에서 삭제할까요?\n(마음살피기 신청 정보는 그대로예요)")) return;
+    b.disabled = true;
+    try {
+      let r = await api({ action: "adminDeleteParticipant", token, code, name });
+      if (!r.ok && r.error === "has_records") {
+        const list = Object.keys(r.counts).map(k => k + " " + r.counts[k] + "건").join(", ");
+        if (!confirm("이 분의 기록도 함께 지워져요: " + list + "\n정말 삭제할까요? (지운 내용은 시트 [삭제기록] 탭에 남아요)")) { b.disabled = false; return; }
+        r = await api({ action: "adminDeleteParticipant", token, code, name, force: true });
+      }
+      if (!r.ok) { b.disabled = false; alert(r.error === "has_pay" ? "지급내역이 있는 참여자는 지울 수 없어요. 시트에서 직접 정리해 주세요." : "삭제하지 못했어요: " + (r.error || "")); return; }
+      S.code = null; alert("삭제했어요."); await load();
+    } catch (err) { b.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+  }
   async function loadSmsStatus() {
     try { const r = await api({ action: "adminSmsStatus", token }); const el = $("sms-status"); if (el) el.textContent = !r.ok ? "확인하지 못했어요" : r.ready ? "설정됨 (발신번호 " + r.sender + ")" : "아직 설정 안 됨"; } catch (err) {}
   }
@@ -176,6 +192,8 @@
   app.addEventListener("click", async ev => {
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
+    const dp = ev.target.closest("button[data-delpart]");
+    if (dp) return deletePart(dp);
     const b = ev.target.closest("button[data-addp], button[data-addc], button[data-sendlink], button[data-calc], button[data-smssave]");
     if (!b) return;
     const v = id => ($(id) ? $(id).value.trim() : "");
