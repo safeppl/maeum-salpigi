@@ -42,6 +42,8 @@
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
+      '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
+        ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) + historyBlock(p) +
       '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
@@ -143,8 +145,10 @@
 
   function rosterTable(rows) {
     if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
-    return '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th></th></tr>' +
-      rows.map(p => '<tr style="border-top:1px solid var(--line)"><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td>' + e(p.stage) + '</td><td>' + e(p.coach || "—") + '</td>' +
+    const coachOpts = '<option value="">코치 선택</option><option value="__none">(지정 해제)</option>' + ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>').join(""));
+    return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button><span class="act-msg" id="bulk-msg"></span></div>' +
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th></th></tr>' +
+      rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td>' + e(p.stage) + '</td><td>' + e(p.coach || "—") + '</td>' +
         '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") + '</table></div>';
   }
   function noteHtml() {
@@ -216,6 +220,22 @@
   app.addEventListener("click", async ev => {
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
+    if (ev.target.id === "rosterAll") { document.querySelectorAll(".rosterChk").forEach(c => { c.checked = ev.target.checked; }); return; }
+    const sc = ev.target.closest("button[data-bulkcoach], button[data-onecoach]");
+    if (sc) {
+      let codes, coach;
+      if (sc.dataset.onecoach) { codes = [sc.dataset.onecoach]; coach = $("coach-" + codes[0]).value; }
+      else { codes = Array.from(document.querySelectorAll(".rosterChk:checked")).map(c => c.dataset.code); coach = $("bulkCoach").value; if (!coach) { alert("지정할 코치를 골라 주세요."); return; } if (!codes.length) { alert("먼저 참여자를 체크해 주세요."); return; } }
+      const label = coach === "__none" ? "담당 코치 지정을 해제" : "담당 코치를 '" + coach + "'(으)로 지정";
+      if (!confirm(codes.length + "명의 " + label + "할까요?")) return;
+      sc.disabled = true;
+      try {
+        const r = await api({ action: "adminSetCoach", token, codes, coach: coach === "__none" ? "" : coach });
+        if (!r.ok) { sc.disabled = false; alert(r.error === "no_coach" ? "[코치] 탭에 없는 이름이에요." : "처리하지 못했어요: " + r.error); return; }
+        await load();
+      } catch (err) { sc.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
     const cp = ev.target.closest("button[data-copy]");
     if (cp) { const ok = await copyText(cp.dataset.copy); const t = cp.textContent; cp.textContent = ok ? "복사했어요 ✓" : "복사 실패"; setTimeout(() => { cp.textContent = t; }, 1500); return; }
     if (ev.target.closest("button[data-notex]")) { S.note = null; render(); return; }
