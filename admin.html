@@ -209,6 +209,9 @@ function renderDashboard() {
     '<button data-act="backfill">[1회] 사업 일괄 채우기</button></div>' +
     '<div id="actionResult" class="m" style="margin-top:8px"></div>';
 
+  h += '<h2>3단계(일경험) 일괄 체크</h2><div id="stage3Box" class="noticeBox"><p class="m">이름을 쉼표나 줄바꿈으로 구분해 넣으면 이름이 같은 사람을 찾아 [참여_3단계]를 체크하고 일경험 앱 [참여자]에도 올려요. 같은 이름이 둘 이상이면 건너뛰어요.</p>' +
+    '<textarea id="stage3Names" rows="2" placeholder="예: 김선영, 김혜은, 정재균, 조현영"></textarea>' +
+    '<div class="noticeBtns"><button id="stage3Btn">3단계 체크</button><span id="stage3Msg" class="m"></span></div></div>';
   h += '<h2>문자 발송 설정</h2><div id="smsBox">' +
     '<p class="m" id="smsStatus">확인 중...</p>' +
     '<div class="smsForm">' +
@@ -233,6 +236,7 @@ function renderDashboard() {
   }));
   document.querySelectorAll("[data-act]").forEach(btn => btn.addEventListener("click", () => runAction(btn.dataset.act)));
   document.getElementById("smsSaveBtn").addEventListener("click", saveSmsSettings);
+  document.getElementById("stage3Btn").addEventListener("click", bulkStage3);
   document.getElementById("purgePreviewBtn").addEventListener("click", purgePreview);
   refreshSmsStatus();
 }
@@ -313,6 +317,30 @@ async function runAction(act) {
   }
 }
 
+async function bulkStage3() {
+  const msg = document.getElementById("stage3Msg");
+  const names = document.getElementById("stage3Names").value.split(/[,\n，]/).map(x => x.trim()).filter(Boolean);
+  if (!names.length) { msg.textContent = "이름을 넣어 주세요."; return; }
+  const codes = [], notes = [];
+  names.forEach(n => {
+    const hit = DATA.participants.filter(p => p.name === n);
+    if (hit.length === 1) codes.push(hit[0].code);
+    else notes.push(n + (hit.length ? " (동명이인 " + hit.length + "명 — 건너뜀, 상세 화면에서 체크)" : " (못 찾음)"));
+  });
+  if (!codes.length) { msg.textContent = "체크할 사람을 못 찾았어요: " + notes.join(", "); return; }
+  const who = codes.map(c => c + " " + DATA.participants.find(p => p.code === c).name).join(", ");
+  if (!confirm("다음 " + codes.length + "명의 [참여_3단계]를 체크하고 일경험 앱에 올릴까요?\n" + who)) return;
+  const btn = document.getElementById("stage3Btn");
+  btn.disabled = true; msg.textContent = "처리 중...";
+  const json = await callAdmin("adminSetStage", { codes: codes, stage: "s3", value: true });
+  btn.disabled = false;
+  if (!json.ok) { msg.textContent = "실패: " + (json.error || "오류"); return; }
+  const ok = json.results.filter(r => r.ok && !r.pushError).map(r => r.name);
+  const bad = json.results.filter(r => !r.ok || r.pushError).map(r => (r.name || r.code) + "(" + (r.pushError || r.error) + ")");
+  msg.textContent = "완료: " + (ok.join(", ") || "없음") + (bad.length ? " / 일경험 앱에 못 올림: " + bad.join(", ") : "") + (notes.length ? " / 건너뜀: " + notes.join(", ") : "");
+  await fetchData();
+}
+
 async function refreshSmsStatus() {
   const el = document.getElementById("smsStatus");
   const json = await callAdmin("adminSmsStatus");
@@ -381,8 +409,10 @@ function renderDetail(p) {
   h += '<div class="statusRow">담당 동행활동가: <select id="activistSelect">' + activistOptions + '</select>' +
     '트랙: <select id="trackSelect">' + trackOptions + '</select>' +
     '<button id="activistBtn">지정</button><span id="activistMsg" class="m"></span></div>';
-  h += '<p class="m">참여 단계: ' +
-    esc([p.stage1 && "1단계", p.stage2 && "2단계", p.stage3 && "3단계"].filter(Boolean).join(", ") || "없음") + '</p>';
+  // 2026-11-27: 참여 단계를 허브에서 바로 체크해요(시트 [참여_1~3단계] 칸과 같아요). 3단계를 켜면 일경험 앱에도 참여자가 만들어져요.
+  h += '<p class="m">참여 단계: ' + [["s1", "1단계", p.stage1], ["s2", "2단계", p.stage2], ["s3", "3단계(일경험)", p.stage3]].map(x =>
+    '<label style="margin-right:12px"><input type="checkbox" class="stageChk" data-stage="' + x[0] + '"' + (x[2] ? " checked" : "") + '> ' + x[1] + '</label>').join("") +
+    '<span id="stageMsg" class="m"></span></p>';
   h += '<div class="noticeBox"><h3>안내 보내기</h3>' +
     '<textarea id="noticeText" rows="5">불러오는 중...</textarea>' +
     '<div class="noticeBtns"><button id="noticeCopyBtn">문구 복사</button>' +
@@ -392,6 +422,16 @@ function renderDetail(p) {
   document.getElementById("main").innerHTML = h;
   document.getElementById("statusBtn").addEventListener("click", () => changeStatus(p.code));
   document.getElementById("bizBtn").addEventListener("click", () => changeBiz(p.code));
+  document.querySelectorAll(".stageChk").forEach(c => c.addEventListener("change", async () => {
+    const msg = document.getElementById("stageMsg");
+    c.disabled = true; msg.textContent = "저장 중...";
+    const json = await callAdmin("adminSetStage", { codes: [p.code], stage: c.dataset.stage, value: c.checked });
+    c.disabled = false;
+    if (!json.ok) { c.checked = !c.checked; msg.textContent = "실패: " + (json.error || "오류"); return; }
+    const r = json.results[0];
+    msg.textContent = r.pushError ? "체크는 저장했지만 일경험 앱에 못 보냈어요: " + r.pushError : (c.dataset.stage === "s3" && c.checked ? "저장했어요. 일경험 앱 [참여자]에 올라갔어요." : "저장했어요.");
+    await fetchData();
+  }));
   document.getElementById("activistBtn").addEventListener("click", () => assignActivist(p.code));
   document.getElementById("deleteBtn").addEventListener("click", () => deleteApplicant(p));
   bindNotice(p);
