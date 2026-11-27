@@ -111,7 +111,7 @@
   // 지급내역(월별): 지급완료 ↔ 예정 표시. 시트 [지급내역]의 지급상태를 그대로 바꿔요.
   function payBlock(p) {
     const ps = p.pays || [];
-    if (!ps.length) return '<div class="coach-meta">지급내역: 아직 없어요. (대시보드의 [이번 달 보상금 계산하기]로 만들어요)</div>';
+    if (!ps.length) return '<div class="coach-meta">지급내역: 아직 없어요. (출퇴근을 인증하면 자동으로 만들어져요. 급하면 대시보드 [보상금 다시 계산하기])</div>';
     return '<details class="plan-block"><summary>지급내역 ' + ps.length + '건 (지급완료 ' + ps.filter(x => x.status === "지급완료").length + ' · 예정 ' + ps.filter(x => x.status !== "지급완료").length + ')</summary>' +
       ps.map(x => '<div class="coach-meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:6px;margin-top:6px"><b>' + e(x.month) + '</b> ' + e(x.hours) + '시간 · ' + won(x.amount) + ' · 지급일 ' + e(x.date || "—") +
         ' <span class="chip ' + (x.status === "지급완료" ? "ok" : "info") + '">' + e(x.status) + '</span>' +
@@ -244,7 +244,7 @@
   function jumpBar(nTodo, nRoster) {
     const nAtt = ((S.att && S.att.rows) || []).filter(r => r.code && r.name && !r.confirmed).length;
     const items = [["sec-todo", "지금 처리할 일", nTodo], ["sec-roster", "참여자 현황", nRoster], ["sec-attend", "집체코칭 출석", nAtt ? nAtt + " 대기" : ""],
-      ["sec-admin", "관리 작업", ""], ["sec-coach", "코치", ""], ["sec-bizset", "사업별 보상 설정", ""], ["sec-pay", "이번 달 보상금 계산", ""], ["sec-sms", "문자 발송 설정", ""]];
+      ["sec-admin", "관리 작업", ""], ["sec-coach", "코치", ""], ["sec-bizset", "사업별 보상 설정", ""], ["sec-pay", "보상금 계산", ""], ["sec-sms", "문자 발송 설정", ""]];
     return '<div id="jumpbar">' + items.map(x => '<button class="jump" data-jump="' + x[0] + '">' + x[1] + (x[2] !== "" ? ' <small>' + x[2] + '</small>' : "") + '</button>').join("") + '</div>';
   }
   app.addEventListener("click", ev => {
@@ -261,24 +261,36 @@
     if (!S.payRows) return "";
     const rows = S.payRows, t = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
     return '<div class="act-msg" style="color:var(--ink)">' + e(S.payMsg || "") + '</div>' +
-      '<div style="overflow:auto;max-height:360px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여자</th><th>사업</th><th>대상시간</th><th>금액</th><th>계획초과</th><th>한도제외</th><th>결과</th></tr>' +
-      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + e(r.result) + '</td></tr>').join("") +
-      '<tr style="border-top:2px solid var(--line);font-weight:700"><td colspan="2">합계 (' + rows.length + '명)</td><td>' + Math.round(t("hours") * 100) / 100 + 'h</td><td>' + won(t("amount")) + '</td><td colspan="3"></td></tr></table></div>';
+      '<div style="overflow:auto;max-height:360px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여자</th><th>사업</th><th>지급월</th><th>대상시간</th><th>금액</th><th>계획초과</th><th>한도제외</th><th>결과</th></tr>' +
+      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + e(r.month) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + e(r.result) + '</td></tr>').join("") +
+      '<tr style="border-top:2px solid var(--line);font-weight:700"><td colspan="3">합계 (' + rows.length + '건)</td><td>' + Math.round(t("hours") * 100) / 100 + 'h</td><td>' + won(t("amount")) + '</td><td colspan="3"></td></tr></table></div>';
   }
-  // 사업별 보상 설정: 시급, 1인당 한도(시간/금액), 총예산, 주 기준시간. 비워 두면 기본값(시급 12,000원·주 6시간)이고 한도·예산은 제한 없음이에요.
+  // 사업별 보상 설정: 시급·1인당 한도 시간·참여자 수·기간을 넣으면 한도 금액·총예산·주 기준시간이 자동으로 채워져요(직접 고쳐도 돼요).
+  // 비워 두면 기본값(시급 12,000원·주 6시간)이고 한도·예산은 제한 없음이에요.
   function bizSetCard() {
     const d = S.data, set = d.bizSettings || {}, df = d.defaults || { rate: 12000, minHours: 6 };
     const bizs = Array.from(new Set((d.bizList || []).concat(Object.keys(set), d.participants.map(p => p.biz).filter(Boolean)))).filter(b => b !== "미분류");
-    const inp = (b, k, v, ph, w) => '<input data-bz="' + e(b) + '" data-f="' + k + '" type="number" min="0" value="' + (v || "") + '" placeholder="' + ph + '" style="width:' + (w || 110) + 'px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface)">';
+    const inp = (b, k, v, ph, w, auto) => '<input data-bz="' + e(b) + '" data-f="' + k + '" type="number" min="0" value="' + (v || "") + '" placeholder="' + ph + '"' + (auto ? ' title="자동 계산(직접 고쳐도 돼요)"' : "") + ' style="width:' + (w || 110) + 'px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:' + (auto ? "var(--accent-soft)" : "var(--surface)") + '">';
     return '<div class="coach-card" id="sec-bizset" style="margin-top:10px"><b>사업별 보상 설정</b>' +
-      '<div class="coach-meta">사업마다 시급, 1인당 한도, 총예산, 주 기준시간이 달라서 여기서 직접 정해요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. 1인당 한도는 <b>시간</b>과 <b>금액÷시급</b> 중 낮은 쪽이 적용돼요. (예: 도봉 — 시급 12,000 · 한도 75시간 또는 900,000원 · 총예산 1,800,000 · 주 6시간)</div>' +
-      '<div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>사업</th><th>시급(원)</th><th>1인당 한도 시간</th><th>1인당 한도 금액(원)</th><th>총예산(원)</th><th>주 기준시간</th><th></th></tr>' +
+      '<div class="coach-meta">사업마다 다른 값을 여기서 정해요. <b>시급 · 1인당 한도 시간 · 참여자 수 · 기간</b>을 넣으면 <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">초록 칸</span>(한도 금액 = 시급 × 한도 시간 · 총예산 = 한도 금액 × 참여자 수 · 주 기준시간 = 한도 시간 ÷ 기간 주수, 소수 내림)이 자동으로 채워지고, 직접 고쳐도 돼요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. 저장하면 이 사업 참여자들의 보상금이 새 설정으로 자동 계산돼요.</div>' +
+      '<div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>사업</th><th>시급(원)</th><th>1인당 한도 시간</th><th>참여자 수</th><th>기간(개월)</th><th>한도 금액(원)</th><th>총예산(원)</th><th>주 기준시간</th><th></th></tr>' +
       bizs.map(b => { const s = set[b] || {}, ps = d.participants.filter(p => p.biz === b), used = ps.reduce((x, p) => x + (p.accruedAmount || 0), 0), paid = ps.reduce((x, p) => x + (p.paidAmount || 0), 0);
-        return '<tr style="border-top:1px solid var(--line)"><td><b>' + e(b) + '</b><br><span class="muted">' + ps.length + '명</span></td><td>' + inp(b, "rate", s.rate, String(df.rate), 90) + '</td><td>' + inp(b, "capHours", s.capHours, "제한없음", 90) + '</td><td>' + inp(b, "capAmount", s.capAmount, "제한없음") + '</td><td>' + inp(b, "budget", s.budget, "제한없음") + '</td><td>' + inp(b, "minHours", s.minHours, String(df.minHours), 70) + '</td>' +
+        return '<tr style="border-top:1px solid var(--line)"><td><b>' + e(b) + '</b><br><span class="muted">현재 ' + ps.length + '명</span></td><td>' + inp(b, "rate", s.rate, String(df.rate), 90) + '</td><td>' + inp(b, "capHours", s.capHours, "제한없음", 90) + '</td><td>' + inp(b, "headcount", s.headcount, "명", 70) + '</td><td>' + inp(b, "months", s.months, "개월", 70) + '</td><td>' + inp(b, "capAmount", s.capAmount, "자동", 110, true) + '</td><td>' + inp(b, "budget", s.budget, "자동", 110, true) + '</td><td>' + inp(b, "minHours", s.minHours, String(df.minHours), 70, true) + '</td>' +
           '<td><button class="btn btn-primary btn-sm" data-savebz="' + e(b) + '">저장</button></td></tr>' +
-          '<tr><td colspan="7" class="coach-meta" style="padding-bottom:8px">발생 ' + won(used) + ' · 지급 ' + won(paid) + (s.budget ? ' · 총예산 ' + won(s.budget) + ' 중 <b style="color:' + (used > s.budget ? "#C0392B" : "inherit") + '">' + Math.round(used / s.budget * 100) + '%</b> 사용 · 잔여 ' + won(Math.max(0, s.budget - used)) + (used > s.budget ? " ⚠ 초과" : "") : " · 총예산 미설정") + '</td></tr>'; }).join("") +
+          '<tr><td colspan="9" class="coach-meta" style="padding-bottom:8px">발생 ' + won(used) + ' · 지급 ' + won(paid) + (s.budget ? ' · 총예산 ' + won(s.budget) + ' 중 <b style="color:' + (used > s.budget ? "#C0392B" : "inherit") + '">' + Math.round(used / s.budget * 100) + '%</b> 사용 · 잔여 ' + won(Math.max(0, s.budget - used)) + (used > s.budget ? " ⚠ 초과" : "") : " · 총예산 미설정") + (s.headcount && ps.length > s.headcount ? ' · <b style="color:#C0392B">⚠ 참여자 수(' + s.headcount + '명)보다 현재 인원이 많아요</b>' : "") + '</td></tr>'; }).join("") +
       '</table></div></div>';
   }
+  // 입력한 값으로 같은 줄의 자동 칸을 다시 계산해요.
+  function recalcBizRow(biz) {
+    const q = k => document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'), num = k => Number(q(k) && q(k).value) || 0;
+    const df = (S.data && S.data.defaults) || { rate: 12000 }, rate = num("rate") || df.rate, hrs = num("capHours"), hc = num("headcount"), mo = num("months");
+    if (hrs > 0) {
+      const amt = Math.round(rate * hrs); q("capAmount").value = amt;
+      if (hc > 0) q("budget").value = amt * hc;
+      if (mo > 0) { const mn = Math.floor(hrs / (mo * 4.345)); if (mn >= 1) q("minHours").value = Math.min(40, mn); }
+    }
+  }
+  app.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.bz && ["rate", "capHours", "headcount", "months"].indexOf(el.dataset.f) >= 0) recalcBizRow(el.dataset.bz); });
   function dashboard() {
     const d = S.data;
     if (S.code) {
@@ -311,8 +323,8 @@
       (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(c.link) + '">🔗 링크 복사</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
       '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></details>' +
       bizSetCard() +
-      '<div class="coach-card" id="sec-pay" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
-      '<div><button class="btn btn-primary btn-sm" data-calc="1">이번 달 보상금 계산하기</button></div>' + payResult() + '</div>' +
+      '<div class="coach-card" id="sec-pay" style="margin-top:10px"><b>보상금 계산 (참여자별)</b><div class="coach-meta">출퇴근을 <b>인증할 때, 계획서가 바뀔 때, 사업 설정을 저장할 때마다 자동으로</b> 참여자별 지급 예정 줄이 맞춰져요. 이 버튼은 모든 달을 직접 다시 계산해 볼 때 써요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
+      '<div><button class="btn btn-primary btn-sm" data-calc="1">보상금 다시 계산하기 (모든 달)</button></div>' + payResult() + '</div>' +
       '<div class="coach-card" id="sec-sms" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">' + e(S.smsText || "확인 중…") + '</div>' +
       '<div class="form-row"><input id="sms-key" placeholder="API Key"><input id="sms-secret" type="password" placeholder="API Secret"><input id="sms-sender" placeholder="발신번호(0222471091)"><button class="btn btn-primary btn-sm" data-smssave="1">저장</button></div></div>' +
       '<div class="act-msg" id="act-msg"></div><div class="jump-pad"></div>';
@@ -347,9 +359,9 @@
       const biz = sv.dataset.savebz, val = k => { const el = document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'); return el ? el.value : ""; };
       sv.disabled = true;
       try {
-        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours") });
+        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours"), headcount: val("headcount"), months: val("months") });
         if (!r.ok) { sv.disabled = false; alert(r.error === "bad_number" ? "숫자를 확인해 주세요(0 이상, 너무 큰 값은 안 돼요)." : "저장하지 못했어요: " + r.error); return; }
-        alert(biz + " 설정을 저장했어요. 보상금 계산·누적 금액부터 새 설정으로 계산돼요.");
+        alert(biz + " 설정을 저장했어요. 이 사업 참여자들의 보상금(지급내역)이 새 설정으로 자동 계산됐어요.");
         await load();
       } catch (err) { sv.disabled = false; alert("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
       return;
@@ -431,9 +443,9 @@
       payload = { action: "adminSendLink", token, who: b.dataset.who, key: b.dataset.sendlink };
       done = linkResult;
     } else if (b.dataset.calc) {
-      if (!confirm("이번 달 보상금을 계산할까요?")) return;
+      if (!confirm("모든 달의 보상금을 현재 설정으로 다시 계산할까요? (지급완료인 줄은 그대로 둬요)")) return;
       payload = { action: "adminCalcPay", token };
-      done = r => "이번 달(" + r.ym + ") 계산 완료 — 새로 만든 줄 " + r.made + "건, 수정 " + r.updated + "건, 지급완료라 건드리지 않은 줄 " + r.skipped + "건";
+      done = r => "계산 완료 — 새로 만든 줄 " + r.made + "건, 수정 " + r.updated + "건, 지급완료라 건드리지 않은 줄 " + r.skipped + "건";
     } else {
       if (!v("sms-key") || !v("sms-secret") || !v("sms-sender")) { alert("세 칸 모두 입력해 주세요."); return; }
       payload = { action: "adminSmsSettings", token, key: v("sms-key"), secret: v("sms-secret"), sender: v("sms-sender") };
