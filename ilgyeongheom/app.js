@@ -116,6 +116,14 @@
     return '<div class="panel"><h3>지급 내역</h3>' + rows + '</div>';
   }
 
+  // 계획서의 활동 요일 문자열("월:3,수:3" 또는 옛 형식 "월,수") → { 월: 3, 수: 3 } (시간 없으면 null)
+  const DAYS7 = ["월", "화", "수", "목", "금", "토", "일"];
+  function parseDays(str) {
+    const o = {}; String(str || "").split(",").forEach(t => { const m = t.trim().match(/^(.)(?::([\d.]+))?$/); if (m && DAYS7.indexOf(m[1]) >= 0) o[m[1]] = m[2] ? Number(m[2]) : null; });
+    return o;
+  }
+  function fmtDays(str) { const o = parseDays(str); return DAYS7.filter(d => d in o).map(d => d + (o[d] ? " " + o[d] + "h" : "")).join(" · "); }
+
   function planSummary(plan) {
     return '<div class="panel"><h3>제출한 활동 계획서</h3>' +
       '<p class="list-note"><b>목표</b> ' + e(plan.goal) + '</p>' +
@@ -123,7 +131,7 @@
       '<p class="list-note"><b>장소</b> ' + e(plan.location) + '</p>' +
       '<p class="list-note"><b>주요 활동</b> ' + e(plan.content) + '</p>' +
       '<p class="list-note"><b>주당 희망 시간</b> ' + e(plan.weeklyHours) + '시간</p>' +
-      (plan.weekdays ? '<p class="list-note"><b>활동 요일</b> ' + e(plan.weekdays.split(",").join(" · ")) + '</p>' : "") + '</div>';
+      (plan.weekdays ? '<p class="list-note"><b>활동 요일</b> ' + e(fmtDays(plan.weekdays)) + '</p>' : "") + '</div>';
   }
 
   function planForm(plan) {
@@ -137,8 +145,9 @@
       '<div class="field"><label>활동 장소</label><input type="text" id="p-location" value="' + e(f.location) + '" placeholder="예: OO카페, OO센터"></div>' +
       '<div class="field"><label>주요 활동 내용</label><textarea id="p-content" placeholder="어떤 일을 할 계획인지 적어주세요">' + e(f.content) + '</textarea></div>' +
       '<div class="field"><label>주당 희망 활동 시간</label><input type="number" id="p-hours" min="1" max="40" value="' + e(f.weeklyHours) + '"></div>' +
-      '<div class="field"><label>활동 요일 <small class="muted">(선택 · 정해진 요일이 있으면 골라 주세요)</small></label><div style="display:flex;flex-wrap:wrap;gap:8px">' +
-      ["월", "화", "수", "목", "금", "토", "일"].map(d => '<label style="display:flex;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px"><input type="checkbox" class="p-day" value="' + d + '"' + ((f.weekdays || []).indexOf(d) >= 0 ? " checked" : "") + '> ' + d + '</label>').join("") + '</div></div>' +
+      '<div class="field"><label>활동 요일과 시간 <small class="muted">(선택 · 정해진 요일이 있으면 요일을 고르고 그날 몇 시간 할지 적어 주세요. 적으면 주당 시간은 합계로 계산돼요)</small></label>' +
+      DAYS7.map(d => { const h = (f.weekdays || {})[d]; return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><label style="display:flex;align-items:center;gap:4px;width:56px"><input type="checkbox" class="p-day" value="' + d + '"' + (h ? " checked" : "") + '> ' + d + '</label>' +
+        '<input type="number" class="p-dayh" data-day="' + d + '" min="0.5" max="16" step="0.5" placeholder="시간" value="' + (h ? e(h) : "") + '" style="width:90px"> 시간</div>'; }).join("") + '</div>' +
       (S.planErr ? '<p class="err">' + e(S.planErr) + '</p>' : "") +
       '<button class="btn btn-primary btn-block" id="p-submit" ' + (S.planSending ? "disabled" : "") + '>' + (S.planSending ? "보내는 중…" : "계획서 제출하기") + '</button>' +
       '</div></div>';
@@ -289,13 +298,16 @@
     const endDate = document.getElementById("p-end").value;
     const location = document.getElementById("p-location").value.trim();
     const content = document.getElementById("p-content").value.trim();
-    const weeklyHours = Number(document.getElementById("p-hours").value);
-    const weekdays = Array.from(document.querySelectorAll(".p-day:checked")).map(c => c.value);
+    let weeklyHours = Number(document.getElementById("p-hours").value);
+    const weekdays = {}; let dayErr = false;
+    document.querySelectorAll(".p-day:checked").forEach(c => { const h = Number(document.querySelector('.p-dayh[data-day="' + c.value + '"]').value); if (h > 0 && h <= 16) weekdays[c.value] = h; else dayErr = true; });
+    if (dayErr) { S.planErr = "고른 요일마다 시간(0.5~16)을 적어 주세요."; S.planForm = Object.assign({}, S.planForm, { goal, startDate, endDate, location, content }); render(); return; }
     if (!goal) { S.planErr = "활동 목표를 적어주세요."; render(); return; }
     if (!startDate || !endDate) { S.planErr = "활동 기간을 입력해 주세요."; render(); return; }
     if (endDate < startDate) { S.planErr = "종료일이 시작일보다 늦어야 해요."; render(); return; }
     if (!location) { S.planErr = "활동 장소를 적어주세요."; render(); return; }
     if (!content) { S.planErr = "주요 활동 내용을 적어주세요."; render(); return; }
+    if (Object.keys(weekdays).length) weeklyHours = Math.round(Object.keys(weekdays).reduce((s, d) => s + weekdays[d], 0) * 100) / 100;
     if (!(weeklyHours > 0 && weeklyHours <= 40)) { S.planErr = "주당 희망 활동 시간을 1~40 사이로 입력해 주세요."; render(); return; }
 
     S.planErr = ""; S.planSending = true; S.planForm = { goal, startDate, endDate, location, content, weeklyHours, weekdays }; render();
@@ -359,7 +371,7 @@
         if (!r.ok) throw new Error(r.error || "fail");
         S.status = r;
         if (r.plan) S.planForm = { goal: r.plan.goal || "", startDate: r.plan.startDate || "", endDate: r.plan.endDate || "",
-          location: r.plan.location || "", content: r.plan.content || "", weeklyHours: r.plan.weeklyHours || "", weekdays: r.plan.weekdays ? r.plan.weekdays.split(",") : [] };
+          location: r.plan.location || "", content: r.plan.content || "", weeklyHours: r.plan.weeklyHours || "", weekdays: parseDays(r.plan.weekdays) };
       }
       S.sending = false; S.planSending = false; S.screen = "ready"; render();
     } catch (err) {

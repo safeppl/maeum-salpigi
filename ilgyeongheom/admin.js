@@ -29,6 +29,43 @@
       '<button class="btn btn-primary btn-block" onclick="location.reload()">다시 시도하기</button></div>';
   }
 
+  // 계획서의 활동 요일 문자열("월:3,수:3" 또는 옛 형식 "월,수") → { 월: 3, 수: 3 } (시간 없으면 null)
+  const DAYS7 = ["월", "화", "수", "목", "금", "토", "일"];
+  function parseDays(str) {
+    const o = {}; String(str || "").split(",").forEach(t => { const m = t.trim().match(/^(.)(?::([\d.]+))?$/); if (m && DAYS7.indexOf(m[1]) >= 0) o[m[1]] = m[2] ? Number(m[2]) : null; });
+    return o;
+  }
+  function fmtDays(str) { const o = parseDays(str); return DAYS7.filter(d => d in o).map(d => d + (o[d] ? " " + o[d] + "h" : "")).join(" · "); }
+
+  // 계획 대비 실제: 최근 4주를 요일별로 "실제 시간 / 계획 시간"으로 보여줘요(반려된 기록은 빼요).
+  function planVsActual(plan, history) {
+    const planned = plan ? parseDays(plan.weekdays) : {};
+    const ymd = d => d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    const today = new Date(), todayStr = ymd(today);
+    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const actual = {}; (history || []).filter(h => h.state !== "반려").forEach(h => { actual[h.date] = (actual[h.date] || 0) + (Number(h.hours) || 0); });
+    const hasPlan = Object.keys(planned).some(d => planned[d]);
+    let rows = "";
+    for (let w = 0; w < 4; w++) {
+      const start = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 7 * w);
+      let tp = 0, ta = 0, cells = "";
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), ds = ymd(day), name = DAYS7[i];
+        const inPlan = plan && ds >= plan.startDate && ds <= plan.endDate, p = inPlan && planned[name] ? planned[name] : 0, a = Math.round((actual[ds] || 0) * 100) / 100;
+        tp += p; ta += a;
+        let txt = "", col = "var(--muted)";
+        if (p && (ds < todayStr || (ds === todayStr && a > 0))) { txt = (a >= p ? "✓ " : a > 0 ? "△ " : "✗ ") + a + "/" + p; col = a >= p ? "var(--accent)" : a > 0 ? "var(--dawn)" : "#C0392B"; }
+        else if (p) txt = (ds === todayStr ? "오늘 " : "예정 ") + p;
+        else if (a > 0) { txt = "+" + a; col = "var(--accent)"; }
+        cells += '<td style="text-align:center;color:' + col + '">' + txt + '</td>';
+      }
+      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h</td></tr>';
+    }
+    return '<details class="plan-block" open><summary>계획 대비 실제 (최근 4주' + (hasPlan ? "" : " · 계획서에 요일별 시간이 없어요") + ')</summary>' +
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12.5px"><tr style="color:var(--muted)"><th style="text-align:left">주</th>' + DAYS7.map(d => '<th>' + d + '</th>').join("") + '<th>합계</th></tr>' + rows + '</table></div>' +
+      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 인증 대기 기록도 포함</div></details>';
+  }
+
   function planChip(status) {
     if (!status) return '<span class="chip muted">계획서 미제출</span>';
     const cls = status === "승인" ? "ok" : status === "반려" ? "watch" : "info";
@@ -45,7 +82,7 @@
       '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
         ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
-      planChip(p.planStatus) + planBlock(p) + pendingBlock(p) + historyBlock(p) +
+      planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) +
       '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
@@ -56,7 +93,7 @@
     if (!pl) return "";
     let h = '<details class="plan-block"' + (pl.status === "대기" ? " open" : "") + '><summary>계획서 보기</summary>' +
       '<div class="coach-meta">목표: ' + e(pl.goal) + '</div>' +
-      '<div class="coach-meta">기간: ' + e(pl.startDate) + ' ~ ' + e(pl.endDate) + ' · 주 ' + e(pl.weeklyHours) + '시간' + (pl.weekdays ? ' (' + e(pl.weekdays.split(",").join("·")) + ')' : "") + ' · 장소: ' + e(pl.location) + '</div>' +
+      '<div class="coach-meta">기간: ' + e(pl.startDate) + ' ~ ' + e(pl.endDate) + ' · 주 ' + e(pl.weeklyHours) + '시간' + (pl.weekdays ? ' (' + e(fmtDays(pl.weekdays)) + ')' : "") + ' · 장소: ' + e(pl.location) + '</div>' +
       '<div class="coach-meta">활동 내용: ' + e(pl.content) + '</div>' +
       (pl.comment ? '<div class="coach-meta">코멘트: ' + e(pl.comment) + '</div>' : '');
     if (pl.status === "대기" || pl.status === "반려") {

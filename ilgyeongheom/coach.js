@@ -34,6 +34,43 @@
       '</div></div>';
   }
 
+  // 계획서의 활동 요일 문자열("월:3,수:3" 또는 옛 형식 "월,수") → { 월: 3, 수: 3 } (시간 없으면 null)
+  const DAYS7 = ["월", "화", "수", "목", "금", "토", "일"];
+  function parseDays(str) {
+    const o = {}; String(str || "").split(",").forEach(t => { const m = t.trim().match(/^(.)(?::([\d.]+))?$/); if (m && DAYS7.indexOf(m[1]) >= 0) o[m[1]] = m[2] ? Number(m[2]) : null; });
+    return o;
+  }
+  function fmtDays(str) { const o = parseDays(str); return DAYS7.filter(d => d in o).map(d => d + (o[d] ? " " + o[d] + "h" : "")).join(" · "); }
+
+  // 계획 대비 실제: 최근 4주를 요일별로 "실제 시간 / 계획 시간"으로 보여줘요(반려된 기록은 빼요).
+  function planVsActual(plan, history) {
+    const planned = plan ? parseDays(plan.weekdays) : {};
+    const ymd = d => d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    const today = new Date(), todayStr = ymd(today);
+    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const actual = {}; (history || []).filter(h => h.state !== "반려").forEach(h => { actual[h.date] = (actual[h.date] || 0) + (Number(h.hours) || 0); });
+    const hasPlan = Object.keys(planned).some(d => planned[d]);
+    let rows = "";
+    for (let w = 0; w < 4; w++) {
+      const start = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() - 7 * w);
+      let tp = 0, ta = 0, cells = "";
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), ds = ymd(day), name = DAYS7[i];
+        const inPlan = plan && ds >= plan.startDate && ds <= plan.endDate, p = inPlan && planned[name] ? planned[name] : 0, a = Math.round((actual[ds] || 0) * 100) / 100;
+        tp += p; ta += a;
+        let txt = "", col = "var(--muted)";
+        if (p && (ds < todayStr || (ds === todayStr && a > 0))) { txt = (a >= p ? "✓ " : a > 0 ? "△ " : "✗ ") + a + "/" + p; col = a >= p ? "var(--accent)" : a > 0 ? "var(--dawn)" : "#C0392B"; }
+        else if (p) txt = (ds === todayStr ? "오늘 " : "예정 ") + p;
+        else if (a > 0) { txt = "+" + a; col = "var(--accent)"; }
+        cells += '<td style="text-align:center;color:' + col + '">' + txt + '</td>';
+      }
+      rows += '<tr style="border-top:1px solid var(--line)"><td style="white-space:nowrap">' + ymd(start).slice(5) + ' 주</td>' + cells + '<td style="text-align:center"><b>' + Math.round(ta * 100) / 100 + '</b>' + (tp ? "/" + tp : "") + 'h</td></tr>';
+    }
+    return '<details class="plan-block" open><summary>계획 대비 실제 (최근 4주' + (hasPlan ? "" : " · 계획서에 요일별 시간이 없어요") + ')</summary>' +
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12.5px"><tr style="color:var(--muted)"><th style="text-align:left">주</th>' + DAYS7.map(d => '<th>' + d + '</th>').join("") + '<th>합계</th></tr>' + rows + '</table></div>' +
+      '<div class="coach-meta">칸 = 실제 시간/계획 시간 · ✓ 계획 채움 · △ 일부 · ✗ 안 함 · +는 계획 밖 활동 · 인증 대기 기록도 포함</div></details>';
+  }
+
   function planBlock(p) {
     const plan = p.plan;
     if (!plan) return '<div class="plan-block"><p class="adapt-title">활동 계획서</p><p class="list-note">아직 제출 전이에요.</p></div>';
@@ -42,7 +79,7 @@
       '<p class="list-note"><b>장소</b> ' + e(plan.location) + '</p>' +
       '<p class="list-note"><b>주요 활동</b> ' + e(plan.content) + '</p>' +
       '<p class="list-note"><b>주당 희망 시간</b> ' + e(plan.weeklyHours) + '시간</p>' +
-      (plan.weekdays ? '<p class="list-note"><b>활동 요일</b> ' + e(plan.weekdays.split(",").join(" · ")) + '</p>' : "");
+      (plan.weekdays ? '<p class="list-note"><b>활동 요일</b> ' + e(fmtDays(plan.weekdays)) + '</p>' : "");
     if (plan.status !== "대기") {
       const chip = plan.status === "승인" ? "ok" : "watch";
       return '<div class="plan-block"><p class="adapt-title">활동 계획서 <span class="chip ' + chip + '">' + e(plan.status) + '</span></p>' + details +
@@ -60,7 +97,7 @@
     return '<div class="coach-card" id="p-' + e(p.code) + '">' +
       '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b><span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + (p.weeklyMinHours || 6) + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
-      planBlock(p) + attendBlock(p) +
+      planBlock(p) + planVsActual(p.plan, p.history) + attendBlock(p) +
       '<div class="adapt-block"><p class="adapt-title">이번 주 일경험 적응도 관찰 (0=전혀 그렇지 않다 ~ 3=매우 그렇다)</p>' +
       S.data.factors.map(f => adaptRow(p, f)).join("") + '</div>' +
       '<textarea placeholder="이번 주 코멘트를 남겨주세요." data-code="' + e(p.code) + '">' + e(p.comment) + '</textarea>' +
