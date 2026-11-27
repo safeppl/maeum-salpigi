@@ -43,7 +43,7 @@
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
-      '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
+      '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
 
@@ -134,13 +134,22 @@
     if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
     return '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td>' + e(p.stage) + '</td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td><button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") + '</table></div>';
+        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") + '</table></div>';
+  }
+  function noteHtml() {
+    const n = S.note; if (!n) return "";
+    return '<div class="banner" style="margin-bottom:12px"><div>' + e(n.msg) + '</div>' + (n.link ? '<div style="margin-top:6px;word-break:break-all">' + e(n.link) + '</div><div style="margin-top:6px"><button class="btn btn-primary btn-sm" data-copy="' + e(n.link) + '">🔗 링크 복사</button> ' : '<div style="margin-top:6px">') + '<button class="btn btn-ghost btn-sm" data-notex="1">닫기</button></div></div>';
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (err) {}
+    const ta = document.createElement("textarea"); ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (err) {} ta.remove(); return ok;
   }
   function dashboard() {
     const d = S.data;
     if (S.code) {
       const p = d.participants.find(x => x.code === S.code);
-      if (p) return '<div class="brand"><b>' + e(p.name) + ' 님</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + participantRow(p);
+      if (p) return noteHtml() + '<div class="brand"><b>' + e(p.name) + ' 님</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + participantRow(p);
     }
     const active = d.participants.filter(p => p.status === "진행중");
     const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
@@ -150,7 +159,8 @@
       (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
     const coaches = d.coaches || [];
     const coachOpts = ['<option value="">담당 코치(나중에 정해도 돼요)</option>'].concat(coaches.map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>')).join("");
-    return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
+    return noteHtml() + (d.bizError ? '<div class="banner warn" style="margin-bottom:12px"><b>사업 정보를 불러오지 못해 "미분류"로 보여요.</b> ' + e(d.bizError) + '</div>' : "") +
+      '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
       '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
       '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
       '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
@@ -160,7 +170,7 @@
       '<div class="form-row"><input id="np-code" placeholder="참여번호(예: YI26-003)"><input id="np-name" placeholder="이름"><input id="np-phone" placeholder="연락처(01012345678)"><select id="np-coach">' + coachOpts + '</select></div>' +
       '<div class="form-row"><label><input type="checkbox" id="np-send" checked> 추가하면서 링크 문자 보내기</label><button class="btn btn-primary btn-sm" data-addp="1">참여자 추가</button></div></div>' +
       '<div class="coach-card" style="margin-top:10px"><b>코치</b>' +
-      (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
+      (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(c.link) + '">🔗 링크 복사</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
       '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></div>' +
       '<div class="coach-card" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
       '<div><button class="btn btn-primary btn-sm" data-calc="1">이번 달 보상금 계산하기</button></div></div>' +
@@ -188,10 +198,13 @@
     try { const r = await api({ action: "adminSmsStatus", token }); const el = $("sms-status"); if (el) el.textContent = !r.ok ? "확인하지 못했어요" : r.ready ? "설정됨 (발신번호 " + r.sender + ")" : "아직 설정 안 됨"; } catch (err) {}
   }
   const MENU_ERR = { missing_fields: "빈 칸이 있어요.", duplicate: "이미 등록된 분이에요.", not_found: "대상을 찾지 못했어요.", forbidden: "관리자 토큰이 맞지 않아요.", busy: "다른 작업 중이에요. 잠시 뒤 다시 눌러 주세요." };
-  function linkResult(r) { return (r.sent ? "문자로 링크를 보냈어요." : "문자를 못 보냈어요 (" + (r.smsError || "") + ") — 아래 링크를 직접 전달해 주세요.") + "\n" + r.link; }
+  function linkResult(r) { return (r.sent ? "문자로 링크를 보냈어요." : "문자를 못 보냈어요 (" + (r.smsError || "") + ") — 아래 링크를 복사해서 직접 전달해 주세요."); }
   app.addEventListener("click", async ev => {
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
+    const cp = ev.target.closest("button[data-copy]");
+    if (cp) { const ok = await copyText(cp.dataset.copy); const t = cp.textContent; cp.textContent = ok ? "복사했어요 ✓" : "복사 실패"; setTimeout(() => { cp.textContent = t; }, 1500); return; }
+    if (ev.target.closest("button[data-notex]")) { S.note = null; render(); return; }
     const dp = ev.target.closest("button[data-delpart]");
     if (dp) return deletePart(dp);
     const b = ev.target.closest("button[data-addp], button[data-addc], button[data-sendlink], button[data-calc], button[data-smssave]");
@@ -201,11 +214,11 @@
     if (b.dataset.addp) {
       if (!v("np-code") || !v("np-name") || !v("np-phone")) { alert("참여번호·이름·연락처를 입력해 주세요."); return; }
       payload = { action: "adminAddParticipant", token, code: v("np-code"), name: v("np-name"), phone: v("np-phone"), coach: v("np-coach"), send: $("np-send").checked };
-      done = r => "추가했어요. " + v("np-code") + "\n" + linkResult(r);
+      done = r => "추가했어요. " + v("np-code") + " — " + linkResult(r);
     } else if (b.dataset.addc) {
       if (!v("nc-name") || !v("nc-phone")) { alert("코치 이름과 연락처를 입력해 주세요."); return; }
       payload = { action: "adminAddCoach", token, name: v("nc-name"), phone: v("nc-phone"), send: $("nc-send").checked };
-      done = r => "추가했어요.\n" + linkResult(r);
+      done = r => "추가했어요. " + linkResult(r);
     } else if (b.dataset.sendlink) {
       if (!confirm((b.dataset.who === "coach" ? "코치" : "참여자") + " " + b.dataset.sendlink + " 에게 링크 문자를 보낼까요?")) return;
       payload = { action: "adminSendLink", token, who: b.dataset.who, key: b.dataset.sendlink };
@@ -224,8 +237,8 @@
       const r = await api(payload);
       b.disabled = false; b.textContent = label;
       if (!r.ok) { alert(MENU_ERR[r.error] || ("처리하지 못했어요: " + r.error)); return; }
-      alert(done(r));
-      if (b.dataset.addp || b.dataset.addc) await load(); else if (b.dataset.smssave) loadSmsStatus();
+      if (r.link) S.note = { msg: done(r), link: r.link }; else alert(done(r));
+      if (b.dataset.addp || b.dataset.addc) await load(); else if (r.link) render(); else if (b.dataset.smssave) loadSmsStatus();
     } catch (err) { b.disabled = false; b.textContent = label; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
   });
 
