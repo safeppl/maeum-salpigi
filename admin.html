@@ -206,7 +206,8 @@ function renderDashboard() {
   h += '<h2>관리 작업</h2><div class="actions">' +
     '<button data-act="dup">중복 신청 확인</button>' +
     '<button data-act="analysis">분석용 시트 새로 만들기</button>' +
-    '<button data-act="backfill">[1회] 사업 일괄 채우기</button></div>' +
+    '<button data-act="backfill">[1회] 사업 일괄 채우기</button>' +
+    '<button data-act="syncbiz">일경험 앱에 사업 보내기</button></div>' +
     '<div id="actionResult" class="m" style="margin-top:8px"></div>';
 
   h += '<h2>3단계(일경험) 일괄 체크</h2><div id="stage3Box" class="noticeBox"><p class="m">이름을 쉼표나 줄바꿈으로 구분해 넣으면 이름이 같은 사람을 찾아 [참여_3단계]를 체크하고 일경험 앱 [참여자]에도 올려요. 같은 이름이 둘 이상이면 건너뛰어요.</p>' +
@@ -290,7 +291,7 @@ async function showCompare(codes, box) {
 async function runAction(act) {
   const out = document.getElementById("actionResult");
   out.textContent = "처리 중...";
-  const map = { dup: "adminCheckDuplicateBiz", analysis: "adminBuildAnalysisSheet", backfill: "adminBackfillBiz" };
+  const map = { dup: "adminCheckDuplicateBiz", analysis: "adminBuildAnalysisSheet", backfill: "adminBackfillBiz", syncbiz: "adminSyncBiz" };
   const json = await callAdmin(map[act]);
   if (!json.ok) { out.textContent = "실패: " + (json.error || "오류"); return; }
   if (act === "dup") {
@@ -312,6 +313,8 @@ async function runAction(act) {
     }));
   } else if (act === "analysis") {
     out.textContent = "[분석용] 탭을 새로 만들었어요 (" + json.count + "명).";
+  } else if (act === "syncbiz") {
+    out.textContent = "일경험 앱 [참여자] 탭의 사업 칸을 마음살피기 값으로 맞췄어요.";
   } else if (act === "backfill") {
     out.textContent = json.count + "명의 사업을 거주 시군구 기준으로 채웠어요.";
   }
