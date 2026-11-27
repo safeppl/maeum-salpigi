@@ -224,9 +224,10 @@
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
       '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
       (optional ? '<button class="btn btn-ghost btn-sm" id="plan-back">← 돌아가기</button>' : '') +
-      (plan && plan.status === "대기"
-        ? '<div class="banner"><b>계획서를 제출했어요.</b> 코치님이 확인하고 있어요.</div>' + planSummary(plan)
-        : planForm(plan)) + contacts();
+      (plan && plan.status === "대기" && !S.editPlan
+        ? '<div class="banner"><b>계획서를 제출했어요.</b> 코치님이 확인하고 있어요.</div>' + planSummary(plan) +
+          '<button class="btn btn-ghost btn-block" id="plan-edit">✎ 수정하기 (같은 계획서에 덮어써요)</button>'
+        : (S.editPlan ? '<div class="banner"><b>수정 중이에요.</b> 제출하면 이전 내용 위에 덮어써져요.</div><button class="btn btn-ghost btn-sm" id="plan-edit-cancel">수정 취소</button>' : "") + planForm(plan)) + contacts();
   }
 
   function planCard(st) {
@@ -286,7 +287,11 @@
     const popen = document.getElementById("plan-open");
     if (popen) popen.addEventListener("click", () => { S.view = "plan"; render(); });
     const pback = document.getElementById("plan-back");
-    if (pback) pback.addEventListener("click", () => { S.view = ""; render(); });
+    if (pback) pback.addEventListener("click", () => { S.view = ""; S.editPlan = false; render(); });
+    const pedit = document.getElementById("plan-edit");
+    if (pedit) pedit.addEventListener("click", () => { S.editPlan = true; S.planErr = ""; render(); });
+    const pecancel = document.getElementById("plan-edit-cancel");
+    if (pecancel) pecancel.addEventListener("click", () => { S.editPlan = false; S.planErr = ""; render(); });
     const gopen = document.getElementById("g-open");
     if (gopen) gopen.addEventListener("click", () => { S.gerr = ""; S.gDate = ""; S.gRound = 0; S.view = "group"; render(); });
     const gback = document.getElementById("g-back");
@@ -319,7 +324,7 @@
         const r = await api({ action: "submitPlan", token, goal, startDate, endDate, location, content, weeklyHours, weekdays });
         if (!r.ok) throw new Error(r.error || "fail");
       }
-      S.view = "";
+      S.view = ""; S.editPlan = false;
       await load();
     } catch (err) {
       S.planErr = err.message === "min_days" ? "활동 요일을 2일 이상 골라 주세요." : err.message === "min_hours" ? "주당 활동 시간 합계가 " + minHours + "시간 이상이어야 해요." : "제출하지 못했어요. 다시 시도해 주세요.";

@@ -80,9 +80,10 @@
       '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
+      '<div class="form-row" style="margin:0"><span class="coach-meta">상태</span><select id="pst-' + e(p.code) + '" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '"' + (x === p.status ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onepst="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
         ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
-      planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) +
+      planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) + payBlock(p) +
       '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
@@ -103,6 +104,15 @@
         '<button class="btn btn-ghost btn-sm" data-plan="반려" data-code="' + e(p.code) + '">반려</button></div>';
     }
     return h + '</details>';
+  }
+  // 지급내역(월별): 지급완료 ↔ 예정 표시. 시트 [지급내역]의 지급상태를 그대로 바꿔요.
+  function payBlock(p) {
+    const ps = p.pays || [];
+    if (!ps.length) return '<div class="coach-meta">지급내역: 아직 없어요. (대시보드의 [이번 달 보상금 계산하기]로 만들어요)</div>';
+    return '<details class="plan-block"><summary>지급내역 ' + ps.length + '건 (지급완료 ' + ps.filter(x => x.status === "지급완료").length + ' · 예정 ' + ps.filter(x => x.status !== "지급완료").length + ')</summary>' +
+      ps.map(x => '<div class="coach-meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:6px;margin-top:6px"><b>' + e(x.month) + '</b> ' + e(x.hours) + '시간 · ' + won(x.amount) + ' · 지급일 ' + e(x.date || "—") +
+        ' <span class="chip ' + (x.status === "지급완료" ? "ok" : "info") + '">' + e(x.status) + '</span>' +
+        '<button class="btn ' + (x.status === "지급완료" ? "btn-ghost" : "btn-primary") + ' btn-sm" data-setpay="' + x.rowIndex + '" data-code="' + e(p.code) + '" data-month="' + e(x.month) + '" data-to="' + (x.status === "지급완료" ? "예정" : "지급완료") + '">' + (x.status === "지급완료" ? "예정으로 되돌리기" : "지급완료 처리") + '</button></div>').join("") + '</details>';
   }
   const STATE_CHIP = { "인증": "ok", "반려": "watch", "대기": "info" };
   function histLine(h, name) {
@@ -185,12 +195,13 @@
     if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
     const coachOpts = '<option value="">코치 선택</option><option value="__none">(지정 해제)</option>' + ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>').join(""));
     return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button></div>' +
+      '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 상태를</span><select id="bulkPst" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkpst="1">상태 일괄 변경</button></div>' +
       '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 단계를</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">단계 일괄 변경</button></div>' +
-      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
+        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
       (function () { const t = k => rows.reduce((s, p) => s + (Number(p[k]) || 0), 0);
-        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="7">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
+        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
   }
   function noteHtml() {
     const n = S.note; if (!n) return "";
@@ -265,6 +276,32 @@
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
     if (ev.target.id === "rosterAll") { document.querySelectorAll(".rosterChk").forEach(c => { c.checked = ev.target.checked; }); return; }
+    const sp = ev.target.closest("button[data-setpay]");
+    if (sp) {
+      if (!confirm(sp.dataset.month + " 지급내역을 '" + sp.dataset.to + "'(으)로 바꿀까요?")) return;
+      sp.disabled = true;
+      try {
+        const r = await api({ action: "adminSetPay", token, rowIndex: Number(sp.dataset.setpay), code: sp.dataset.code, month: sp.dataset.month, status: sp.dataset.to });
+        if (!r.ok) { sp.disabled = false; alert(r.error === "changed" ? "그 사이 시트가 바뀌었어요. 새로고침해 주세요." : "처리하지 못했어요: " + r.error); return; }
+        await load();
+      } catch (err) { sp.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
+    const ps = ev.target.closest("button[data-bulkpst], button[data-onepst]");
+    if (ps) {
+      let codes, status;
+      if (ps.dataset.onepst) { codes = [ps.dataset.onepst]; status = $("pst-" + codes[0]).value; }
+      else { codes = Array.from(document.querySelectorAll(".rosterChk:checked")).map(c => c.dataset.code); status = $("bulkPst").value; if (!codes.length) { alert("먼저 참여자를 체크해 주세요."); return; } }
+      if (!confirm(codes.length + "명의 상태를 '" + status + "'(으)로 바꿀까요?" + (status !== "진행중" ? "\n(중단·완료는 보상금 계산 대상에서 빠지고, 사이드바 기본 목록에서도 사라져요)" : ""))) return;
+      ps.disabled = true;
+      try {
+        const r = await api({ action: "adminSetPartStatus", token, codes, status });
+        if (!r.ok) { ps.disabled = false; alert("처리하지 못했어요: " + r.error); return; }
+        if (ps.dataset.onepst && status !== "진행중") S.code = null;
+        await load();
+      } catch (err) { ps.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
     const st = ev.target.closest("button[data-bulkstage], button[data-onestage]");
     if (st) {
       let codes, stage;
