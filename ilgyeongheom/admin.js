@@ -56,7 +56,7 @@
     if (!pl) return "";
     let h = '<details class="plan-block"' + (pl.status === "대기" ? " open" : "") + '><summary>계획서 보기</summary>' +
       '<div class="coach-meta">목표: ' + e(pl.goal) + '</div>' +
-      '<div class="coach-meta">기간: ' + e(pl.startDate) + ' ~ ' + e(pl.endDate) + ' · 주 ' + e(pl.weeklyHours) + '시간 · 장소: ' + e(pl.location) + '</div>' +
+      '<div class="coach-meta">기간: ' + e(pl.startDate) + ' ~ ' + e(pl.endDate) + ' · 주 ' + e(pl.weeklyHours) + '시간' + (pl.weekdays ? ' (' + e(pl.weekdays.split(",").join("·")) + ')' : "") + ' · 장소: ' + e(pl.location) + '</div>' +
       '<div class="coach-meta">활동 내용: ' + e(pl.content) + '</div>' +
       (pl.comment ? '<div class="coach-meta">코멘트: ' + e(pl.comment) + '</div>' : '');
     if (pl.status === "대기" || pl.status === "반려") {

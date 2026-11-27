@@ -41,7 +41,8 @@
       '<p class="list-note"><b>기간</b> ' + e(plan.startDate) + ' ~ ' + e(plan.endDate) + '</p>' +
       '<p class="list-note"><b>장소</b> ' + e(plan.location) + '</p>' +
       '<p class="list-note"><b>주요 활동</b> ' + e(plan.content) + '</p>' +
-      '<p class="list-note"><b>주당 희망 시간</b> ' + e(plan.weeklyHours) + '시간</p>';
+      '<p class="list-note"><b>주당 희망 시간</b> ' + e(plan.weeklyHours) + '시간</p>' +
+      (plan.weekdays ? '<p class="list-note"><b>활동 요일</b> ' + e(plan.weekdays.split(",").join(" · ")) + '</p>' : "");
     if (plan.status !== "대기") {
       const chip = plan.status === "승인" ? "ok" : "watch";
       return '<div class="plan-block"><p class="adapt-title">활동 계획서 <span class="chip ' + chip + '">' + e(plan.status) + '</span></p>' + details +
