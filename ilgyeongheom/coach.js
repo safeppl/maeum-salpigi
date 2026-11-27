@@ -70,7 +70,7 @@
 
   // ───── 집체코칭 출석 확인: 참여자가 앱에서 서명하면 여기 올라와요. 참석을 확인하면 명부 PDF가 내려받아져요 ─────
   function attGroups() {
-    const rows = (S.att && S.att.rows) || [], map = {};
+    const rows = ((S.att && S.att.rows) || []).filter(r => r.code && r.name), map = {};
     rows.forEach(r => { const k = r.biz + "|" + r.date + "|" + r.round; (map[k] = map[k] || { biz: r.biz, date: r.date, round: r.round, rows: [] }).rows.push(r); });
     return Object.keys(map).map(k => map[k]).sort((x, y) => (y.date + y.round).localeCompare(x.date + x.round));
   }

@@ -295,7 +295,7 @@
   // ───── 2026-11-27 집체코칭 출석 확인 ─────
   // 참여자가 앱에서 날짜·회차를 고르고 서명하면 여기 올라와요. 참석을 확인(체크)하고 저장하면 명부 PDF가 사업 폴더에 저장돼요.
   function attendGroups() {
-    const rows = (S.att && S.att.rows) || [], map = {};
+    const rows = ((S.att && S.att.rows) || []).filter(r => r.code && r.name), map = {};
     rows.forEach(r => { const k = r.biz + "|" + r.date + "|" + r.round; (map[k] = map[k] || { biz: r.biz, date: r.date, round: r.round, rows: [] }).rows.push(r); });
     return Object.keys(map).map(k => map[k]).sort((x, y) => (y.date + y.round).localeCompare(x.date + x.round));
   }
