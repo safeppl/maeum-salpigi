@@ -19,7 +19,7 @@
     form: { date: todayStr(), type: "출근", timeIn: "", timeOut: "", location: "", task: "", mood: "", note: "" },
     photo: null, photoName: "", sending: false, err: "",
     planForm: { goal: "", startDate: "", endDate: "", location: "", content: "", weeklyHours: "" },
-    planSending: false, planErr: "", viewPlan: false };
+    planSending: false, planErr: "", view: "", gsending: false, gerr: "" };
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
@@ -141,6 +141,68 @@
       '</div></div>';
   }
 
+  // 2026-11-27: 처음 화면을 '집단코칭 참여'와 '활동 계획서 작성' 두 갈래로 나눠요. 계획서는 오리엔테이션 출석 뒤에 열려요.
+  function groupCard(st) {
+    const g = st.group || { done: [], open: null };
+    return '<div class="panel"><h3>집단코칭 참여</h3>' +
+      (g.done.length ? g.done.map(d => '<p class="list-note">✓ ' + e(d.title) + ' · ' + e(d.date) + ' 출석 완료</p>').join("") : '<p class="list-note">아직 참여 기록이 없어요.</p>') +
+      (g.open ? '<button class="btn btn-primary btn-block" id="g-open">✍ ' + e(g.open.title) + ' 출석하기</button>' : '<p class="list-note muted">지금 열려 있는 출석이 없어요. 현장에서 안내를 받으면 이 화면에서 출석할 수 있어요.</p>') + '</div>';
+  }
+  function planHomeCard(st) {
+    const plan = st.plan;
+    if (st.planUnlocked === false) return '<div class="panel"><h3>활동 계획서 작성</h3><p class="list-note">집단코칭 오리엔테이션에 참여한 뒤에 작성할 수 있어요.</p><button class="btn btn-ghost btn-sm" disabled>오리엔테이션 후 열려요</button></div>';
+    return planCard(st);
+  }
+  function homeScreen() {
+    const st = S.status;
+    return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
+      '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
+      groupCard(st) + planHomeCard(st) + contacts();
+  }
+  function groupScreen() {
+    const st = S.status, o = st.group.open;
+    return '<div class="brand"><b>집단코칭 출석</b><span>안전한더유스</span></div>' +
+      '<button class="btn btn-ghost btn-sm" id="g-back">← 돌아가기</button>' +
+      (o ? '<div class="panel"><h3>' + e(o.title) + '</h3><p class="list-note">' + e(o.date) + ' · ' + e(st.name) + '님</p>' +
+        '<div class="field"><label>현장 코드 <span class="muted">(안내받은 숫자 4자리)</span></label><input id="g-code" inputmode="numeric" maxlength="4"></div>' +
+        '<p class="list-note">손가락으로 아래 칸에 서명해 주세요 <button type="button" id="g-clr" style="width:auto;padding:2px 10px;margin-left:6px">지우기</button></p>' +
+        '<canvas id="g-pad" style="width:100%;height:170px;border:2px dashed #888;border-radius:10px;background:#fff;touch-action:none"></canvas>' +
+        (S.gerr ? '<p class="err">' + e(S.gerr) + '</p>' : "") +
+        '<button class="btn btn-primary btn-block" id="g-go" style="margin-top:10px"' + (S.gsending ? " disabled" : "") + '>' + (S.gsending ? "제출 중…" : "서명 제출") + '</button></div>'
+        : '<div class="banner"><b>출석 열려 있는 회차가 없어요.</b></div>');
+  }
+  function setupGroupPad() {
+    const cv = document.getElementById("g-pad"); if (!cv) return;
+    const r = window.devicePixelRatio || 1;
+    cv.width = Math.round(cv.clientWidth * r); cv.height = Math.round(cv.clientHeight * r);
+    const c = cv.getContext("2d"); c.lineWidth = 3 * r; c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = "#111";
+    let drawing = false, signed = false;
+    const pos = ev => { const b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * cv.width / b.width, (ev.clientY - b.top) * cv.height / b.height]; };
+    cv.addEventListener("pointerdown", ev => { drawing = true; cv.setPointerCapture(ev.pointerId); c.beginPath(); c.moveTo.apply(c, pos(ev)); });
+    cv.addEventListener("pointermove", ev => { if (!drawing) return; c.lineTo.apply(c, pos(ev)); c.stroke(); signed = true; });
+    ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, () => { drawing = false; }));
+    document.getElementById("g-clr").onclick = () => { c.clearRect(0, 0, cv.width, cv.height); signed = false; };
+    document.getElementById("g-go").onclick = async () => {
+      const code = document.getElementById("g-code").value.trim();
+      if (!/^\d{4}$/.test(code)) { S.gerr = "현장 코드 4자리를 입력해 주세요."; render(); return; }
+      if (!signed) { S.gerr = "서명을 해 주세요."; render(); return; }
+      const d = c.getImageData(0, 0, cv.width, cv.height).data; let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
+      for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const w = x1 - x0 + 1, h = y1 - y0 + 1, k = Math.min(1, 400 / w);
+      const out = document.createElement("canvas"); out.width = Math.max(1, Math.round(w * k)); out.height = Math.max(1, Math.round(h * k));
+      out.getContext("2d").drawImage(cv, x0, y0, w, h, 0, 0, out.width, out.height);
+      S.gerr = ""; S.gsending = true; render();
+      try {
+        const res = await api({ action: "attendSignToken", token, sid: S.status.group.open.id, onsite: code, signData: out.toDataURL("image/png") });
+        if (!res.ok) throw new Error(res.error || "fail");
+        S.gsending = false; S.view = ""; await load();
+      } catch (err) {
+        const M = { bad_onsite: "현장 코드가 맞지 않아요.", closed: "이 출석은 마감됐어요.", already: "이미 출석하셨어요." };
+        S.gerr = M[err.message] || "제출하지 못했어요. 다시 시도해 주세요."; S.gsending = false; render();
+      }
+    };
+  }
+
   function planScreen(optional) {
     const st = S.status, plan = st.plan;
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
@@ -165,7 +227,7 @@
       (st.thisWeekHours < st.weeklyMinHours
         ? '<div class="banner warn"><b>이번 주 ' + (st.weeklyMinHours - st.thisWeekHours) + '시간 더 필요해요.</b> 주 최소 ' + st.weeklyMinHours + '시간을 채워야 그 주가 보상금 계산에 들어가요.</div>'
         : '<div class="banner"><b>이번 주 목표를 채웠어요.</b> 수고하셨어요!</div>') +
-      kpis(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
+      kpis(st) + groupCard(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
   }
 
   function render() {
@@ -173,11 +235,13 @@
     if (S.screen === "loading") body = '<div class="sec-intro"><p class="eyebrow">자기주도적 일경험</p><h2>불러오는 중…</h2></div>';
     else if (S.screen === "no-token") body = noTokenScreen();
     else if (S.screen === "error") body = errorScreen();
-    else if (!S.status.checkinAllowed) body = planScreen(false);
-    else if (S.viewPlan) body = planScreen(true);
+    else if (S.view === "group") body = groupScreen();
+    else if (S.view === "plan" && S.status.planUnlocked !== false) body = planScreen(true);
+    else if (!S.status.checkinAllowed) body = homeScreen();
     else body = dashboard();
     app.innerHTML = body;
     bind();
+    if (S.view === "group") setupGroupPad();
   }
 
   function bind() {
@@ -203,9 +267,13 @@
     const pbtn = document.getElementById("p-submit");
     if (pbtn) pbtn.addEventListener("click", submitPlan);
     const popen = document.getElementById("plan-open");
-    if (popen) popen.addEventListener("click", () => { S.viewPlan = true; render(); });
+    if (popen) popen.addEventListener("click", () => { S.view = "plan"; render(); });
     const pback = document.getElementById("plan-back");
-    if (pback) pback.addEventListener("click", () => { S.viewPlan = false; render(); });
+    if (pback) pback.addEventListener("click", () => { S.view = ""; render(); });
+    const gopen = document.getElementById("g-open");
+    if (gopen) gopen.addEventListener("click", () => { S.gerr = ""; S.view = "group"; render(); });
+    const gback = document.getElementById("g-back");
+    if (gback) gback.addEventListener("click", () => { S.view = ""; render(); });
   }
 
   async function submitPlan() {
@@ -228,7 +296,7 @@
         const r = await api({ action: "submitPlan", token, goal, startDate, endDate, location, content, weeklyHours });
         if (!r.ok) throw new Error(r.error || "fail");
       }
-      S.viewPlan = false;
+      S.view = "";
       await load();
     } catch (err) {
       S.planErr = "제출하지 못했어요. 다시 시도해 주세요.";
@@ -277,7 +345,7 @@
       if (DEMO) {
         S.status = { name: "체험", stage: "일경험 진행", thisWeekHours: 6, weeklyMinHours: 10, hourlyRate: 12000,
           monthEstimate: 240000, nextPayDate: todayStr(), recent: [], payments: [],
-          checkinAllowed: true, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
+          checkinAllowed: true, planUnlocked: true, group: { done: [], open: null }, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
       } else {
         const r = await api({ action: "status", token });
         if (!r.ok) throw new Error(r.error || "fail");
