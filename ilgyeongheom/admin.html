@@ -10,9 +10,58 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="extra.css">
+<style>
+  /* 마음살피기 관리자 화면(../admin.html)과 같은 좌측 사이드바 + 우측 본문 구조 */
+  html, body { height: 100%; margin: 0; }
+  #shell { display: flex; height: 100vh; }
+  #side { width: 280px; flex: none; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  #side header { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
+  #side header b { font-size: 15px; }
+  #side header span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  #search { margin: 10px 12px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; }
+  #bizFilter { margin: 0 12px 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 12.5px; background: var(--bg); color: var(--ink); width: calc(100% - 24px); }
+  #filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
+  #filters button { font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; }
+  #filters button.on { background: var(--accent); color: #fff; border-color: transparent; }
+  #dashBtn { margin: 0 12px 10px; padding: 9px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  #list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .p-item { padding: 8px 9px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; font-size: 12.5px; }
+  .p-item:hover { background: var(--accent-soft); }
+  .p-item.on { background: var(--accent); color: #fff; }
+  .p-meta { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .p-item.on .p-meta { color: #D2E4E3; }
+  .p-warn { color: var(--dawn, #D68B47); font-weight: 700; }
+  #main { flex: 1; overflow-y: auto; padding: 18px 24px; }
+  #main .app { max-width: none; margin: 0; padding: 0; }
+  .stat-cards { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 18px; }
+  .stat-cards .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; min-width: 96px; }
+  .stat-cards .card b { display: block; font-size: 20px; }
+  .stat-cards .card span { font-size: 12px; color: var(--muted); }
+  .sec-h { font-size: 15px; margin: 22px 0 8px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .form-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .form-row input, .form-row select { font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; flex: 1; min-width: 130px; background: var(--surface); }
+  .act-msg { font-size: 12.5px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+  @media (max-width: 760px) {
+    #shell { flex-direction: column; height: auto; min-height: 100vh; }
+    #side { width: 100%; max-height: 50vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    #list { flex: none; overflow: visible; }
+    #main { padding: 14px 16px; overflow: visible; }
+  }
+</style>
 </head>
 <body>
-<div class="app wide" id="app"></div>
+<div id="shell">
+  <div id="side">
+    <header><b>안전한더유스</b><span>관리자 통합보기 · 자기주도 일경험</span></header>
+    <input id="search" placeholder="이름·참여번호 검색">
+    <select id="bizFilter"></select>
+    <div id="filters"></div>
+    <button id="dashBtn">대시보드</button>
+    <div id="list"></div>
+  </div>
+  <div id="main"><div class="app wide" id="app"></div></div>
+</div>
 
 <script src="admin.js"></script>
 </body>

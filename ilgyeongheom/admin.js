@@ -8,7 +8,8 @@
   const e = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const won = n => new Intl.NumberFormat("ko-KR").format(Math.round(n || 0)) + "원";
 
-  const S = { screen: "loading", data: null };
+  const S = { screen: "loading", data: null, q: "", filter: "진행중", biz: "", code: null };
+  const STAGES = ["신청", "코칭", "사전검사", "계획서작성", "일경험 진행", "서비스 종료", "만족도조사", "사후검사", "완료"];
 
   async function api(payload) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
@@ -40,7 +41,9 @@
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
+      '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       planChip(p.planStatus) + planBlock(p) + pendingBlock(p) +
+      '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button></div>' +
       '</div>';
   }
 
@@ -99,18 +102,106 @@
     } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); b.disabled = false; b.textContent = label; }
   });
 
-  // 2026-11-24: 사업별로 걸러 보기 — 목록은 마음살피기 [사업목록](허브 [사업 관리])을 따라가요
+  // 2026-11-27: 마음살피기 관리자 화면처럼 좌측 사이드바(검색·사업·상태·목록) + 우측 본문. 시트 [일경험 관리] 메뉴 기능도 대시보드에 모았어요.
+  const $ = id => document.getElementById(id);
+  function matches(p) {
+    const q = S.q.trim();
+    const inF = S.filter === "전체" || p.status === S.filter;
+    const inB = !S.biz || p.biz === S.biz;
+    return inF && inB && (!q || String(p.name).indexOf(q) >= 0 || String(p.code).indexOf(q) >= 0);
+  }
+  function renderSide() {
+    if (!S.data) return;
+    const d = S.data, ps = d.participants;
+    const bizs = Array.from(new Set((d.bizList && d.bizList.length ? d.bizList : ["도봉구", "용인시", "미래내일일경험", "갭이어"]).concat(ps.map(p => p.biz).filter(Boolean))));
+    $("bizFilter").innerHTML = ['<option value="">전체 사업</option>'].concat(bizs.map(b => '<option value="' + e(b) + '"' + (b === S.biz ? " selected" : "") + '>' + e(b) + '</option>')).join("");
+    const cnt = st => st === "전체" ? ps.length : ps.filter(p => p.status === st).length;
+    $("filters").innerHTML = ["진행중", "전체", "중단", "완료"].map(f => '<button data-f="' + f + '" class="' + (f === S.filter ? "on" : "") + '">' + f + " " + cnt(f) + '</button>').join("");
+    $("dashBtn").textContent = S.code ? "← 대시보드" : "대시보드";
+    $("list").innerHTML = ps.filter(matches).map(p =>
+      '<div class="p-item' + (p.code === S.code ? " on" : "") + '" data-code="' + e(p.code) + '"><b>' + e(p.code) + '</b> ' + e(p.name) +
+      (p.pendingCount || p.planStatus === "대기" ? ' <span class="p-warn">●</span>' : "") +
+      '<span class="p-meta">' + e(p.biz || "미분류") + " · " + e(p.stage) + " · " + p.thisWeekHours + "/" + p.weeklyMinHours + "h" + (p.coach ? " · 코치 " + e(p.coach) : "") + '</span></div>').join("") ||
+      '<div class="empty" style="padding:12px">해당하는 참여자가 없어요.</div>';
+  }
+  $("search").addEventListener("input", ev => { S.q = ev.target.value; renderSide(); });
+  $("bizFilter").addEventListener("change", ev => { S.biz = ev.target.value; renderSide(); });
+  $("filters").addEventListener("click", ev => { const b = ev.target.closest("button[data-f]"); if (b) { S.filter = b.dataset.f; renderSide(); } });
+  $("dashBtn").addEventListener("click", () => { S.code = null; render(); });
+  $("list").addEventListener("click", ev => { const it = ev.target.closest(".p-item"); if (it) { S.code = it.dataset.code; render(); $("main").scrollTop = 0; } });
+
   function dashboard() {
     const d = S.data;
-    const bizs = Array.from(new Set((d.bizList && d.bizList.length ? d.bizList : ["도봉구", "용인시", "미래내일일경험", "갭이어"]).concat(d.participants.map(p => p.biz).filter(Boolean))));
-    const cur = S.biz || "";
-    const shown = d.participants.filter(p => !cur || p.biz === cur);
-    const sel = '<select id="bizSel" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);margin:0 0 12px">' +
-      ['<option value="">전체 사업</option>'].concat(bizs.map(b => '<option value="' + e(b) + '"' + (b === cur ? " selected" : "") + '>' + e(b) + '</option>')).join("") + '</select>';
-    const rows = shown.length ? shown.map(participantRow).join("") : '<p class="empty">진행중인 참여자가 없어요.</p>';
-    return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + attendSection() + sel + rows;
+    if (S.code) {
+      const p = d.participants.find(x => x.code === S.code);
+      if (p) return '<div class="brand"><b>' + e(p.name) + ' 님</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + participantRow(p);
+    }
+    const active = d.participants.filter(p => p.status === "진행중");
+    const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
+    const todo = active.filter(p => p.pendingCount || p.planStatus === "대기");
+    const todoRows = todo.length ? todo.map(p => '<div class="coach-meta"><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.code) + ' ' + e(p.name) + '</b></a> — ' +
+      (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
+    const coaches = d.coaches || [];
+    const coachOpts = ['<option value="">담당 코치(나중에 정해도 돼요)</option>'].concat(coaches.map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>')).join("");
+    return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
+      '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
+      '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
+      '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
+      '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
+      '<div class="coach-card"><b>참여자 추가</b><div class="coach-meta">마음살피기 참여번호를 그대로 넣어 주세요. 마음살피기 승인으로 이미 올라온 분은 목록에서 [링크 문자 보내기]를 쓰면 돼요.</div>' +
+      '<div class="form-row"><input id="np-code" placeholder="참여번호(예: YI26-003)"><input id="np-name" placeholder="이름"><input id="np-phone" placeholder="연락처(01012345678)"><select id="np-coach">' + coachOpts + '</select></div>' +
+      '<div class="form-row"><label><input type="checkbox" id="np-send" checked> 추가하면서 링크 문자 보내기</label><button class="btn btn-primary btn-sm" data-addp="1">참여자 추가</button></div></div>' +
+      '<div class="coach-card" style="margin-top:10px"><b>코치</b>' +
+      (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
+      '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></div>' +
+      '<div class="coach-card" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
+      '<div><button class="btn btn-primary btn-sm" data-calc="1">이번 달 보상금 계산하기</button></div></div>' +
+      '<div class="coach-card" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">확인 중…</div>' +
+      '<div class="form-row"><input id="sms-key" placeholder="API Key"><input id="sms-secret" type="password" placeholder="API Secret"><input id="sms-sender" placeholder="발신번호(0222471091)"><button class="btn btn-primary btn-sm" data-smssave="1">저장</button></div></div>' +
+      '<div class="act-msg" id="act-msg"></div>';
   }
-  app.addEventListener("change", ev => { if (ev.target.id === "bizSel") { S.biz = ev.target.value; render(); } });
+  async function loadSmsStatus() {
+    try { const r = await api({ action: "adminSmsStatus", token }); const el = $("sms-status"); if (el) el.textContent = !r.ok ? "확인하지 못했어요" : r.ready ? "설정됨 (발신번호 " + r.sender + ")" : "아직 설정 안 됨"; } catch (err) {}
+  }
+  const MENU_ERR = { missing_fields: "빈 칸이 있어요.", duplicate: "이미 등록된 분이에요.", not_found: "대상을 찾지 못했어요.", forbidden: "관리자 토큰이 맞지 않아요.", busy: "다른 작업 중이에요. 잠시 뒤 다시 눌러 주세요." };
+  function linkResult(r) { return (r.sent ? "문자로 링크를 보냈어요." : "문자를 못 보냈어요 (" + (r.smsError || "") + ") — 아래 링크를 직접 전달해 주세요.") + "\n" + r.link; }
+  app.addEventListener("click", async ev => {
+    const o = ev.target.closest("a[data-open]");
+    if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
+    const b = ev.target.closest("button[data-addp], button[data-addc], button[data-sendlink], button[data-calc], button[data-smssave]");
+    if (!b) return;
+    const v = id => ($(id) ? $(id).value.trim() : "");
+    let payload, done;
+    if (b.dataset.addp) {
+      if (!v("np-code") || !v("np-name") || !v("np-phone")) { alert("참여번호·이름·연락처를 입력해 주세요."); return; }
+      payload = { action: "adminAddParticipant", token, code: v("np-code"), name: v("np-name"), phone: v("np-phone"), coach: v("np-coach"), send: $("np-send").checked };
+      done = r => "추가했어요. " + v("np-code") + "\n" + linkResult(r);
+    } else if (b.dataset.addc) {
+      if (!v("nc-name") || !v("nc-phone")) { alert("코치 이름과 연락처를 입력해 주세요."); return; }
+      payload = { action: "adminAddCoach", token, name: v("nc-name"), phone: v("nc-phone"), send: $("nc-send").checked };
+      done = r => "추가했어요.\n" + linkResult(r);
+    } else if (b.dataset.sendlink) {
+      if (!confirm((b.dataset.who === "coach" ? "코치" : "참여자") + " " + b.dataset.sendlink + " 에게 링크 문자를 보낼까요?")) return;
+      payload = { action: "adminSendLink", token, who: b.dataset.who, key: b.dataset.sendlink };
+      done = linkResult;
+    } else if (b.dataset.calc) {
+      if (!confirm("이번 달 보상금을 계산할까요?")) return;
+      payload = { action: "adminCalcPay", token };
+      done = r => "이번 달(" + r.ym + ") 계산 완료 — 새로 만든 줄 " + r.made + "건, 수정 " + r.updated + "건, 지급완료라 건드리지 않은 줄 " + r.skipped + "건";
+    } else {
+      if (!v("sms-key") || !v("sms-secret") || !v("sms-sender")) { alert("세 칸 모두 입력해 주세요."); return; }
+      payload = { action: "adminSmsSettings", token, key: v("sms-key"), secret: v("sms-secret"), sender: v("sms-sender") };
+      done = () => "저장했어요.";
+    }
+    b.disabled = true; const label = b.textContent; b.textContent = "처리 중…";
+    try {
+      const r = await api(payload);
+      b.disabled = false; b.textContent = label;
+      if (!r.ok) { alert(MENU_ERR[r.error] || ("처리하지 못했어요: " + r.error)); return; }
+      alert(done(r));
+      if (b.dataset.addp || b.dataset.addc) await load(); else if (b.dataset.smssave) loadSmsStatus();
+    } catch (err) { b.disabled = false; b.textContent = label; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+  });
 
   // ───── 2026-11-27 집체코칭 출석 확인 ─────
   // 참여자가 앱에서 날짜·회차를 고르고 서명하면 여기 올라와요. 참석을 확인(체크)하고 저장하면 명부 PDF가 사업 폴더에 저장돼요.
@@ -121,6 +212,7 @@
   }
   function attendSection() {
     if (!S.att) return '<div class="coach-card"><b>집체코칭 출석 확인</b><div class="coach-meta">불러오는 중…</div></div>';
+    if (S.att.failed) return '<div class="coach-card"><b>집체코칭 출석 확인</b><div class="coach-meta">불러오지 못했어요. (Apps Script가 최신 버전으로 배포됐는지 확인해 주세요.) <button class="btn btn-ghost btn-sm" data-attretry="1">다시 불러오기</button></div></div>';
     const gs = attendGroups();
     let h = '<div class="coach-card" style="border:2px solid var(--accent,#5b7)"><div class="coach-top"><b>집체코칭 출석 확인</b></div>' +
       '<div class="coach-meta">참여자가 일경험 앱에서 날짜·회차를 고르고 서명하면 아래에 나타나요. 참석한 분을 체크하고 저장하면 명부 PDF가 사업 폴더에 저장돼요.</div>';
@@ -136,7 +228,8 @@
     });
     return h + '</div>';
   }
-  async function loadAtt() { try { const r = await api({ action: "adminAttendList", token }); if (r.ok) S.att = r; } catch (err) {} }
+  async function loadAtt() { try { const r = await api({ action: "adminAttendList", token }); S.att = r.ok ? r : { rows: [], failed: true }; } catch (err) { S.att = { rows: [], failed: true }; } }
+  app.addEventListener("click", async ev => { if (ev.target.closest("button[data-attretry]")) { S.att = null; render(); await loadAtt(); render(); } });
   const ATT_ERR = { changed: "그 사이 기록이 바뀌었어요. 새로고침해 주세요.", none_confirmed: "참석 확인된 사람이 없어요.", forbidden: "관리자 토큰이 맞지 않아요.", missing_field: "빈 칸이 있어요." };
   app.addEventListener("click", async ev => {
     const b = ev.target.closest("button[data-allchk], button[data-asave], button[data-adel]");
@@ -179,6 +272,8 @@
     else if (S.screen === "error") body = errorScreen();
     else body = dashboard();
     app.innerHTML = body;
+    renderSide();
+    if (S.screen === "ready" && !S.code) loadSmsStatus();
   }
 
   async function load() {
