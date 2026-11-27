@@ -77,7 +77,7 @@
       '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b>' +
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
-      '<div class="coach-meta">누적 활동 ' + p.cumulativeHours + '시간 · 누적 지급액 ' + won(p.cumulativeAmount) + '</div>' +
+      '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
       '<div class="coach-meta">연락처: ' + e(p.phone || "—") + ' · 상태: ' + e(p.status) + '</div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">단계</span><select id="stage-' + e(p.code) + '" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select><button class="btn btn-ghost btn-sm" data-onestage="' + e(p.code) + '" data-name="' + e(p.name) + '">변경</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
@@ -186,9 +186,11 @@
     const coachOpts = '<option value="">코치 선택</option><option value="__none">(지정 해제)</option>' + ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>').join(""));
     return '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람에게</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">코치 일괄 지정</button></div>' +
       '<div class="form-row" style="margin:0 0 8px"><span class="coach-meta">체크한 사람의 단계를</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">단계 일괄 변경</button></div>' +
-      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th></th></tr>' +
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") + '</table></div>';
+        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
+      (function () { const t = k => rows.reduce((s, p) => s + (Number(p[k]) || 0), 0);
+        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="7">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
   }
   function noteHtml() {
     const n = S.note; if (!n) return "";
@@ -209,6 +211,7 @@
     const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
     const shown = d.participants.filter(matches);
     const done = [].concat.apply([], d.participants.map(p => (p.history || []).filter(h => h.state !== "대기").map(h => ({ h: h, name: p.name })))).sort((a, b) => (b.h.at || b.h.date).localeCompare(a.h.at || a.h.date));
+    const okList = done.filter(x => x.h.state === "인증"), rejList = done.filter(x => x.h.state === "반려");
     const todo = active.filter(p => p.pendingCount || p.planStatus === "대기");
     const todoRows = todo.length ? todo.map(p => '<div class="coach-meta"><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.code) + ' ' + e(p.name) + '</b></a> — ' +
       (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
@@ -218,8 +221,10 @@
       '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
       '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
       '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
-      '<details class="plan-block" style="margin-top:8px"><summary>처리된 인증·반려 내역 보기 (' + done.length + '건)</summary>' +
-        (done.length ? done.slice(0, 60).map(x => histLine(x.h, x.name)).join("") + (done.length > 60 ? '<div class="coach-meta">최근 60건만 보여요. 전체는 참여자 상세에서 볼 수 있어요.</div>' : "") : '<div class="coach-meta">아직 처리된 기록이 없어요.</div>') + '</details>' +
+      '<details class="plan-block" style="margin-top:8px"><summary>처리된 인증·반려 내역 보기 (인증 ' + okList.length + ' · 반려 ' + rejList.length + ')</summary>' +
+        '<div class="split2"><div><b>✓ 인증 완료 (' + okList.length + '건)</b>' + (okList.length ? okList.slice(0, 60).map(x => histLine(x.h, x.name)).join("") : '<div class="coach-meta">아직 없어요.</div>') + '</div>' +
+        '<div><b>↩ 반려 (' + rejList.length + '건)</b>' + (rejList.length ? rejList.slice(0, 60).map(x => histLine(x.h, x.name)).join("") : '<div class="coach-meta">아직 없어요.</div>') + '</div></div>' +
+        (done.length > 120 ? '<div class="coach-meta">각각 최근 60건만 보여요. 전체는 참여자 상세에서 볼 수 있어요.</div>' : "") + '</details>' +
       '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
       '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
       '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +

@@ -144,10 +144,10 @@
       '<div class="field"><label>활동 종료일</label><input type="date" id="p-end" value="' + e(f.endDate) + '"></div>' +
       '<div class="field"><label>활동 장소</label><input type="text" id="p-location" value="' + e(f.location) + '" placeholder="예: OO카페, OO센터"></div>' +
       '<div class="field"><label>주요 활동 내용</label><textarea id="p-content" placeholder="어떤 일을 할 계획인지 적어주세요">' + e(f.content) + '</textarea></div>' +
-      '<div class="field"><label>주당 희망 활동 시간</label><input type="number" id="p-hours" min="1" max="40" value="' + e(f.weeklyHours) + '"></div>' +
-      '<div class="field"><label>활동 요일과 시간 <small class="muted">(선택 · 정해진 요일이 있으면 요일을 고르고 그날 몇 시간 할지 적어 주세요. 적으면 주당 시간은 합계로 계산돼요)</small></label>' +
+      '<div class="field"><label>활동 요일과 시간 <small class="muted">(필수 · 주 2일 이상, 합계 ' + (S.status.weeklyMinHours || 6) + '시간 이상)</small></label>' +
       DAYS7.map(d => { const h = (f.weekdays || {})[d]; return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><label style="display:flex;align-items:center;gap:4px;width:56px"><input type="checkbox" class="p-day" value="' + d + '"' + (h ? " checked" : "") + '> ' + d + '</label>' +
-        '<input type="number" class="p-dayh" data-day="' + d + '" min="0.5" max="16" step="0.5" placeholder="시간" value="' + (h ? e(h) : "") + '" style="width:90px"> 시간</div>'; }).join("") + '</div>' +
+        '<input type="number" class="p-dayh" data-day="' + d + '" min="0.5" max="16" step="0.5" placeholder="시간" value="' + (h ? e(h) : "") + '" style="width:90px"> 시간</div>'; }).join("") +
+      '<p class="list-note" id="p-total"></p></div>' +
       (S.planErr ? '<p class="err">' + e(S.planErr) + '</p>' : "") +
       '<button class="btn btn-primary btn-block" id="p-submit" ' + (S.planSending ? "disabled" : "") + '>' + (S.planSending ? "보내는 중…" : "계획서 제출하기") + '</button>' +
       '</div></div>';
@@ -257,6 +257,7 @@
     else body = dashboard();
     app.innerHTML = body;
     bind();
+    updatePlanTotal();
     if (S.view === "group") setupGroupPad();
   }
 
@@ -298,7 +299,7 @@
     const endDate = document.getElementById("p-end").value;
     const location = document.getElementById("p-location").value.trim();
     const content = document.getElementById("p-content").value.trim();
-    let weeklyHours = Number(document.getElementById("p-hours").value);
+    const minHours = S.status.weeklyMinHours || 6;
     const weekdays = {}; let dayErr = false;
     document.querySelectorAll(".p-day:checked").forEach(c => { const h = Number(document.querySelector('.p-dayh[data-day="' + c.value + '"]').value); if (h > 0 && h <= 16) weekdays[c.value] = h; else dayErr = true; });
     if (dayErr) { S.planErr = "고른 요일마다 시간(0.5~16)을 적어 주세요."; S.planForm = Object.assign({}, S.planForm, { goal, startDate, endDate, location, content }); render(); return; }
@@ -307,8 +308,10 @@
     if (endDate < startDate) { S.planErr = "종료일이 시작일보다 늦어야 해요."; render(); return; }
     if (!location) { S.planErr = "활동 장소를 적어주세요."; render(); return; }
     if (!content) { S.planErr = "주요 활동 내용을 적어주세요."; render(); return; }
-    if (Object.keys(weekdays).length) weeklyHours = Math.round(Object.keys(weekdays).reduce((s, d) => s + weekdays[d], 0) * 100) / 100;
-    if (!(weeklyHours > 0 && weeklyHours <= 40)) { S.planErr = "주당 희망 활동 시간을 1~40 사이로 입력해 주세요."; render(); return; }
+    const weeklyHours = Math.round(Object.keys(weekdays).reduce((s, d) => s + weekdays[d], 0) * 100) / 100;
+    if (Object.keys(weekdays).length < 2) { S.planErr = "활동 요일을 2일 이상 골라 시간을 적어 주세요."; S.planForm = Object.assign({}, S.planForm, { goal, startDate, endDate, location, content, weekdays }); render(); return; }
+    if (weeklyHours < minHours) { S.planErr = "주당 활동 시간 합계가 " + minHours + "시간 이상이어야 해요. (지금 " + weeklyHours + "시간)"; S.planForm = Object.assign({}, S.planForm, { goal, startDate, endDate, location, content, weekdays }); render(); return; }
+    if (weeklyHours > 40) { S.planErr = "주당 활동 시간은 40시간을 넘을 수 없어요."; render(); return; }
 
     S.planErr = ""; S.planSending = true; S.planForm = { goal, startDate, endDate, location, content, weeklyHours, weekdays }; render();
     try {
@@ -319,10 +322,22 @@
       S.view = "";
       await load();
     } catch (err) {
-      S.planErr = "제출하지 못했어요. 다시 시도해 주세요.";
+      S.planErr = err.message === "min_days" ? "활동 요일을 2일 이상 골라 주세요." : err.message === "min_hours" ? "주당 활동 시간 합계가 " + minHours + "시간 이상이어야 해요." : "제출하지 못했어요. 다시 시도해 주세요.";
       S.planSending = false; render();
     }
   }
+
+  // 계획서 작성 중 요일별 시간을 적을 때마다 주당 합계와 요건 충족 여부를 보여줘요.
+  function updatePlanTotal() {
+    const el = document.getElementById("p-total"); if (!el) return;
+    const min = (S.status && S.status.weeklyMinHours) || 6; let n = 0, sum = 0;
+    document.querySelectorAll(".p-day:checked").forEach(c => { const h = Number(document.querySelector('.p-dayh[data-day="' + c.value + '"]').value); if (h > 0) { n++; sum += h; } });
+    sum = Math.round(sum * 100) / 100;
+    el.textContent = "주당 합계 " + sum + "시간 · " + n + "일 — " + (n >= 2 && sum >= min ? "요건을 채웠어요 ✓" : "2일 이상, " + min + "시간 이상이어야 제출돼요");
+    el.style.color = n >= 2 && sum >= min ? "var(--accent)" : "var(--dawn)";
+  }
+  document.addEventListener("input", ev => { if (ev.target.classList && ev.target.classList.contains("p-dayh")) updatePlanTotal(); });
+  document.addEventListener("change", ev => { if (ev.target.classList && ev.target.classList.contains("p-day")) updatePlanTotal(); });
 
   async function submit() {
     const date = document.getElementById("f-date").value;

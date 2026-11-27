@@ -38,6 +38,8 @@
   .stat-cards .card b { display: block; font-size: 20px; }
   .stat-cards .card span { font-size: 12px; color: var(--muted); }
   .sec-h { font-size: 15px; margin: 22px 0 8px; }
+  .split2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .split2 > div { min-width: 0; }
   .acts { display: flex; flex-wrap: wrap; gap: 8px; }
   .form-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
   .form-row input, .form-row select { font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; flex: 1; min-width: 130px; background: var(--surface); }
@@ -45,6 +47,7 @@
   @media (max-width: 760px) {
     #shell { flex-direction: column; height: auto; min-height: 100vh; }
     #side { width: 100%; max-height: 50vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    .split2 { grid-template-columns: 1fr; }
     #list { flex: none; overflow: visible; }
     #main { padding: 14px 16px; overflow: visible; }
   }
@@ -63,6 +66,6 @@
   <div id="main"><div class="app wide" id="app"></div></div>
 </div>
 
-<script src="admin.js?v=1795774444"></script>
+<script src="admin.js?v=1795775988"></script>
 </body>
 </html>
