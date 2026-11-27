@@ -57,7 +57,7 @@
 
   function participantCard(p) {
     return '<div class="coach-card" id="p-' + e(p.code) + '">' +
-      '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b><span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / 10h' + (p.met ? " 충족" : "") + '</span></div>' +
+      '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b><span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + (p.weeklyMinHours || 6) + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       planBlock(p) +
       '<div class="adapt-block"><p class="adapt-title">이번 주 일경험 적응도 관찰 (0=전혀 그렇지 않다 ~ 3=매우 그렇다)</p>' +

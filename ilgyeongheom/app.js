@@ -347,7 +347,7 @@
   async function load() {
     try {
       if (DEMO) {
-        S.status = { name: "체험", stage: "일경험 진행", thisWeekHours: 6, weeklyMinHours: 10, hourlyRate: 12000,
+        S.status = { name: "체험", stage: "일경험 진행", thisWeekHours: 6, weeklyMinHours: 6, hourlyRate: 12000,
           monthEstimate: 240000, nextPayDate: todayStr(), recent: [], payments: [],
           checkinAllowed: true, planUnlocked: true, group: { done: [], nextRound: 1 }, plan: { status: "승인", goal: "데모", startDate: todayStr(), endDate: todayStr(), location: "데모", content: "데모", weeklyHours: 10 } };
       } else {
