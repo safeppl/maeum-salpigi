@@ -121,9 +121,17 @@
 
   function dashboard() {
     const d = S.data;
-    const cards = d.participants.length
-      ? d.participants.map(participantCard).join("")
-      : '<p class="empty">담당하고 있는 참여자가 없어요.</p>';
+    // 사업 → 참여자 순서로 고르면 그 사람의 보고서 칸만 보여요(여러 사업·여러 참여자를 맡은 코치용).
+    const ps = d.participants, bizs = Array.from(new Set(ps.map(p => p.biz || "미분류")));
+    if (!S.biz || bizs.indexOf(S.biz) < 0) S.biz = bizs[0];
+    const inBiz = ps.filter(p => (p.biz || "미분류") === S.biz);
+    if (!S.code || !inBiz.some(p => p.code === S.code)) S.code = inBiz.length ? inBiz[0].code : null;
+    const sel = ps.length
+      ? '<div style="margin:0 0 10px;display:flex;flex-wrap:wrap;gap:8px"><select id="bizPick" style="font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;min-width:150px">' + bizs.map(b => '<option value="' + e(b) + '"' + (b === S.biz ? " selected" : "") + '>' + e(b) + ' (' + ps.filter(p => (p.biz || "미분류") === b).length + '명)</option>').join("") + '</select>' +
+        '<select id="partPick" style="font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;min-width:200px">' + inBiz.map(p => '<option value="' + e(p.code) + '"' + (p.code === S.code ? " selected" : "") + '>' + e(p.name) + ' · ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount : "") + '</option>').join("") + '</select></div>'
+      : "";
+    const cur = ps.find(p => p.code === S.code);
+    const cards = cur ? sel + participantCard(cur) : (ps.length ? sel : '<p class="empty">담당하고 있는 참여자가 없어요.</p>');
     return '<div class="brand"><b>일경험 코치 화면</b><span>' + e(d.coachName) + ' 코치님</span></div>' +
       attendSection() +
       '<p class="muted">이번 주(' + e(d.weekStart) + ' 시작) 기준이에요.</p>' + cards;
@@ -138,6 +146,11 @@
     app.innerHTML = body;
     bind();
   }
+
+  app.addEventListener("change", ev => {
+    if (ev.target.id === "bizPick") { S.biz = ev.target.value; S.code = null; render(); }
+    else if (ev.target.id === "partPick") { S.code = ev.target.value; render(); }
+  });
 
   function bind() {
     document.querySelectorAll(".coach-save").forEach(btn => btn.addEventListener("click", () => saveComment(btn.dataset.code)));
