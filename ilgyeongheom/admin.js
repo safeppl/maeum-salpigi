@@ -79,6 +79,8 @@
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
       '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
       (p.capHours ? '<div class="coach-meta">1인당 한도 <b>' + p.capHours + '시간(' + won(p.capAmount) + ')</b> 중 인정 ' + Math.round(p.accruedAmount / (p.rate || 12000) * 100) / 100 + '시간 · 시급 ' + won(p.rate) + '</div>' : "") +
+      (p.periodWeeks ? '<div class="coach-meta">완주 현황: 주 기준시간(' + p.weeklyMinHours + '시간) 채운 주 <b>' + p.metWeeks + '주</b> / 사업 기간 ' + p.periodWeeks + '주' + (p.weeklyPayCap ? ' · 주 지급 상한 ' + p.weeklyPayCap + '시간' : "") + '</div>' : "") +
+      (p.limitedHours ? '<div class="banner warn" style="margin:2px 0"><b>주 지급 상한 ' + p.weeklyPayCap + '시간 초과 ' + p.limitedHours + '시간</b> — 한도를 기간 전체에 고르게 지급하려고 한 주에 인정하는 시간을 넘긴 부분은 제외돼요.</div>' : "") +
       (p.outsideHours ? '<div class="banner warn" style="margin:2px 0"><b>사업 기간 밖 활동 ' + p.outsideHours + '시간</b> — 지급 기간(' + e(p.periodStart || "") + ' ~ ' + e(p.periodEnd || "") + ') 밖이라 보상금에서 제외돼요.</div>' : "") +
       (p.cappedHours ? '<div class="banner warn" style="margin:2px 0"><b>1인당 한도 도달</b> — 한도를 넘긴 ' + p.cappedHours + '시간은 보상금에서 제외돼요.</div>' : "") +
       (p.overHours ? '<div class="banner warn" style="margin:2px 0"><b>계획 초과 ' + p.overHours + '시간</b> — 주 계획(' + p.weeklyPlanHours + '시간)을 넘긴 시간은 보상금에서 제외돼요. (' + p.overWeeks.map(w => w.week + ' 주 ' + w.hours + 'h').join(", ") + ')</div>' : "") +
@@ -262,24 +264,26 @@
     if (!S.payRows) return "";
     const rows = S.payRows, t = k => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
     return '<div class="act-msg" style="color:var(--ink)">' + e(S.payMsg || "") + '</div>' +
-      '<div style="overflow:auto;max-height:360px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여자</th><th>사업</th><th>지급월</th><th>대상시간</th><th>금액</th><th>계획초과</th><th>한도제외</th><th>기간밖제외</th><th>결과</th></tr>' +
-      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + e(r.month) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + (r.outside ? r.outside + "h" : "—") + '</td><td>' + e(r.result) + '</td></tr>').join("") +
-      '<tr style="border-top:2px solid var(--line);font-weight:700"><td colspan="3">합계 (' + rows.length + '건)</td><td>' + Math.round(t("hours") * 100) / 100 + 'h</td><td>' + won(t("amount")) + '</td><td colspan="4"></td></tr></table></div>';
+      '<div style="overflow:auto;max-height:360px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여자</th><th>사업</th><th>지급월</th><th>대상시간</th><th>금액</th><th>계획초과</th><th>한도제외</th><th>주상한제외</th><th>기간밖제외</th><th>결과</th></tr>' +
+      rows.map(r => '<tr style="border-top:1px solid var(--line)"><td>' + e(r.name) + ' <span class="muted">' + e(r.code) + '</span></td><td>' + e(r.biz) + '</td><td>' + e(r.month) + '</td><td>' + r.hours + 'h</td><td>' + won(r.amount) + '</td><td>' + (r.over ? r.over + "h" : "—") + '</td><td>' + (r.capped ? r.capped + "h" : "—") + '</td><td>' + (r.limited ? r.limited + "h" : "—") + '</td><td>' + (r.outside ? r.outside + "h" : "—") + '</td><td>' + e(r.result) + '</td></tr>').join("") +
+      '<tr style="border-top:2px solid var(--line);font-weight:700"><td colspan="3">합계 (' + rows.length + '건)</td><td>' + Math.round(t("hours") * 100) / 100 + 'h</td><td>' + won(t("amount")) + '</td><td colspan="5"></td></tr></table></div>';
   }
   // 사업별 보상 설정: 시급·1인당 한도 시간·참여자 수·기간을 넣으면 한도 금액·총예산·주 기준시간이 자동으로 채워져요(직접 고쳐도 돼요).
   // 비워 두면 기본값(시급 12,000원·주 6시간)이고 한도·예산은 제한 없음이에요.
   function bizSetCard() {
     const d = S.data, set = d.bizSettings || {}, df = d.defaults || { rate: 12000, minHours: 6 };
     const bizs = Array.from(new Set((d.bizList || []).concat(Object.keys(set), d.participants.map(p => p.biz).filter(Boolean)))).filter(b => b !== "미분류");
-    const inp = (b, k, v, ph, w, auto) => '<input data-bz="' + e(b) + '" data-f="' + k + '" type="' + (k === "start" || k === "end" ? "date" : "number") + '" min="0" value="' + (v || "") + '" placeholder="' + ph + '"' + (auto ? ' title="자동 계산(직접 고쳐도 돼요)"' : "") + ' style="width:' + (w || 110) + 'px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:' + (auto ? "var(--accent-soft)" : "var(--surface)") + '">';
+    const fld = (b, k, label, v, ph, auto) => '<label class="bz-f"><span>' + label + (auto ? ' <small style="color:var(--accent)">자동</small>' : "") + '</span><input data-bz="' + e(b) + '" data-f="' + k + '" type="' + (k === "start" || k === "end" ? "date" : "number") + '" min="0" step="any" value="' + (v || "") + '" placeholder="' + ph + '"' + (auto ? ' title="자동 계산(직접 고쳐도 돼요)" style="background:var(--accent-soft)"' : "") + '></label>';
     return '<div class="coach-card" id="sec-bizset" style="margin-top:10px"><b>사업별 보상 설정</b>' +
-      '<div class="coach-meta">사업마다 다른 값을 여기서 정해요. <b>시급 · 1인당 한도 시간 · 참여자 수 · 사업 기간(시작일~종료일)</b>을 넣으면 <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">초록 칸</span>(기간(주) = 시작일~종료일 ÷ 7 올림 · 한도 금액 = 시급 × 한도 시간 · 총예산 = 한도 금액 × 참여자 수 · 주 기준시간 = 한도 시간 ÷ 기간(주), 소수 내림)이 자동으로 채워지고, 직접 고쳐도 돼요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. <b>시작일~종료일 밖의 활동은 보상금에서 제외</b>되고, 저장하면 이 사업 참여자들의 보상금이 새 설정으로 자동 계산돼요.</div>' +
-      '<div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>사업</th><th>시급(원)</th><th>1인당 한도 시간</th><th>참여자 수</th><th>시작일</th><th>종료일</th><th>기간(주)</th><th>한도 금액(원)</th><th>총예산(원)</th><th>주 기준시간</th><th></th></tr>' +
+      '<div class="coach-meta">사업 이름을 눌러 펼친 뒤 값을 정해요. <b>시급 · 1인당 한도 시간 · 참여자 수 · 사업 기간(시작일~종료일)</b>을 넣으면 <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">초록 칸</span>이 자동으로 채워지고(직접 고쳐도 돼요) <b>시작일~종료일 밖의 활동은 보상금에서 제외</b>돼요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. 저장하면 이 사업 참여자들의 보상금이 새 설정으로 자동 계산돼요.</div>' +
       bizs.map(b => { const s = set[b] || {}, ps = d.participants.filter(p => p.biz === b), used = ps.reduce((x, p) => x + (p.accruedAmount || 0), 0), paid = ps.reduce((x, p) => x + (p.paidAmount || 0), 0);
-        return '<tr style="border-top:1px solid var(--line)"><td><b>' + e(b) + '</b><br><span class="muted">현재 ' + ps.length + '명</span></td><td>' + inp(b, "rate", s.rate, String(df.rate), 90) + '</td><td>' + inp(b, "capHours", s.capHours, "제한없음", 90) + '</td><td>' + inp(b, "headcount", s.headcount, "명", 70) + '</td><td>' + inp(b, "start", s.start, "", 140) + '</td><td>' + inp(b, "end", s.end, "", 140) + '</td><td>' + inp(b, "weeks", s.weeks, "자동", 70, true) + '</td><td>' + inp(b, "capAmount", s.capAmount, "자동", 110, true) + '</td><td>' + inp(b, "budget", s.budget, "자동", 110, true) + '</td><td>' + inp(b, "minHours", s.minHours, String(df.minHours), 70, true) + '</td>' +
-          '<td><button class="btn btn-primary btn-sm" data-savebz="' + e(b) + '">저장</button></td></tr>' +
-          '<tr><td colspan="11" class="coach-meta" style="padding-bottom:8px">발생 ' + won(used) + ' · 지급 ' + won(paid) + (s.budget ? ' · 총예산 ' + won(s.budget) + ' 중 <b style="color:' + (used > s.budget ? "#C0392B" : "inherit") + '">' + Math.round(used / s.budget * 100) + '%</b> 사용 · 잔여 ' + won(Math.max(0, s.budget - used)) + (used > s.budget ? " ⚠ 초과" : "") : " · 총예산 미설정") + (s.headcount && ps.length > s.headcount ? ' · <b style="color:#C0392B">⚠ 참여자 수(' + s.headcount + '명)보다 현재 인원이 많아요</b>' : "") + '</td></tr>'; }).join("") +
-      '</table></div></div>';
+        const summary = '<b>' + e(b) + '</b> <span class="muted">· 현재 ' + ps.length + '명' + (s.headcount ? ' / 정원 ' + s.headcount + '명' : "") + (s.start && s.end ? ' · ' + e(s.start) + ' ~ ' + e(s.end) : "") + (s.budget ? ' · 총예산 ' + won(s.budget) + ' 중 ' + Math.round(used / s.budget * 100) + '% 사용' : "") + '</span>';
+        return '<details class="bz-d" data-k="bz:' + e(b) + '"' + (S.open["bz:" + b] ? " open" : "") + '><summary>' + summary + '</summary>' +
+          '<div class="bz-grid">' + fld(b, "rate", "시급(원)", s.rate, String(df.rate)) + fld(b, "capHours", "1인당 한도 시간", s.capHours, "제한없음") + fld(b, "headcount", "참여자 수(명)", s.headcount, "명") + fld(b, "start", "사업 시작일", s.start, "") + fld(b, "end", "사업 종료일", s.end, "") +
+          fld(b, "weeks", "기간(주)", s.weeks, "자동", true) + fld(b, "capAmount", "1인당 한도 금액(원)", s.capAmount, "자동", true) + fld(b, "budget", "총예산(원)", s.budget, "자동", true) + fld(b, "minHours", "주 기준시간", s.minHours, String(df.minHours), true) + fld(b, "payCap", "주 지급 상한(시간)", s.payCap, "제한없음", true) + '</div>' +
+          '<div class="coach-meta">발생 ' + won(used) + ' · 지급 ' + won(paid) + (s.budget ? ' · 잔여 ' + won(Math.max(0, s.budget - used)) + (used > s.budget ? ' <b style="color:#C0392B">⚠ 총예산 초과</b>' : "") : " · 총예산 미설정") + (s.headcount && ps.length > s.headcount ? ' · <b style="color:#C0392B">⚠ 정원(' + s.headcount + '명)보다 현재 인원이 많아요</b>' : "") + '</div>' +
+          '<div class="coach-meta"><b>주 지급 상한</b>은 한도 시간을 사업 기간 전체에 고르게 나눠(한도 시간 ÷ 기간(주)) 한 주에 인정하는 최대 시간이에요. 한 달에 한도를 다 써서 남은 기간이 비는 일을 막아요. 비우면 제한 없음.</div>' +
+          '<div><button class="btn btn-primary btn-sm" data-savebz="' + e(b) + '">저장</button></div></details>'; }).join("") + '</div>';
   }
   // 입력한 값으로 같은 줄의 자동 칸을 다시 계산해요.
   function recalcBizRow(biz) {
@@ -291,7 +295,7 @@
     if (hrs > 0) {
       const amt = Math.round(rate * hrs); q("capAmount").value = amt;
       if (hc > 0) q("budget").value = amt * hc;
-      if (wk > 0) { const mn = Math.floor(hrs / wk); if (mn >= 1) q("minHours").value = Math.min(40, mn); }
+      if (wk > 0) { const mn = Math.floor(hrs / wk); if (mn >= 1) q("minHours").value = Math.min(40, mn); q("payCap").value = Math.round(hrs / wk * 10) / 10; }
     }
   }
   app.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.bz && ["rate", "capHours", "headcount", "weeks", "start", "end"].indexOf(el.dataset.f) >= 0) recalcBizRow(el.dataset.bz); });
@@ -363,7 +367,7 @@
       const biz = sv.dataset.savebz, val = k => { const el = document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'); return el ? el.value : ""; };
       sv.disabled = true;
       try {
-        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours"), headcount: val("headcount"), weeks: val("weeks"), start: val("start"), end: val("end") });
+        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours"), headcount: val("headcount"), weeks: val("weeks"), start: val("start"), end: val("end"), payCap: val("payCap") });
         if (!r.ok) { sv.disabled = false; alert(r.error === "bad_number" ? "숫자를 확인해 주세요(0 이상, 너무 큰 값은 안 돼요)." : r.error === "bad_period" ? "사업 기간의 시작일·종료일을 확인해 주세요(종료일이 시작일보다 빠르면 안 돼요)." : "저장하지 못했어요: " + r.error); return; }
         alert(biz + " 설정을 저장했어요. 이 사업 참여자들의 보상금(지급내역)이 새 설정으로 자동 계산됐어요.");
         await load();

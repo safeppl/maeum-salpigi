@@ -245,6 +245,7 @@
         ? '<div class="banner warn"><b>이번 주 ' + (st.weeklyMinHours - st.thisWeekHours) + '시간 더 필요해요.</b> 주 최소 ' + st.weeklyMinHours + '시간을 채워야 그 주가 보상금 계산에 들어가요.</div>'
         : '<div class="banner"><b>이번 주 목표를 채웠어요.</b> 수고하셨어요!</div>') +
       (st.cappedHours > 0 ? '<div class="banner warn"><b>1인당 한도(' + st.totalCapHours + '시간)에 도달했어요.</b> 한도를 넘긴 ' + st.cappedHours + '시간은 보상금에서 제외돼요.</div>' : "") +
+      (st.thisWeekLimited > 0 ? '<div class="banner warn"><b>이번 주 지급 한도(' + st.weeklyPayCap + '시간)를 ' + st.thisWeekLimited + '시간 넘었어요.</b> 사업 기간 내내 고르게 지급하려고 한 주에 인정하는 시간이 정해져 있어서, 넘은 시간은 이번 주 보상금에 포함되지 않아요.</div>' : "") +
       (st.thisWeekOver > 0 ? '<div class="banner warn"><b>이번 주 계획(' + st.weeklyPlanHours + '시간)보다 ' + st.thisWeekOver + '시간 더 활동했어요.</b> 계획을 넘긴 시간은 보상금에서 제외돼요. 계획이 바뀌었다면 계획서를 수정해 주세요.</div>' : "") +
       kpis(st) + groupCard(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
   }

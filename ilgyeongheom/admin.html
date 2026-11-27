@@ -45,6 +45,11 @@
   .sec-h, .coach-card[id^="sec-"], details.sec-d { scroll-margin-top: 56px; }
   details.sec-d > summary.sec-h, details.coach-card > summary { cursor: pointer; }
   details.sec-d > summary.sec-h { margin: 22px 0 8px; font-weight: 700; }
+  details.bz-d { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-top: 8px; background: var(--surface); }
+  details.bz-d > summary { cursor: pointer; font-size: 14px; }
+  .bz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; margin: 10px 0; }
+  .bz-f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .bz-f input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); width: 100%; box-sizing: border-box; }
   .jump-pad { height: 55vh; }
   .bulkbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 0 0 8px; }
   .bulkbar .form-row { margin: 0; flex-wrap: nowrap; }
@@ -79,6 +84,6 @@
   <div id="main"><div class="app wide" id="app"></div></div>
 </div>
 
-<script src="admin.js?v=1795781158"></script>
+<script src="admin.js?v=1795781759"></script>
 </body>
 </html>
