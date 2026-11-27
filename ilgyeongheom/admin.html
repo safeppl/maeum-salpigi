@@ -38,6 +38,12 @@
   .stat-cards .card b { display: block; font-size: 20px; }
   .stat-cards .card span { font-size: 12px; color: var(--muted); }
   .sec-h { font-size: 15px; margin: 22px 0 8px; }
+  #jumpbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; margin: 10px 0 4px; background: var(--bg); }
+  .jump { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .jump:hover { background: var(--accent-soft); }
+  .jump small { color: var(--accent); font-weight: 700; }
+  .sec-h, .coach-card[id^="sec-"] { scroll-margin-top: 56px; }
+  .jump-pad { height: 55vh; }
   .bulkbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 0 0 8px; }
   .bulkbar .form-row { margin: 0; flex-wrap: nowrap; }
   .bulkbar select { min-width: 110px !important; flex: none; }
@@ -71,6 +77,6 @@
   <div id="main"><div class="app wide" id="app"></div></div>
 </div>
 
-<script src="admin.js?v=1795777413"></script>
+<script src="admin.js?v=1795777691"></script>
 </body>
 </html>

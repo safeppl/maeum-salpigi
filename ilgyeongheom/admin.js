@@ -238,6 +238,17 @@
     const sel = ev.target.closest("select.donePick"); if (!sel) return;
     S[sel.dataset.kind + "Who"] = sel.value; const box = $("done-" + sel.dataset.kind); if (box) box.innerHTML = doneBody(sel.dataset.kind);
   });
+  // 대시보드 맨 위 바로가기: 누르면 그 구역으로 부드럽게 내려가요(스크롤해도 따라다니게 고정).
+  function jumpBar(nTodo, nRoster) {
+    const nAtt = ((S.att && S.att.rows) || []).filter(r => r.code && r.name && !r.confirmed).length;
+    const items = [["sec-todo", "지금 처리할 일", nTodo], ["sec-roster", "참여자 현황", nRoster], ["sec-attend", "집체코칭 출석", nAtt ? nAtt + " 대기" : ""],
+      ["sec-admin", "관리 작업", ""], ["sec-coach", "코치", ""], ["sec-pay", "이번 달 보상금 계산", ""], ["sec-sms", "문자 발송 설정", ""]];
+    return '<div id="jumpbar">' + items.map(x => '<button class="jump" data-jump="' + x[0] + '">' + x[1] + (x[2] !== "" ? ' <small>' + x[2] + '</small>' : "") + '</button>').join("") + '</div>';
+  }
+  app.addEventListener("click", ev => {
+    const j = ev.target.closest("button[data-jump]"); if (!j) return;
+    const t = $(j.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   function dashboard() {
     const d = S.data;
     if (S.code) {
@@ -245,7 +256,6 @@
       if (p) return noteHtml() + '<div class="brand"><b>' + e(p.name) + ' 님</b><span>' + e(d.weekStart) + ' 주 시작 기준</span></div>' + participantRow(p);
     }
     const active = d.participants.filter(p => p.status === "진행중");
-    const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
     const shown = d.participants.filter(matches);
     const done = [].concat.apply([], d.participants.map(p => (p.history || []).filter(h => h.state !== "대기").map(h => ({ h: h, name: p.name })))).sort((a, b) => (b.h.at || b.h.date).localeCompare(a.h.at || a.h.date));
     const okList = done.filter(x => x.h.state === "인증"), rejList = done.filter(x => x.h.state === "반려");
@@ -257,24 +267,24 @@
     const coachOpts = ['<option value="">담당 코치(나중에 정해도 돼요)</option>'].concat(coaches.map(c => '<option value="' + e(c.name) + '">' + e(c.name) + '</option>')).join("");
     return noteHtml() + (d.bizError ? '<div class="banner warn" style="margin-bottom:12px"><b>사업 정보를 불러오지 못해 "미분류"로 보여요.</b> ' + e(d.bizError) + '</div>' : "") +
       '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
-      '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
-      '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
+      jumpBar(todo.length, shown.length) +
+      '<h2 class="sec-h" id="sec-todo">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
       '<details class="plan-block" style="margin-top:8px"><summary>처리된 인증·반려 내역 보기 (인증 ' + okList.length + ' · 반려 ' + rejList.length + ')</summary>' +
         '<div class="split2"><div>' + doneColumn("ok", "✓ 인증 완료", okList) + '</div><div>' + doneColumn("rej", "↩ 반려", rejList) + '</div></div></details>' +
-      '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
-      '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
-      '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
+      '<h2 class="sec-h" id="sec-roster">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
+      '<h2 class="sec-h" id="sec-attend">집체코칭 출석</h2>' + attendSection() +
+      '<h2 class="sec-h" id="sec-admin">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
       '<div class="coach-card"><b>참여자 추가</b><div class="coach-meta">마음살피기 참여번호를 그대로 넣어 주세요. 마음살피기 승인으로 이미 올라온 분은 목록에서 [링크 문자 보내기]를 쓰면 돼요.</div>' +
       '<div class="form-row"><input id="np-code" placeholder="참여번호(예: YI26-003)"><input id="np-name" placeholder="이름"><input id="np-phone" placeholder="연락처(01012345678)"><select id="np-coach">' + coachOpts + '</select></div>' +
       '<div class="form-row"><label><input type="checkbox" id="np-send" checked> 추가하면서 링크 문자 보내기</label><button class="btn btn-primary btn-sm" data-addp="1">참여자 추가</button></div></div>' +
-      '<div class="coach-card" style="margin-top:10px"><b>코치</b>' +
+      '<div class="coach-card" id="sec-coach" style="margin-top:10px"><b>코치</b>' +
       (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(c.link) + '">🔗 링크 복사</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
       '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></div>' +
-      '<div class="coach-card" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
+      '<div class="coach-card" id="sec-pay" style="margin-top:10px"><b>이번 달 보상금 계산</b><div class="coach-meta">인증된 출퇴근 기록으로 이번 달 지급 예정 줄을 만들어요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
       '<div><button class="btn btn-primary btn-sm" data-calc="1">이번 달 보상금 계산하기</button></div></div>' +
-      '<div class="coach-card" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">' + e(S.smsText || "확인 중…") + '</div>' +
+      '<div class="coach-card" id="sec-sms" style="margin-top:10px"><b>문자 발송 설정 (솔라피)</b><div class="coach-meta" id="sms-status">' + e(S.smsText || "확인 중…") + '</div>' +
       '<div class="form-row"><input id="sms-key" placeholder="API Key"><input id="sms-secret" type="password" placeholder="API Secret"><input id="sms-sender" placeholder="발신번호(0222471091)"><button class="btn btn-primary btn-sm" data-smssave="1">저장</button></div></div>' +
-      '<div class="act-msg" id="act-msg"></div>';
+      '<div class="act-msg" id="act-msg"></div><div class="jump-pad"></div>';
   }
   // 잘못 등록한 참여자 삭제 — 기록이 있으면 건수를 보여 주고 한 번 더 확인해요. 지운 내용은 시트 [삭제기록] 탭에 남아요.
   async function deletePart(b) {
