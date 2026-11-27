@@ -133,12 +133,12 @@
       h += '<div class="coach-meta">서명 ' + mine.length + '명' + (ses.status === "마감" ? " · 마감됨" : "") + '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' +
         (ses.status === "마감" ? '<button class="btn btn-ghost btn-sm" data-ses="reopen">다시 열기</button>' :
-          '<button class="btn btn-primary" data-ses="sign">✍ 서명 받기</button>') +
+          '<button class="btn btn-primary" data-ses="qr">📱 QR로 서명 받기</button> <button class="btn btn-ghost btn-sm" data-ses="sign">관리자 기기로 서명</button>') +
         '<button class="btn btn-ghost btn-sm" data-ses="pdf">명부 PDF 저장</button>' +
         (ses.status !== "마감" ? '<button class="btn btn-ghost btn-sm" data-ses="close">마감</button>' : "") + '</div>' +
         (ses.pdf ? '<div class="coach-meta"><a href="' + e(ses.pdf) + '" target="_blank" rel="noopener">저장된 명부 PDF 열기</a></div>' : "") +
         (mine.length ? '<details class="plan-block"><summary>서명한 사람 보기</summary>' + mine.map(r =>
-          '<div class="coach-meta">' + e(r.name) + ' · ' + e(r.at) + ' <button class="btn btn-ghost btn-sm" data-sdel="' + r.rowIndex + '" data-name="' + e(r.name) + '">삭제</button></div>').join("") + '</details>' : "");
+          '<div class="coach-meta">' + e(r.name) + (r.kind === "신규" ? ' <span class="chip info">명단에 없음</span>' : '') + ' · ' + e(r.at) + ' <button class="btn btn-ghost btn-sm" data-sdel="' + r.rowIndex + '" data-name="' + e(r.name) + '">삭제</button></div>').join("") + '</details>' : "");
     }
     h += '<details class="plan-block"' + (ses ? "" : " open") + '><summary>새 회차 만들기</summary>' +
       '<input id="newTitle" placeholder="회차 이름 (예: 집체코칭 1회 (오리엔테이션))" value="집체코칭 1회 (오리엔테이션)" style="width:100%;box-sizing:border-box;margin:6px 0;padding:7px;font:inherit;border:1px solid var(--line);border-radius:8px">' +
@@ -146,6 +146,20 @@
       '<select id="newBiz" style="font:inherit;padding:7px;border-radius:8px;border:1px solid var(--line)">' + bizs.map(b => '<option>' + e(b) + '</option>').join("") + '</select> ' +
       '<button class="btn btn-primary btn-sm" data-ses="create">만들기</button></details></div>';
     return h;
+  }
+  function attendUrl(ses) { return new URL("attend.html", location.href).href.split("?")[0] + "?s=" + encodeURIComponent(ses.id) + "&k=" + encodeURIComponent(ses.key); }
+  function qrScreen() {
+    const ses = curSession(), url = attendUrl(ses);
+    let img = "";
+    try { const q = qrcode(0, "M"); q.addData(url); q.make(); img = q.createImgTag(8, 8); } catch (err) { img = '<p class="muted">QR을 만들지 못했어요. 아래 링크를 직접 보내 주세요.</p>'; }
+    const n = S.att.attendance.filter(r => r.sid === ses.id).length;
+    return '<div style="text-align:center"><div class="brand"><b>' + e(ses.title) + '</b><span>' + e(ses.date) + '</span></div>' +
+      '<p style="font-size:18px;margin:8px 0">참여자는 휴대폰 카메라로 QR을 찍어 서명해 주세요</p>' + img +
+      '<p class="muted" style="margin:10px 0 0">현장 코드 (참여자에게 말로 알려 주세요)</p>' +
+      '<div style="font-size:56px;font-weight:700;letter-spacing:8px">' + e(ses.onsite) + '</div>' +
+      '<p class="muted">지금까지 서명 ' + n + '명</p>' +
+      '<p class="muted" style="word-break:break-all;font-size:12px">' + e(url) + '</p>' +
+      '<div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-ghost" data-ses="qrrefresh">서명 현황 새로고침</button><button class="btn btn-ghost" data-ses="copy">링크 복사</button><button class="btn btn-primary" data-ses="back">← 돌아가기</button></div></div>';
   }
   function signScreen() {
     const ses = curSession();
@@ -212,6 +226,9 @@
     }
     const act = b.dataset.ses;
     if (act === "sign") { S.screen = "sign"; render(); return; }
+    if (act === "qr") { S.screen = "qr"; render(); return; }
+    if (act === "qrrefresh") { b.disabled = true; await loadAtt(); render(); return; }
+    if (act === "copy") { try { await navigator.clipboard.writeText(attendUrl(ses)); b.textContent = "복사됨 ✓"; } catch (err) { prompt("링크를 복사해 주세요", attendUrl(ses)); } return; }
     if (act === "back") { S.screen = "ready"; render(); return; }
     let payload;
     if (b.dataset.sdel) {
@@ -243,6 +260,7 @@
     else if (S.screen === "no-token") body = noTokenScreen();
     else if (S.screen === "error") body = errorScreen();
     else if (S.screen === "sign") body = signScreen();
+    else if (S.screen === "qr") body = qrScreen();
     else if (S.screen === "pad") body = padScreen();
     else body = dashboard();
     app.innerHTML = body;
