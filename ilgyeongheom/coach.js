@@ -59,7 +59,7 @@
     return '<div class="coach-card" id="p-' + e(p.code) + '">' +
       '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b><span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + (p.weeklyMinHours || 6) + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
-      planBlock(p) +
+      planBlock(p) + attendBlock(p) +
       '<div class="adapt-block"><p class="adapt-title">이번 주 일경험 적응도 관찰 (0=전혀 그렇지 않다 ~ 3=매우 그렇다)</p>' +
       S.data.factors.map(f => adaptRow(p, f)).join("") + '</div>' +
       '<textarea placeholder="이번 주 코멘트를 남겨주세요." data-code="' + e(p.code) + '">' + e(p.comment) + '</textarea>' +
@@ -68,27 +68,31 @@
       '</div>';
   }
 
-  // ───── 집체코칭 출석 확인: 참여자가 앱에서 서명하면 여기 올라와요. 참석을 확인하면 명부 PDF가 내려받아져요 ─────
+  // ───── 집체코칭 출석: 참여자별로 서명한 회차를 보고 [확인]하면 그 회차 출석이 인정돼요 ─────
+  const attRows = () => ((S.att && S.att.rows) || []).filter(r => r.code && r.name);
   function attGroups() {
-    const rows = ((S.att && S.att.rows) || []).filter(r => r.code && r.name), map = {};
-    rows.forEach(r => { const k = r.biz + "|" + r.date + "|" + r.round; (map[k] = map[k] || { biz: r.biz, date: r.date, round: r.round, rows: [] }).rows.push(r); });
+    const map = {};
+    attRows().forEach(r => { const k = r.biz + "|" + r.date + "|" + r.round; (map[k] = map[k] || { biz: r.biz, date: r.date, round: r.round, rows: [] }).rows.push(r); });
     return Object.keys(map).map(k => map[k]).sort((x, y) => (y.date + y.round).localeCompare(x.date + x.round));
   }
-  function attendSection() {
-    if (!S.att) return '<div class="coach-card"><b>집체코칭 출석 확인</b><div class="coach-meta">불러오는 중…</div></div>';
-    if (S.att.failed) return '<div class="coach-card"><b>집체코칭 출석 확인</b><div class="coach-meta">불러오지 못했어요. 잠시 뒤 새로고침해 주세요.</div></div>';
-    const gs = attGroups();
-    let h = '<div class="coach-card" style="border:2px solid var(--accent,#5b7)"><div class="coach-top"><b>집체코칭 출석 확인</b></div>' +
-      '<div class="coach-meta">참여자가 앱에서 서명하면 아래에 나타나요. 참석한 분을 체크하고 [참석 확인 · 명부 PDF 다운로드]를 누르면 참석명부가 내려받아져요.</div>';
-    if (!gs.length) h += '<p class="empty">아직 서명한 사람이 없어요.</p>';
-    gs.forEach((g, gi) => {
-      h += '<details class="plan-block"' + (gi === 0 ? " open" : "") + '><summary>' + e(g.date) + ' · ' + e(g.biz) + ' · ' + g.round + '회차' + (g.round === 1 ? " (오리엔테이션)" : "") +
-        ' — 서명 ' + g.rows.length + '명 / 확인 ' + g.rows.filter(r => r.confirmed).length + '명</summary>' +
-        '<div class="coach-meta"><button class="btn btn-ghost btn-sm" data-allchk="' + gi + '">전체 선택</button></div>' +
-        g.rows.map(r => '<div class="coach-meta"><label><input type="checkbox" data-chk="' + gi + '" data-row="' + r.rowIndex + '"' + (r.confirmed ? " checked" : "") + '> <b>' + e(r.name) + '</b></label> <span>' + e(r.at) + ' 서명</span></div>').join("") +
-        '<button class="btn btn-primary btn-sm" style="margin-top:8px" data-asave="' + gi + '">참석 확인 · 명부 PDF 다운로드</button></details>';
-    });
-    return h + '</div>';
+  function attendBlock(p) {
+    if (!S.att) return '<div class="adapt-block"><p class="adapt-title">집체코칭 출석</p><div class="coach-meta">불러오는 중…</div></div>';
+    if (S.att.failed) return '<div class="adapt-block"><p class="adapt-title">집체코칭 출석</p><div class="coach-meta">불러오지 못했어요. 새로고침해 주세요.</div></div>';
+    const mine = attRows().filter(r => r.code === p.code).sort((x, y) => x.round - y.round);
+    const ok = mine.filter(r => r.confirmed).length;
+    return '<div class="adapt-block"><p class="adapt-title">집체코칭 출석 — <b>' + ok + '회 확인</b>' + (mine.length > ok ? ' · 확인 대기 ' + (mine.length - ok) + '회' : '') + '</p>' +
+      (mine.length ? mine.map(r => '<div class="coach-meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span><b>' + r.round + '회차</b>' + (r.round === 1 ? " (오리엔테이션)" : "") + ' · ' + e(r.date) + ' · ' + e(r.at) + ' 서명</span>' +
+        '<span class="chip ' + (r.confirmed ? "ok" : "info") + '">' + (r.confirmed ? "확인됨" : "확인 대기") + '</span>' +
+        '<button class="btn ' + (r.confirmed ? "btn-ghost" : "btn-primary") + ' btn-sm" data-attok="' + r.rowIndex + '">' + (r.confirmed ? "확인 취소" : "출석 확인") + '</button></div>').join("")
+        : '<div class="coach-meta">아직 서명한 회차가 없어요.</div>') + '</div>';
+  }
+  // 확인이 끝난 회차는 날짜·사업별로 모아 참석명부 PDF를 받을 수 있어요.
+  function pdfSection() {
+    const gs = attGroups().filter(g => g.rows.some(r => r.confirmed));
+    if (!gs.length) return "";
+    return '<details class="plan-block" style="margin-bottom:12px"><summary>참석명부 PDF 받기 (' + gs.length + '건)</summary>' +
+      gs.map((g, gi) => '<div class="coach-meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + e(g.date) + ' · ' + e(g.biz) + ' · ' + g.round + '회차 — 확인 ' + g.rows.filter(r => r.confirmed).length + '명 ' +
+        '<button class="btn btn-primary btn-sm" data-pdf="' + e(g.biz) + '|' + e(g.date) + '|' + g.round + '">명부 PDF 다운로드</button></div>').join("") + '</details>';
   }
   async function loadAtt() { try { const r = await api({ action: "coachAttendList", token }); S.att = r.ok ? r : { rows: [], failed: true }; } catch (err) { S.att = { rows: [], failed: true }; } }
   function downloadPdf(name, b64) {
@@ -97,23 +101,19 @@
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   app.addEventListener("click", async ev => {
-    const b = ev.target.closest("button[data-allchk], button[data-asave]");
-    if (!b) return;
-    if (b.dataset.allchk != null) { document.querySelectorAll('input[data-chk="' + b.dataset.allchk + '"]').forEach(c => { c.checked = true; }); return; }
-    const g = attGroups()[Number(b.dataset.asave)];
-    const items = Array.from(document.querySelectorAll('input[data-chk="' + b.dataset.asave + '"]')).map(c => {
-      const r = g.rows.find(x => x.rowIndex === Number(c.dataset.row));
-      return { rowIndex: r.rowIndex, name: r.name, date: r.date, round: r.round, confirmed: c.checked };
-    });
-    if (!items.some(i => i.confirmed)) { alert("참석한 분을 한 명 이상 체크해 주세요."); return; }
-    b.disabled = true; const label = b.textContent; b.textContent = "만드는 중(10~20초)…";
+    const ok = ev.target.closest("button[data-attok]"), pd = ev.target.closest("button[data-pdf]");
+    if (!ok && !pd) return;
+    const btn = ok || pd, label = btn.textContent; btn.disabled = true; btn.textContent = pd ? "만드는 중(10~20초)…" : "처리 중…";
     try {
-      const r1 = await api({ action: "coachAttendConfirm", token, items });
-      if (!r1.ok) { alert(r1.error === "changed" ? "그 사이 기록이 바뀌었어요. 새로고침해 주세요." : "저장하지 못했어요: " + r1.error); }
-      else {
-        const r2 = await api({ action: "coachAttendPdf", token, biz: g.biz, date: g.date, round: g.round });
-        if (!r2.ok) alert("참석 확인은 저장했지만 명부를 만들지 못했어요: " + r2.error);
-        else { if (r2.data) downloadPdf(r2.name, r2.data); alert("참석 " + r2.count + "명을 확인했고 명부 PDF를 내려받았어요."); }
+      if (ok) {
+        const r = attRows().find(x => x.rowIndex === Number(ok.dataset.attok));
+        const res = await api({ action: "coachAttendConfirm", token, items: [{ rowIndex: r.rowIndex, name: r.name, date: r.date, round: r.round, confirmed: !r.confirmed }] });
+        if (!res.ok) alert(res.error === "changed" ? "그 사이 기록이 바뀌었어요. 새로고침해 주세요." : "저장하지 못했어요: " + res.error);
+      } else {
+        const [biz, date, round] = pd.dataset.pdf.split("|");
+        const res = await api({ action: "coachAttendPdf", token, biz, date, round: Number(round) });
+        if (!res.ok) alert("명부를 만들지 못했어요: " + res.error);
+        else if (res.data) downloadPdf(res.name, res.data);
       }
     } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
     await loadAtt(); render();
@@ -133,7 +133,7 @@
     const cur = ps.find(p => p.code === S.code);
     const cards = cur ? sel + participantCard(cur) : (ps.length ? sel : '<p class="empty">담당하고 있는 참여자가 없어요.</p>');
     return '<div class="brand"><b>일경험 코치 화면</b><span>' + e(d.coachName) + ' 코치님</span></div>' +
-      attendSection() +
+      pdfSection() +
       '<p class="muted">이번 주(' + e(d.weekStart) + ' 시작) 기준이에요.</p>' + cards;
   }
 
