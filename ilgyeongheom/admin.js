@@ -277,9 +277,15 @@
         '<div class="coach-meta"><button class="btn btn-ghost btn-sm" data-allchk="' + gi + '">전체 선택</button></div>' +
         g.rows.map(r => '<div class="coach-meta"><label><input type="checkbox" data-chk="' + gi + '" data-row="' + r.rowIndex + '"' + (r.confirmed ? " checked" : "") + '> <b>' + e(r.name) + '</b></label> ' +
           '<span class="muted">' + e(r.at) + ' 서명</span> <button class="btn btn-ghost btn-sm" data-adel="' + r.rowIndex + '" data-name="' + e(r.name) + '" data-date="' + e(r.date) + '" data-round="' + r.round + '">삭제</button></div>').join("") +
-        '<button class="btn btn-primary btn-sm" style="margin-top:8px" data-asave="' + gi + '">참석 확인 저장 · 명부 PDF 만들기</button></details>';
+        '<button class="btn btn-primary btn-sm" style="margin-top:8px" data-asave="' + gi + '">참석 확인 · 명부 PDF 다운로드</button></details>';
     });
     return h + '</div>';
+  }
+  // PDF(base64)를 파일로 내려받아요.
+  function downloadPdf(name, b64) {
+    const bin = atob(b64), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   async function loadAtt() { try { const r = await api({ action: "adminAttendList", token }); S.att = r.ok ? r : { rows: [], failed: true }; } catch (err) { S.att = { rows: [], failed: true }; } }
   app.addEventListener("click", async ev => { if (ev.target.closest("button[data-attretry]")) { S.att = null; render(); await loadAtt(); render(); } });
@@ -306,7 +312,7 @@
         if (!r1.ok) { alert(ATT_ERR[r1.error] || ("저장하지 못했어요: " + r1.error)); await loadAtt(); render(); return; }
         const r2 = await api({ action: "adminAttendPdf", token, biz: g.biz, date: g.date, round: g.round });
         if (!r2.ok) alert("참석 확인은 저장했지만 PDF는 만들지 못했어요: " + (ATT_ERR[r2.error] || r2.error));
-        else alert("저장했어요. (" + r2.count + "명 · 폴더: 일경험/연도/" + r2.folder + ")");
+        else { if (r2.data) downloadPdf(r2.name, r2.data); alert("저장했어요. 명부 PDF를 내려받았고, 드라이브 일경험/연도/" + r2.folder + " 폴더에도 저장됐어요. (" + r2.count + "명)"); }
       } catch (err) { alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
       await loadAtt(); render(); return;
     }
