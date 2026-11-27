@@ -272,10 +272,10 @@
     const bizs = Array.from(new Set((d.bizList || []).concat(Object.keys(set), d.participants.map(p => p.biz).filter(Boolean)))).filter(b => b !== "미분류");
     const inp = (b, k, v, ph, w, auto) => '<input data-bz="' + e(b) + '" data-f="' + k + '" type="number" min="0" value="' + (v || "") + '" placeholder="' + ph + '"' + (auto ? ' title="자동 계산(직접 고쳐도 돼요)"' : "") + ' style="width:' + (w || 110) + 'px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:' + (auto ? "var(--accent-soft)" : "var(--surface)") + '">';
     return '<div class="coach-card" id="sec-bizset" style="margin-top:10px"><b>사업별 보상 설정</b>' +
-      '<div class="coach-meta">사업마다 다른 값을 여기서 정해요. <b>시급 · 1인당 한도 시간 · 참여자 수 · 기간</b>을 넣으면 <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">초록 칸</span>(한도 금액 = 시급 × 한도 시간 · 총예산 = 한도 금액 × 참여자 수 · 주 기준시간 = 한도 시간 ÷ 기간 주수, 소수 내림)이 자동으로 채워지고, 직접 고쳐도 돼요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. 저장하면 이 사업 참여자들의 보상금이 새 설정으로 자동 계산돼요.</div>' +
-      '<div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>사업</th><th>시급(원)</th><th>1인당 한도 시간</th><th>참여자 수</th><th>기간(개월)</th><th>한도 금액(원)</th><th>총예산(원)</th><th>주 기준시간</th><th></th></tr>' +
+      '<div class="coach-meta">사업마다 다른 값을 여기서 정해요. <b>시급 · 1인당 한도 시간 · 참여자 수 · 기간(주)</b>을 넣으면 <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">초록 칸</span>(한도 금액 = 시급 × 한도 시간 · 총예산 = 한도 금액 × 참여자 수 · 주 기준시간 = 한도 시간 ÷ 기간(주), 소수 내림)이 자동으로 채워지고, 직접 고쳐도 돼요. 비워 두면 기본값(시급 ' + won(df.rate) + ', 주 ' + df.minHours + '시간)이고 한도·예산은 제한이 없어요. 저장하면 이 사업 참여자들의 보상금이 새 설정으로 자동 계산돼요.</div>' +
+      '<div style="overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>사업</th><th>시급(원)</th><th>1인당 한도 시간</th><th>참여자 수</th><th>기간(주)</th><th>한도 금액(원)</th><th>총예산(원)</th><th>주 기준시간</th><th></th></tr>' +
       bizs.map(b => { const s = set[b] || {}, ps = d.participants.filter(p => p.biz === b), used = ps.reduce((x, p) => x + (p.accruedAmount || 0), 0), paid = ps.reduce((x, p) => x + (p.paidAmount || 0), 0);
-        return '<tr style="border-top:1px solid var(--line)"><td><b>' + e(b) + '</b><br><span class="muted">현재 ' + ps.length + '명</span></td><td>' + inp(b, "rate", s.rate, String(df.rate), 90) + '</td><td>' + inp(b, "capHours", s.capHours, "제한없음", 90) + '</td><td>' + inp(b, "headcount", s.headcount, "명", 70) + '</td><td>' + inp(b, "months", s.months, "개월", 70) + '</td><td>' + inp(b, "capAmount", s.capAmount, "자동", 110, true) + '</td><td>' + inp(b, "budget", s.budget, "자동", 110, true) + '</td><td>' + inp(b, "minHours", s.minHours, String(df.minHours), 70, true) + '</td>' +
+        return '<tr style="border-top:1px solid var(--line)"><td><b>' + e(b) + '</b><br><span class="muted">현재 ' + ps.length + '명</span></td><td>' + inp(b, "rate", s.rate, String(df.rate), 90) + '</td><td>' + inp(b, "capHours", s.capHours, "제한없음", 90) + '</td><td>' + inp(b, "headcount", s.headcount, "명", 70) + '</td><td>' + inp(b, "weeks", s.weeks, "주", 70) + '</td><td>' + inp(b, "capAmount", s.capAmount, "자동", 110, true) + '</td><td>' + inp(b, "budget", s.budget, "자동", 110, true) + '</td><td>' + inp(b, "minHours", s.minHours, String(df.minHours), 70, true) + '</td>' +
           '<td><button class="btn btn-primary btn-sm" data-savebz="' + e(b) + '">저장</button></td></tr>' +
           '<tr><td colspan="9" class="coach-meta" style="padding-bottom:8px">발생 ' + won(used) + ' · 지급 ' + won(paid) + (s.budget ? ' · 총예산 ' + won(s.budget) + ' 중 <b style="color:' + (used > s.budget ? "#C0392B" : "inherit") + '">' + Math.round(used / s.budget * 100) + '%</b> 사용 · 잔여 ' + won(Math.max(0, s.budget - used)) + (used > s.budget ? " ⚠ 초과" : "") : " · 총예산 미설정") + (s.headcount && ps.length > s.headcount ? ' · <b style="color:#C0392B">⚠ 참여자 수(' + s.headcount + '명)보다 현재 인원이 많아요</b>' : "") + '</td></tr>'; }).join("") +
       '</table></div></div>';
@@ -283,14 +283,14 @@
   // 입력한 값으로 같은 줄의 자동 칸을 다시 계산해요.
   function recalcBizRow(biz) {
     const q = k => document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'), num = k => Number(q(k) && q(k).value) || 0;
-    const df = (S.data && S.data.defaults) || { rate: 12000 }, rate = num("rate") || df.rate, hrs = num("capHours"), hc = num("headcount"), mo = num("months");
+    const df = (S.data && S.data.defaults) || { rate: 12000 }, rate = num("rate") || df.rate, hrs = num("capHours"), hc = num("headcount"), wk = num("weeks");
     if (hrs > 0) {
       const amt = Math.round(rate * hrs); q("capAmount").value = amt;
       if (hc > 0) q("budget").value = amt * hc;
-      if (mo > 0) { const mn = Math.floor(hrs / (mo * 4.345)); if (mn >= 1) q("minHours").value = Math.min(40, mn); }
+      if (wk > 0) { const mn = Math.floor(hrs / wk); if (mn >= 1) q("minHours").value = Math.min(40, mn); }
     }
   }
-  app.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.bz && ["rate", "capHours", "headcount", "months"].indexOf(el.dataset.f) >= 0) recalcBizRow(el.dataset.bz); });
+  app.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.bz && ["rate", "capHours", "headcount", "weeks"].indexOf(el.dataset.f) >= 0) recalcBizRow(el.dataset.bz); });
   function dashboard() {
     const d = S.data;
     if (S.code) {
@@ -359,7 +359,7 @@
       const biz = sv.dataset.savebz, val = k => { const el = document.querySelector('input[data-bz="' + biz + '"][data-f="' + k + '"]'); return el ? el.value : ""; };
       sv.disabled = true;
       try {
-        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours"), headcount: val("headcount"), months: val("months") });
+        const r = await api({ action: "adminSaveBizSettings", token, biz, rate: val("rate"), capHours: val("capHours"), capAmount: val("capAmount"), budget: val("budget"), minHours: val("minHours"), headcount: val("headcount"), weeks: val("weeks") });
         if (!r.ok) { sv.disabled = false; alert(r.error === "bad_number" ? "숫자를 확인해 주세요(0 이상, 너무 큰 값은 안 돼요)." : "저장하지 못했어요: " + r.error); return; }
         alert(biz + " 설정을 저장했어요. 이 사업 참여자들의 보상금(지급내역)이 새 설정으로 자동 계산됐어요.");
         await load();
