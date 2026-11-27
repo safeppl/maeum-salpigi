@@ -130,6 +130,12 @@
   $("dashBtn").addEventListener("click", () => { S.code = null; render(); });
   $("list").addEventListener("click", ev => { const it = ev.target.closest(".p-item"); if (it) { S.code = it.dataset.code; render(); $("main").scrollTop = 0; } });
 
+  function rosterTable(rows) {
+    if (!rows.length) return '<p class="empty">해당하는 참여자가 없어요. (사이드바 상태·사업 필터를 확인해 주세요)</p>';
+    return '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>이번 주</th><th>계획서</th></tr>' +
+      rows.map(p => '<tr style="border-top:1px solid var(--line)"><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td>' + e(p.stage) + '</td><td>' + e(p.coach || "—") + '</td>' +
+        '<td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td></tr>').join("") + '</table></div>';
+  }
   function dashboard() {
     const d = S.data;
     if (S.code) {
@@ -138,6 +144,7 @@
     }
     const active = d.participants.filter(p => p.status === "진행중");
     const stageCards = STAGES.map(s => '<div class="card"><b>' + active.filter(p => p.stage === s).length + '</b><span>' + e(s) + '</span></div>').join("");
+    const shown = d.participants.filter(matches);
     const todo = active.filter(p => p.pendingCount || p.planStatus === "대기");
     const todoRows = todo.length ? todo.map(p => '<div class="coach-meta"><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.code) + ' ' + e(p.name) + '</b></a> — ' +
       (p.planStatus === "대기" ? "계획서 승인 대기 " : "") + (p.pendingCount ? "출퇴근 인증 대기 " + p.pendingCount + "건" : "") + '</div>').join("") : '<p class="empty">지금 처리할 일이 없어요.</p>';
@@ -146,6 +153,7 @@
     return '<div class="brand"><b>일경험 관리자 대시보드</b><span>' + e(d.weekStart) + ' 주 시작 기준 · 진행중 ' + active.length + '명</span></div>' +
       '<div class="stat-cards" style="margin-top:12px">' + stageCards + '</div>' +
       '<h2 class="sec-h">지금 처리할 일 (' + todo.length + '명)</h2><div class="coach-card">' + todoRows + '</div>' +
+      '<h2 class="sec-h">참여자 현황 (' + shown.length + '명 · 사이드바 필터 기준)</h2>' + rosterTable(shown) +
       '<h2 class="sec-h">집체코칭 출석</h2>' + attendSection() +
       '<h2 class="sec-h">관리 작업 (시트 [일경험 관리] 메뉴와 같아요)</h2>' +
       '<div class="coach-card"><b>참여자 추가</b><div class="coach-meta">마음살피기 참여번호를 그대로 넣어 주세요. 마음살피기 승인으로 이미 올라온 분은 목록에서 [링크 문자 보내기]를 쓰면 돼요.</div>' +
