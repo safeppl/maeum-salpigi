@@ -49,7 +49,6 @@
       '<div class="kpi"><small>이번 주 (월~일)</small><b>' + st.thisWeekHours + 'h</b></div>' +
       '<div class="kpi' + (left > 0 ? ' alert' : '') + '"><small>주 최소 ' + st.weeklyMinHours + '시간</small><b>' + (left > 0 ? left + 'h 남음' : '충족') + '</b></div>' +
       '<div class="kpi"><small>이번 달 예상 보상금</small><b style="font-size:18px">' + won(st.monthEstimate) + '</b></div>' +
-      '<div class="kpi"><small>다음 지급일</small><b style="font-size:16px">' + e(st.nextPayDate) + '</b></div>' +
       '</div>';
   }
 
@@ -99,21 +98,21 @@
   }
 
   function recentList(st) {
-    if (!st.recent.length) return '<div class="panel"><h3>최근 체크인</h3><p class="empty">아직 체크인 기록이 없어요.</p></div>';
+    if (!st.recent.length) return '<details class="panel fold"><summary><h3>최근 체크인</h3></summary><p class="empty">아직 체크인 기록이 없어요.</p></details>';
     const rows = st.recent.map((r, i) => '<div class="list-item"><div class="list-top"><b>' + e(r.date) + ' · ' + e(r.type) + ' (' + e(r.hours) + '시간)</b>' +
       '<span class="chip ' + (r.verified ? "ok" : r.rejectReason ? "care" : "muted") + '">' + (r.verified ? "인증됨" : r.rejectReason ? "반려됨" : "인증 대기") + '</span></div>' +
       (r.rejectReason ? '<p class="err">반려 사유: ' + e(r.rejectReason) + '</p><button class="btn btn-primary btn-sm" data-redo="' + i + '">이 날짜 다시 작성하기</button>' : '') +
       '<p class="list-note">' + e(r.location || "—") + (r.mood ? " · " + e(r.mood) : "") + '</p>' +
       '<p class="list-note">' + e(r.note || "—") + '</p></div>').join("");
-    return '<div class="panel"><h3>최근 체크인</h3>' + rows + '</div>';
+    return '<details class="panel fold"><summary><h3>최근 체크인</h3></summary>' + rows + '</details>';
   }
 
   function payList(st) {
-    if (!st.payments.length) return '<div class="panel"><h3>지급 내역</h3><p class="empty">아직 지급 내역이 없어요. 매월 말일에 그 달 보상금이 정리돼요.</p></div>';
+    if (!st.payments.length) return '<details class="panel fold"><summary><h3>지급 내역</h3></summary><p class="empty">아직 지급 내역이 없어요. 매월 말일에 그 달 보상금이 정리돼요.</p></details>';
     const rows = st.payments.map(p => '<div class="list-item"><div class="list-top"><b>' + e(p.month) + ' · ' + e(p.hours) + '시간</b>' +
       '<span class="chip ' + (p.status === "지급완료" ? "ok" : "info") + '">' + e(p.status) + '</span></div>' +
       '<p class="list-note">' + won(p.amount) + ' · 지급일 ' + e(p.payDate) + '</p></div>').join("");
-    return '<div class="panel"><h3>지급 내역</h3>' + rows + '</div>';
+    return '<details class="panel fold"><summary><h3>지급 내역</h3></summary>' + rows + '</details>';
   }
 
   // 계획서의 활동 요일 문자열("월:3,수:3" 또는 옛 형식 "월,수") → { 월: 3, 수: 3 } (시간 없으면 null)

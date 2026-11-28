@@ -54,3 +54,9 @@
 .rem li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; line-height: 1.5; }
 .rem li:last-child { border-bottom: 0; }
 .rem li::before { content: "✓"; flex: none; color: var(--accent); font-weight: 700; }
+.fold summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary h3 { margin: 0; }
+.fold summary::after { content: "눌러서 보기 ▾"; font-size: 13px; color: var(--muted, #888); }
+.fold[open] summary::after { content: "접기 ▴"; }
+.fold[open] summary { margin-bottom: 8px; }
