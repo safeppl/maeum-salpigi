@@ -77,7 +77,7 @@
       '<div class="coach-top"><b>' + e(p.code) + ' · ' + e(p.name) + '</b>' +
       '<span class="chip ' + (p.met ? "ok" : "watch") + '">' + p.thisWeekHours + 'h / ' + p.weeklyMinHours + 'h' + (p.met ? " 충족" : "") + '</span></div>' +
       '<div class="coach-meta">사업: ' + e(p.biz || "미분류") + ' · 코치: ' + e(p.coach || "—") + ' · 단계: ' + e(p.stage) + (p.pendingCount ? ' · 인증 대기 ' + p.pendingCount + '건' : '') + '</div>' +
-      '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b></div>' +
+      '<div class="coach-meta">누적 활동 <b>' + p.cumulativeHours + '시간</b> · 누적 금액 <b>' + won(p.accruedAmount) + '</b> · 누적 지급액 <b>' + won(p.paidAmount) + '</b> · 미지급액 <b style="color:' + (p.unpaidAmount ? "var(--dawn)" : "inherit") + '">' + won(p.unpaidAmount) + '</b> · 지급가능 잔액 <b style="color:' + (p.remainCap != null && p.remainCap < 0 ? "#C0392B" : "inherit") + '">' + (p.remainCap == null ? "한도 미설정" : won(p.remainCap)) + '</b></div>' +
       (p.capHours ? '<div class="coach-meta">1인당 한도 <b>' + p.capHours + '시간(' + won(p.capAmount) + ')</b> 중 인정 ' + Math.round(p.accruedAmount / (p.rate || 12000) * 100) / 100 + '시간 · 시급 ' + won(p.rate) + '</div>' : "") +
       (p.minOverride ? '<div class="banner" style="margin:2px 0"><b>개별 기준 ' + p.minOverride + '시간 적용 중</b> — 사업 기준보다 낮은 시간을 채운 주도 보상 대상이에요.' + (p.minReason ? ' (사유: ' + e(p.minReason) + ')' : "") + '</div>' : "") +
       (p.periodWeeks ? '<div class="coach-meta">완주 현황: 주 기준시간(' + p.weeklyMinHours + '시간) 채운 주 <b>' + p.metWeeks + '주</b> / 사업 기간 ' + p.periodWeeks + '주' + (p.weeklyPayCap ? ' · 주 지급 상한 ' + p.weeklyPayCap + '시간' : "") + '</div>' : "") +
@@ -91,7 +91,7 @@
       '<div class="form-row" style="margin:0"><span class="coach-meta">개별 주 기준시간</span><input id="mh-' + e(p.code) + '" type="number" min="0" step="0.5" value="' + (p.minOverride || "") + '" placeholder="사업 기준(' + e(p.weeklyMinHours) + ')" style="flex:none;width:130px"><input id="mr-' + e(p.code) + '" value="' + e(p.minReason || "") + '" placeholder="사유(필수) 예: 건강 사정으로 주당 활동 제한" style="flex:1;min-width:200px"><button class="btn btn-ghost btn-sm" data-setmin="' + e(p.code) + '">저장</button></div>' +
       '<div class="form-row" style="margin:0"><span class="coach-meta">담당 코치</span><select id="coach-' + e(p.code) + '" style="flex:none;min-width:150px"><option value="__none">(미지정)</option>' +
         ((S.data.coaches || []).map(c => '<option value="' + e(c.name) + '"' + (c.name === p.coach ? " selected" : "") + '>' + e(c.name) + '</option>').join("")) + '</select><button class="btn btn-ghost btn-sm" data-onecoach="' + e(p.code) + '">지정</button></div>' +
-      planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) + payBlock(p) +
+      planChip(p.planStatus) + planBlock(p) + planVsActual(p.plan, p.history) + pendingBlock(p) + historyBlock(p) + ledgerBlock(p) + payBlock(p) +
       '<div><button class="btn btn-ghost btn-sm" data-sendlink="' + e(p.code) + '" data-who="part">참여자 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 이 참여자 삭제</button></div>' +
       '</div>';
   }
@@ -112,6 +112,15 @@
         '<button class="btn btn-ghost btn-sm" data-plan="반려" data-code="' + e(p.code) + '">반려</button></div>';
     }
     return h + '</details>';
+  }
+  // 지급 기록: 실제로 지급한 금액을 입력하면 합계가 누적 지급액이 되고, 1인당 한도 금액에서 뺀 값이 지급가능 잔액이에요.
+  function ledgerBlock(p) {
+    const ps = p.payments || [], today = new Date(), td = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2);
+    const warn = p.remainCap != null && p.remainCap < 0 ? '<div class="banner warn" style="margin:4px 0"><b>1인당 한도 초과 지급</b> — 한도 ' + won(p.capAmount) + '보다 ' + won(-p.remainCap) + ' 더 지급됐어요.</div>' : (ps.length && p.paidAmount > p.accruedAmount ? '<div class="coach-meta" style="color:var(--dawn)">※ 지금까지 발생한 금액(' + won(p.accruedAmount) + ')보다 더 지급한 상태예요(선지급).</div>' : "");
+    return '<details class="plan-block" open><summary>지급 기록 (지급 ' + won(p.paidAmount) + ' · 지급가능 잔액 ' + (p.remainCap == null ? "한도 미설정" : won(p.remainCap)) + ')</summary>' + warn +
+      (ps.length ? ps.map(x => '<div class="coach-meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:6px;margin-top:6px"><b>' + e(x.date) + '</b> ' + won(x.amount) + (x.memo ? ' · ' + e(x.memo) : "") + ' <button class="btn btn-ghost btn-sm" data-delpay="' + x.rowIndex + '" data-code="' + e(p.code) + '" data-date="' + e(x.date) + '" data-amount="' + x.amount + '">삭제</button></div>').join("") : '<div class="coach-meta">입력한 지급 기록이 없어요. (없으면 월별 지급내역의 지급완료 금액을 지급액으로 봐요)</div>') +
+      '<div class="form-row" style="margin-top:8px"><input id="pd-' + e(p.code) + '" type="date" value="' + td + '" style="flex:none;min-width:150px"><input id="pa-' + e(p.code) + '" type="number" min="1" placeholder="지급액(원)" style="flex:none;width:140px"><input id="pm-' + e(p.code) + '" placeholder="메모(예: 11/30 중간 지급)" style="flex:1;min-width:160px"><button class="btn btn-primary btn-sm" data-addpay="' + e(p.code) + '">지급 기록 추가</button></div>' +
+      '<div class="coach-meta">입력한 지급액의 합계가 누적 지급액이 되고, <b>지급가능 잔액 = 1인당 한도 금액 − 누적 지급액</b>이에요. (아래 월별 지급내역의 "지급완료"는 그 달을 다시 계산하지 않게 막는 표시예요)</div></details>';
   }
   // 지급내역(월별): 지급완료 ↔ 예정 표시. 시트 [지급내역]의 지급상태를 그대로 바꿔요.
   function payBlock(p) {
@@ -212,11 +221,11 @@
     return '<div class="bulkbar"><span class="coach-meta"><b>체크한 사람 →</b></span><div class="form-row"><span class="coach-meta">코치</span><select id="bulkCoach" style="flex:none;min-width:150px">' + coachOpts + '</select><button class="btn btn-primary btn-sm" data-bulkcoach="1">일괄 지정</button></div>' +
       '<div class="form-row"><span class="coach-meta">상태</span><select id="bulkPst" style="flex:none;min-width:150px">' + ["진행중", "중단", "완료"].map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkpst="1">일괄 변경</button></div>' +
       '<div class="form-row"><span class="coach-meta">단계</span><select id="bulkStage" style="flex:none;min-width:150px">' + STAGES.map(x => '<option value="' + x + '">' + x + '</option>').join("") + '</select><button class="btn btn-primary btn-sm" data-bulkstage="1">일괄 변경</button></div></div>' +
-      '<div style="overflow:auto;max-height:480px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>계획초과</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th></th></tr>' +
+      '<div style="overflow:auto;max-height:480px"><table class="roster" style="border-collapse:collapse;width:100%;font-size:13px"><tr style="text-align:left;color:var(--muted)"><th><input type="checkbox" id="rosterAll" title="전체 선택"></th><th>참여번호</th><th>이름</th><th>사업</th><th>단계</th><th>코치</th><th>상태</th><th>이번 주</th><th>계획서</th><th>누적시간</th><th>계획초과</th><th>누적금액</th><th>누적지급</th><th>미지급</th><th>지급가능잔액</th><th></th></tr>' +
       rows.map(p => '<tr style="border-top:1px solid var(--line)"><td><input type="checkbox" class="rosterChk" data-code="' + e(p.code) + '"></td><td>' + e(p.code) + '</td><td><a href="#" data-open="' + e(p.code) + '"><b>' + e(p.name) + '</b></a></td><td>' + e(p.biz || "미분류") + '</td><td><select class="stageSel" data-code="' + e(p.code) + '" data-name="' + e(p.name) + '" style="font:inherit;font-size:12.5px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface)">' + STAGES.map(x => '<option value="' + x + '"' + (x === p.stage ? " selected" : "") + '>' + x + '</option>').join("") + '</select></td><td>' + e(p.coach || "—") + '</td>' +
-        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + (p.minOverride ? ' <small style="color:var(--accent)">개별</small>' : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td' + (p.overHours ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.overHours ? p.overHours + 'h' : "—") + '</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
+        '<td>' + e(p.status) + '</td><td>' + p.thisWeekHours + '/' + p.weeklyMinHours + 'h' + (p.met ? " ✓" : "") + (p.minOverride ? ' <small style="color:var(--accent)">개별</small>' : "") + '</td><td>' + e(p.planStatus || "미제출") + '</td><td>' + p.cumulativeHours + 'h</td><td' + (p.overHours ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.overHours ? p.overHours + 'h' : "—") + '</td><td>' + won(p.accruedAmount) + '</td><td>' + won(p.paidAmount) + '</td><td' + (p.unpaidAmount ? ' style="color:var(--dawn);font-weight:700"' : "") + '>' + won(p.unpaidAmount) + '</td><td' + (p.remainCap != null && p.remainCap < 0 ? ' style="color:#C0392B;font-weight:700"' : "") + '>' + (p.remainCap == null ? "—" : won(p.remainCap)) + '</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-copy="' + e(p.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delpart="' + e(p.code) + '" data-name="' + e(p.name) + '">🗑 삭제</button></td></tr>').join("") +
       (function () { const t = k => rows.reduce((s, p) => s + (Number(p[k]) || 0), 0);
-        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + (Math.round(t("overHours") * 100) / 100 || "—") + '</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td></td></tr>'; })() + '</table></div>';
+        return '<tr style="border-top:2px solid var(--line);font-weight:700"><td></td><td colspan="8">합계 (' + rows.length + '명)</td><td>' + Math.round(t("cumulativeHours") * 100) / 100 + 'h</td><td>' + (Math.round(t("overHours") * 100) / 100 || "—") + '</td><td>' + won(t("accruedAmount")) + '</td><td>' + won(t("paidAmount")) + '</td><td>' + won(t("unpaidAmount")) + '</td><td>' + won(rows.reduce((s, p) => s + (p.remainCap != null ? p.remainCap : 0), 0)) + '</td><td></td></tr>'; })() + '</table></div>';
   }
   function noteHtml() {
     const n = S.note; if (!n) return "";
@@ -330,7 +339,7 @@
       '<div class="form-row"><input id="np-code" placeholder="참여번호(예: YI26-003)"><input id="np-name" placeholder="이름"><input id="np-phone" placeholder="연락처(01012345678)"><select id="np-coach">' + coachOpts + '</select></div>' +
       '<div class="form-row"><label><input type="checkbox" id="np-send" checked> 추가하면서 링크 문자 보내기</label><button class="btn btn-primary btn-sm" data-addp="1">참여자 추가</button></div></div>' +
       '<details class="coach-card" id="sec-coach" data-k="coach" style="margin-top:10px"' + (S.open.coach ? " open" : "") + '><summary><b>코치 (' + coaches.length + '명)</b> — 눌러서 펼치기</summary>' +
-      (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(c.link) + '">🔗 링크 복사</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
+      (coaches.length ? coaches.map(c => '<div class="coach-meta">' + e(c.name) + ' · ' + e(c.phone || "—") + ' <span class="muted">(담당 ' + (c.count || 0) + '명)</span> <button class="btn btn-ghost btn-sm" data-sendlink="' + e(c.name) + '" data-who="coach">코치 링크 문자 보내기</button> <button class="btn btn-ghost btn-sm" data-copy="' + e(c.link) + '">🔗 링크 복사</button> <button class="btn btn-ghost btn-sm" data-delcoach="' + e(c.name) + '">🗑 삭제</button></div>').join("") : '<p class="empty">등록된 코치가 없어요.</p>') +
       '<div class="form-row"><input id="nc-name" placeholder="코치 이름"><input id="nc-phone" placeholder="연락처"><label><input type="checkbox" id="nc-send" checked> 문자 보내기</label><button class="btn btn-primary btn-sm" data-addc="1">코치 추가</button></div></details>' +
       bizSetCard() +
       '<div class="coach-card" id="sec-pay" style="margin-top:10px"><b>보상금 계산 (참여자별)</b><div class="coach-meta">출퇴근을 <b>인증할 때, 계획서가 바뀔 때, 사업 설정을 저장할 때마다 자동으로</b> 참여자별 지급 예정 줄이 맞춰져요. 이 버튼은 모든 달을 직접 다시 계산해 볼 때 써요. 이미 지급완료인 줄은 건드리지 않아요.</div>' +
@@ -364,6 +373,43 @@
     const o = ev.target.closest("a[data-open]");
     if (o) { ev.preventDefault(); S.code = o.dataset.open; render(); $("main").scrollTop = 0; return; }
     if (ev.target.id === "rosterAll") { document.querySelectorAll(".rosterChk").forEach(c => { c.checked = ev.target.checked; }); return; }
+    const dc = ev.target.closest("button[data-delcoach]");
+    if (dc) {
+      const name = dc.dataset.delcoach;
+      if (!confirm("코치 '" + name + "'을(를) 목록에서 삭제할까요? 이 코치의 링크도 더 쓸 수 없게 돼요. (지운 내용은 시트 [삭제기록] 탭에 남아요)")) return;
+      dc.disabled = true;
+      try {
+        let r = await api({ action: "adminDeleteCoach", token, name });
+        if (!r.ok && r.error === "has_assigned") {
+          if (!confirm("이 코치가 담당 중인 참여자가 " + r.count + "명 있어요: " + r.names.join(", ") + "\n삭제하면 이 분들의 담당 코치가 비워져요. 그래도 삭제할까요?")) { dc.disabled = false; return; }
+          r = await api({ action: "adminDeleteCoach", token, name, force: true });
+        }
+        if (!r.ok) { dc.disabled = false; alert("삭제하지 못했어요: " + r.error); return; }
+        alert("삭제했어요." + (r.cleared ? " (담당 참여자 " + r.cleared + "명의 코치를 비웠어요. 새로 지정해 주세요.)" : ""));
+        S.open.coach = true; await load();
+      } catch (err) { dc.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
+    const ap = ev.target.closest("button[data-addpay], button[data-delpay]");
+    if (ap) {
+      let payload;
+      if (ap.dataset.addpay) {
+        const code = ap.dataset.addpay, amount = $("pa-" + code).value.trim(), date = $("pd-" + code).value, memo = $("pm-" + code).value.trim();
+        if (!date || !(Number(amount) >= 1)) { alert("지급일과 지급액(1원 이상)을 입력해 주세요."); return; }
+        if (!confirm(date + " 에 " + won(Number(amount)) + " 지급한 것으로 기록할까요?")) return;
+        payload = { action: "adminAddPayment", token, code, date, amount: Number(amount), memo };
+      } else {
+        if (!confirm(ap.dataset.date + " " + won(Number(ap.dataset.amount)) + " 지급 기록을 삭제할까요?")) return;
+        payload = { action: "adminDeletePayment", token, rowIndex: Number(ap.dataset.delpay), code: ap.dataset.code, date: ap.dataset.date, amount: Number(ap.dataset.amount) };
+      }
+      ap.disabled = true;
+      try {
+        const r = await api(payload);
+        if (!r.ok) { ap.disabled = false; alert(r.error === "changed" ? "그 사이 시트가 바뀌었어요. 새로고침해 주세요." : r.error === "bad_amount" ? "지급액은 1원 이상 1억 원 이하로 적어 주세요." : "처리하지 못했어요: " + r.error); return; }
+        await load();
+      } catch (err) { ap.disabled = false; alert("처리하지 못했어요. 잠시 뒤 다시 시도해 주세요."); }
+      return;
+    }
     const sm = ev.target.closest("button[data-setmin]");
     if (sm) {
       const code = sm.dataset.setmin, hours = $("mh-" + code).value.trim(), reason = $("mr-" + code).value.trim();
