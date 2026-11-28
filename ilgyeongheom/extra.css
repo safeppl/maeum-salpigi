@@ -32,3 +32,25 @@
 .adapt-opts label { position: relative; width: 28px; height: 28px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); cursor: pointer; }
 .adapt-opts input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .adapt-opts label:has(input:checked) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* 2026-11-28: 상단 안내 카드(계획서 작성 전 '다섯 가지 약속' / 진행 중 '기억해주세요!') */
+.promise, .rem { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-card); overflow: hidden; }
+.promise summary, .rem summary { cursor: pointer; list-style: none; }
+.promise summary::-webkit-details-marker, .rem summary::-webkit-details-marker { display: none; }
+.promise summary { padding: 16px 18px 12px; background: var(--dawn-grad); color: #3A1A08; display: grid; gap: 4px; }
+.promise summary .eyebrow { color: #7A2B0C; font-size: 12px; }
+.promise summary b { font-family: var(--font-display); font-size: 19px; line-height: 1.35; }
+.promise ol { list-style: none; margin: 0; padding: 6px 18px 10px; }
+.promise li { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--line); align-items: flex-start; }
+.promise li:last-child { border-bottom: 0; }
+.promise .n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; display: grid; place-items: center; margin-top: 1px; }
+.promise .k { font-weight: 600; color: var(--accent); font-size: 14px; }
+.promise .t { font-size: 14.5px; line-height: 1.55; margin-top: 1px; }
+.promise .t em { font-style: normal; font-weight: 500; background: linear-gradient(transparent 62%, var(--dawn-soft) 62%); }
+.rem { border-left: 5px solid var(--dawn); }
+.rem summary { padding: 14px 16px 6px; font-family: var(--font-display); font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.rem summary i { font-style: normal; background: var(--dawn-soft); color: var(--dawn); font-size: 12px; padding: 3px 9px; border-radius: 99px; font-family: var(--font-body); font-weight: 600; }
+.rem ul { list-style: none; margin: 0; padding: 0 16px 8px; }
+.rem li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; line-height: 1.5; }
+.rem li:last-child { border-bottom: 0; }
+.rem li::before { content: "✓"; flex: none; color: var(--accent); font-weight: 700; }

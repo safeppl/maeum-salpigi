@@ -153,6 +153,31 @@
       '</div></div>';
   }
 
+  // 2026-11-28: 계획서 작성 전엔 '다섯 가지 약속', 일경험 진행 중엔 '기억해주세요!'를 화면 위쪽에 보여줘요(접을 수 있어요).
+  function promiseCard() {
+    const items = [
+      ["탐색하기", "남의 눈치나 휩쓸림은 내려놓고, 오롯이 나의 <em>'진짜 욕구'</em> 찾아보기"],
+      ["정하기", "내가 정한 요일과 시간, 2개월간 나만의 <em>건강한 루틴</em>으로 지켜내기"],
+      ["소통하기", "지치거나 방향이 헷갈릴 땐 혼자 참지 말고 <em>코치님과 상의</em>하기"],
+      ["이해하기", "일급이 아닌 <em>'나의 자립과 성장을 돕는 응원금'</em>으로 기억하기"],
+      ["채우기", "스스로 계획한 것을 기준으로 일지를 솔직하게 채워 <em>기분 좋게 완주</em>하기"]
+    ];
+    return '<details class="promise" open><summary><span class="eyebrow">이렇게 함께 해요</span><b>나의 속도로, 나답게 다섯 가지 약속</b></summary><ol>' +
+      items.map((it, i) => '<li><span class="n">' + (i + 1) + '</span><div><div class="k">' + it[0] + '</div><div class="t">' + it[1] + '</div></div></li>').join("") +
+      '</ol></details>';
+  }
+  function remindCard() {
+    const items = [
+      "나의 '진짜 욕구' 찾아나요?",
+      "내가 정한 요일과 시간, 2개월간 나만의 건강한 루틴으로 지켜내고 있나요?",
+      "함께 하고 있다는 것을 기억하고 있나요?",
+      "'나의 자립과 성장을 돕는 프로그램’으로 기억하고 있나요?",
+      "스스로 계획한 것을 기준 기분 좋게 완주하고 있나요?"
+    ];
+    return '<details class="rem" open><summary>기억해주세요! <i>일경험 진행 중</i></summary><ul>' +
+      items.map(t => '<li>' + t + '</li>').join("") + '</ul></details>';
+  }
+
   // 2026-11-27: 처음 화면을 '집단코칭 참여'와 '활동 계획서 작성' 두 갈래로 나눠요. 계획서는 오리엔테이션 출석 뒤에 열려요.
   function groupCard(st) {
     const g = st.group || { done: [], nextRound: 1 };
@@ -169,7 +194,7 @@
     const st = S.status;
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
       '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
-      groupCard(st) + planHomeCard(st) + contacts();
+      promiseCard() + groupCard(st) + planHomeCard(st) + contacts();
   }
   function groupScreen() {
     const st = S.status, g = st.group || { done: [], nextRound: 1 };
@@ -223,6 +248,7 @@
     const st = S.status, plan = st.plan;
     return '<div class="brand"><b>자기주도적 일경험</b><span>안전한더유스</span></div>' +
       '<div class="result-head"><h1>' + e(st.name) + '님</h1><span class="chip info">' + e(st.stage) + '</span></div>' +
+      (st.checkinAllowed ? "" : promiseCard()) +
       (optional ? '<button class="btn btn-ghost btn-sm" id="plan-back">← 돌아가기</button>' : '') +
       (plan && plan.status === "대기" && !S.editPlan
         ? '<div class="banner"><b>계획서를 제출했어요.</b> 코치님이 확인하고 있어요.</div>' + planSummary(plan) +
@@ -247,7 +273,7 @@
       (st.cappedHours > 0 ? '<div class="banner warn"><b>1인당 한도(' + st.totalCapHours + '시간)에 도달했어요.</b> 한도를 넘긴 ' + st.cappedHours + '시간은 보상금에서 제외돼요.</div>' : "") +
       (st.thisWeekLimited > 0 ? '<div class="banner warn"><b>이번 주 지급 한도(' + st.weeklyPayCap + '시간)를 ' + st.thisWeekLimited + '시간 넘었어요.</b> 사업 기간 내내 고르게 지급하려고 한 주에 인정하는 시간이 정해져 있어서, 넘은 시간은 이번 주 보상금에 포함되지 않아요.</div>' : "") +
       (st.thisWeekOver > 0 ? '<div class="banner warn"><b>이번 주 계획(' + st.weeklyPlanHours + '시간)보다 ' + st.thisWeekOver + '시간 더 활동했어요.</b> 계획을 넘긴 시간은 보상금에서 제외돼요. 계획이 바뀌었다면 계획서를 수정해 주세요.</div>' : "") +
-      kpis(st) + groupCard(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
+      remindCard() + kpis(st) + groupCard(st) + planCard(st) + checkinForm() + recentList(st) + payList(st) + contacts();
   }
 
   function render() {
